@@ -1,6 +1,6 @@
 /* Flame in Freefall: 3D ISS lab core.
-   Builds the module, the vents, the flame and the smoke from ./config.js. Used by the
-   React Three Fiber scene (IssLabScene.jsx) and, inlined, by the single-file prototype artifact.
+   Builds the module, the vents, the flame and the smoke from ./config.js. The FireTwin scene uses
+   buildModule (src/scene/FallbackModule.tsx), clampCamera and the camera settings.
    Everything is built in code: no .glb, no Draco decoder, no textures to download. */
 import * as THREE from "three";
 import { AIRFLOW, DETECT_RADIUS, FIRE_POS, MODULE, TIME_SCALE, VENTS } from "./config.js";

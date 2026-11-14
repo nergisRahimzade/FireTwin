@@ -25,20 +25,6 @@ ENDPOINTS = [
     ("GET", f"/results/{SCENARIO_ID}", None, schemas.ResultsOut),
     ("POST", "/chat", {"message": "Why?", "scenario_id": SCENARIO_ID}, schemas.ChatOut),
 ]
-FEATURE_REQUESTS = [
-    (method, path, body) for method, path, body, _ in ENDPOINTS if path != "/health"
-]
-FEATURE_REQUESTS.append(("GET", f"/export/{SCENARIO_ID}.pdf", None))
-# Paths with a real router already: they exist with MOCK_MODE=0 too (see test_app_wiring.py).
-REAL_PATHS = {
-    "/chat",
-    "/meta",
-    "/simulate",
-    "/apply",
-    f"/results/{SCENARIO_ID}",
-    f"/export/{SCENARIO_ID}.pdf",
-}
-UNBUILT_REQUESTS = [request for request in FEATURE_REQUESTS if request[1] not in REAL_PATHS]
 
 
 @pytest.fixture
@@ -264,15 +250,6 @@ def test_openapi_documents_pdf_instead_of_json(client: TestClient) -> None:
     assert set(operation["responses"]["200"]["content"]) == {"application/pdf"}
 
 
-@pytest.mark.parametrize("method,path,body", UNBUILT_REQUESTS)
-def test_unbuilt_routes_are_absent_when_mocks_disabled(
-    monkeypatch: pytest.MonkeyPatch, method, path, body
-) -> None:
-    monkeypatch.setenv("MOCK_MODE", "0")
-    with TestClient(create_app()) as client:
-        assert client.request(method, path, json=body).status_code == 404
-
-
 def test_health_remains_available_when_mocks_are_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MOCK_MODE", "0")
     with TestClient(create_app()) as client:
@@ -285,6 +262,6 @@ def test_mode_is_captured_per_app(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MOCK_MODE", "0")
     real = create_app()
     with TestClient(mocked) as mock_client, TestClient(real) as real_client:
-        # /detect has no real router on this branch, so it only exists in the mocked app.
+        # Both apps have /detect: only mock mode accepts an unknown scenario ID.
         assert mock_client.post("/detect", json={"scenario_id": SCENARIO_ID}).status_code == 200
         assert real_client.post("/detect", json={"scenario_id": SCENARIO_ID}).status_code == 404

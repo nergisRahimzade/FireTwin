@@ -1,0 +1,58 @@
+// FE-03: control panel rules (tested range lookup, shading, outside-range flags, Ignite gating).
+import { describe, expect, it } from "vitest";
+import type { MetaOut } from "../api/types";
+import { DEFAULT_SCENARIO } from "../api/types";
+import { FLOW_DIRS, bandPercent, igniteBlocker, isOutside, outsideKeys, testedRange } from "./controlPanel.logic";
+
+const meta = (ranges: MetaOut["ranges"]): MetaOut => ({
+  materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges, investigations: [],
+});
+
+describe("testedRange", () => {
+  it("reads O2 and pressure by their contract names", () => {
+    const m = meta({ o2_pct: { min: 15, max: 25 }, pressure_kpa: { min: 50, max: 101.3 } });
+    expect(testedRange(m, "o2_pct")).toEqual({ min: 15, max: 25 });
+    expect(testedRange(m, "pressure_kpa")).toEqual({ min: 50, max: 101.3 });
+  });
+  it("accepts the model's flow_cm_s name for the flow slider", () => {
+    expect(testedRange(meta({ flow_cm_s: { min: 0, max: 20 } }), "flow_speed_cm_s")).toEqual({ min: 0, max: 20 });
+  });
+  it("returns null with no API data or a malformed range", () => {
+    expect(testedRange(null, "o2_pct")).toBeNull();
+    expect(testedRange(meta({ o2_pct: { min: 30, max: 20 } }), "o2_pct")).toBeNull();
+  });
+});
+
+describe("outside the tested range", () => {
+  it("flags a Moon-habitat oxygen level the data never reached", () => {
+    const m = meta({ o2_pct: { min: 15, max: 25 } });
+    expect(isOutside(34, testedRange(m, "o2_pct"))).toBe(true);
+    expect(outsideKeys({ ...DEFAULT_SCENARIO, o2_pct: 34 }, m)).toEqual(["o2_pct"]);
+    expect(outsideKeys(DEFAULT_SCENARIO, m)).toEqual([]);
+  });
+  it("never flags anything when ranges are unknown", () => {
+    expect(outsideKeys({ ...DEFAULT_SCENARIO, o2_pct: 40 }, null)).toEqual([]);
+  });
+});
+
+describe("bandPercent", () => {
+  it("places the shaded band on the 10-40 % oxygen slider", () => {
+    expect(bandPercent({ min: 16, max: 25 }, "o2_pct")).toEqual({ left: 20, right: 50 });
+  });
+  it("clips a band that runs past the slider", () => {
+    expect(bandPercent({ min: 5, max: 50 }, "o2_pct")).toEqual({ left: 0, right: 0 });
+  });
+});
+
+describe("Ignite", () => {
+  it("waits for /meta, then for a material, and not while running", () => {
+    expect(igniteBlocker(DEFAULT_SCENARIO, null, false)).toMatch(/API/);
+    expect(igniteBlocker(DEFAULT_SCENARIO, meta({}), false)).toBe("Choose a material.");
+    expect(igniteBlocker({ ...DEFAULT_SCENARIO, material: "Nomex" }, meta({}), false)).toBeNull();
+    expect(igniteBlocker({ ...DEFAULT_SCENARIO, material: "Nomex" }, meta({}), true)).toBe("Running…");
+  });
+  it("offers all six axis directions as unit vectors", () => {
+    expect(FLOW_DIRS).toHaveLength(6);
+    for (const d of FLOW_DIRS) expect(d.dir.reduce((s, v) => s + v * v, 0)).toBe(1);
+  });
+});
