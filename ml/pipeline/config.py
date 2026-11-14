@@ -32,7 +32,9 @@ DETECTORS = [
     {"id": "vent_fwd", "position": (-4.0, 1.5, 0.0)},
     {"id": "vent_mid", "position": (0.0, 2.0, 0.0)},
 ]
-DIFFUSION_M2_S = 0.01  # effective smoke diffusion (illustrative, not from NASA data)
+DIFFUSION_M2_S = 0.01  # plume spreading while fans mix the air (illustrative, not NASA data)
+# Still air mixes far less than fan-driven air, so smoke creeps instead of spreading.
+STILL_AIR_DIFFUSION_M2_S = 0.002  # illustrative, not NASA data
 PLUME_RADIUS_M = 0.3  # smoke plume radius at the source
 DETECT_TIMEOUT_S = 300.0
 NOTE_FANS_OFF = "fans off: smoke cannot reach vents"
