@@ -100,6 +100,8 @@ def train(table_path: Path = config.TESTS_PARQUET, out_dir: Path = config.ARTIFA
         log.warning("COEFFICIENT CHECK FAILED (expected O2 > 0 and ln(u)^2 < 0): %s", check)
 
     boundary = fit_boundary_all(rows)
+    spread_model = physics.fit_spread(rows, variant)
+    n_spread = int(rows["spread_rate_mm_s"].notna().sum())
     metrics = {
         "n_rows": int(len(rows)),
         "n_synthetic_rows": int(rows["is_synthetic"].sum()),
@@ -113,10 +115,12 @@ def train(table_path: Path = config.TESTS_PARQUET, out_dir: Path = config.ARTIFA
         "baseline_plain_logistic": loio["plain"],
         "folds": loio["folds"],
         "coefficient_check": check,
+        "spread_model": {"fitted": spread_model is not None, "n_rows": n_spread},
     }
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
-        joblib.dump({"model": model, "variant": variant}, out_dir / config.MODEL_PATH.name)
+        bundle = {"model": model, "variant": variant, "spread_model": spread_model}
+        joblib.dump(bundle, out_dir / config.MODEL_PATH.name)
         for name, payload in (
             (config.RANGES_PATH.name, feature_ranges(rows)),
             (

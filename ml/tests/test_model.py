@@ -71,3 +71,32 @@ def test_unknown_material_is_extrapolated_not_a_crash() -> None:
     prob, _, trust, extrapolated, _ = model.predict(Scenario("unobtainium", 21.0, 10.0))
     assert extrapolated is True and trust == "weak"
     assert 0.0 <= prob <= 1.0
+
+
+def _spread_rows(n: int) -> pd.DataFrame:
+    rng = np.random.default_rng(0)
+    o2 = rng.uniform(16, 24, n)
+    return pd.DataFrame(
+        {
+            "o2_pct": o2,
+            "pressure_kpa": 101.3,
+            "flow_cm_s": rng.uniform(0, 20, n),
+            "fuel_type": "solid",
+            "spread_rate_mm_s": 0.2 * o2,
+        }
+    )
+
+
+def test_spread_model_is_none_with_fewer_than_15_rows() -> None:
+    assert physics.fit_spread(_spread_rows(config.MIN_ROWS_SPREAD - 1), "physics") is None
+    assert physics.predict_spread(None, _spread_rows(1), "physics") is None
+
+
+def test_spread_model_fits_with_enough_rows() -> None:
+    fitted = physics.fit_spread(_spread_rows(30), "physics")
+    row = _spread_rows(1).assign(o2_pct=20.0)
+    assert physics.predict_spread(fitted, row, "physics") == pytest.approx(4.0, abs=0.2)
+
+
+def test_seed_data_has_no_spread_rates_so_spread_is_none() -> None:
+    assert model.predict(BASE)[1] is None

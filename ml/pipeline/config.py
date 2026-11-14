@@ -16,6 +16,7 @@ U0_CM_S = 0.5  # offset inside ln(u + u0) so zero flow is finite
 FUEL_TYPES = ["solid", "droplet", "gas"]
 BURN_THRESHOLD = 0.5  # state = burning if P(burn) >= this
 MIN_ROWS_OPTION_B = 8  # per fuel_type, to fit the explicit boundary
+MIN_ROWS_SPREAD = 15  # ML-02: fewer rows with a spread rate -> spread is None
 
 # --- Nearest tests + trust (ML-04) ---
 NEAREST_K = 3

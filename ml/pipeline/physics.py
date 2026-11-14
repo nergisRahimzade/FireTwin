@@ -12,7 +12,7 @@ import math
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -89,6 +89,30 @@ def coefficient_check(model: Pipeline, variant: str) -> dict:
         "ln_u_sq_coefficient_negative": None if lnu_sq is None else lnu_sq < 0,
         "u_shape_ok": bool(o2_ok and lnu_sq is not None and lnu_sq < 0),
     }
+
+
+# ---------- ML-02: spread rate (optional) ----------
+
+
+def fit_spread(df: pd.DataFrame, variant: str) -> Pipeline | None:
+    """Linear regression for spread_rate_mm_s on the same features; None if < 15 usable rows."""
+    rows = df.dropna(subset=["spread_rate_mm_s"])
+    if len(rows) < config.MIN_ROWS_SPREAD:
+        return None
+    try:
+        model = make_pipeline(StandardScaler(), LinearRegression())
+        model.fit(make_features(rows, variant), rows["spread_rate_mm_s"].to_numpy(dtype=float))
+        return model
+    except Exception:
+        log.exception("fit_spread failed (variant=%s, n_rows=%d)", variant, len(rows))
+        raise
+
+
+def predict_spread(model: Pipeline | None, df: pd.DataFrame, variant: str) -> float | None:
+    """Predicted spread rate in mm/s (never negative), or None when no spread model exists."""
+    if model is None:
+        return None
+    return max(float(model.predict(make_features(df, variant))[0]), 0.0)
 
 
 # ---------- Option B: explicit boundary ----------

@@ -150,8 +150,22 @@ def burn_probability(scenario: Scenario) -> float:
         raise
 
 
+def spread_rate(scenario: Scenario) -> float | None:
+    """ML-02: predicted spread rate in mm/s; None when too few tests report one."""
+    try:
+        bundle = load_model()
+        row = pd.DataFrame(
+            [{**_scenario_values(scenario), "fuel_type": fuel_type_of(scenario.material)}]
+        )
+        return physics.predict_spread(bundle.get("spread_model"), row, bundle["variant"])
+    except Exception:
+        log.exception("spread_rate failed for scenario=%s", scenario)
+        raise
+
+
 def predict(inputs: Scenario) -> tuple[float, float | None, str, bool, list[TestRef]]:
-    """ML-05: (prob, spread, trust, extrapolated, nearest). Spread is None until ML-02."""
+    """ML-05: (prob, spread, trust, extrapolated, nearest). Spread is None without ML-02 data."""
     extrapolated = is_extrapolated(inputs)
     trust = "weak" if extrapolated else trust_level(inputs)
-    return burn_probability(inputs), None, trust, extrapolated, nearest_tests(inputs)
+    prob = burn_probability(inputs)
+    return prob, spread_rate(inputs), trust, extrapolated, nearest_tests(inputs)

@@ -58,5 +58,9 @@
     "o2_coefficient_positive": true,
     "ln_u_sq_coefficient_negative": true,
     "u_shape_ok": true
+  },
+  "spread_model": {
+    "fitted": false,
+    "n_rows": 0
   }
 }
