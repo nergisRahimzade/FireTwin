@@ -58,6 +58,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
   names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
   `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.
+- **OPS-05**: `tests/test_demo_build.py` keeps the demo artifacts committed, non-empty and loadable,
+  and checks a real prediction works with no API keys. `docs/OPS_NOTES.md` has the `demo-v1`
+  tagging steps (#14 and #16 are merged; not tagged yet).
 - **BE-07**: `GET /meta` from real data. `backend/app/services/meta.py` builds materials (with
   `n_tests`) from the unified table, ranges from the `"overall"` section of `feature_ranges.json`
   (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
@@ -77,3 +80,31 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.
 - **OPS-01 follow-up**: pytest ignores Starlette's "use httpx2" deprecation warning (that exact
   message and class only), so `make test` reports no warnings. The plan's httpx stays.
+
+- **BE-08**: `GET /results/{scenario_id}` serves `store.history(scenario_id)` through `ResultsOut`
+  and maps Nergis's `ScenarioNotFound` to 404. Rebased onto `origin/feature/BE-integration`
+  (PR #9) and mounted only in the real-mode `else:` branch. Updated built/unbuilt route lists,
+  added results and app-wiring regressions, and documented the endpoint. Mock rows already match
+  the real store; no schema, store, frontend or OPS-02 changes.
+
+- **BE-09**: real-mode `GET /export/{scenario_id}.pdf` and ReportLab service render the same saved
+  history as `/results`, with timestamp, inputs, all eight table columns, an explicitly export-time
+  recommended action, source URLs/synthetic labels and the plan's honesty line. Unknown scenarios
+  return 404; missing model/source data is labeled without losing saved rows. Added PDF content,
+  history-parity, pagination, error and mode-isolation tests; updated wiring and contract notes.
+  Mock export and shared schemas remain unchanged; ReportLab was already a runtime dependency.
+- **BE-03 router (gap fix)**: `POST /detect` (`backend/app/routers/detect.py`), mounted in real mode.
+  Runs the detector service at the scenario's current inputs and appends the `"detect"` history row
+  (`detection_s`, plus the current verdict's source ids). Unknown scenario -> 404. No task in the
+  plan created this router; OPS-04's e2e loop stopped here.
+- **BE-04 router (gap fix)**: `POST /suppress` (`backend/app/routers/suppress.py`), mounted in real
+  mode. Runs the suppressor service at the scenario's current inputs; adds no history row (ranking
+  changes nothing). Unknown scenario -> 404.
+- **Real mode, end to end**: `feature/BE-real-mode` combines the real-mode wiring, `/detect`,
+  `/suppress`, `/results` (BE-08) and `/export` (BE-09) on top of `main`. A real-mode server
+  (`MOCK_MODE=0`, no API keys) passes OPS-04's `make e2e` in all 8 steps.
+- **OPS-04**: `tests/e2e_loop.py` walks health -> meta -> simulate -> detect -> suppress -> apply ->
+  results -> export against a running API, checks each response against `schemas.py` and the links
+  between steps, and stops at the first failing step (`make e2e`, `E2E_BASE_URL` for another server).
+  Refuses a mock-mode API unless `--allow-mock`. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the mock app, so CI keeps the checks themselves tested.

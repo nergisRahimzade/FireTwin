@@ -67,8 +67,52 @@ marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|
   is a visual bug, not a wrong verdict.
 - Changing an axis, the fire position or a vent is a contract change (rule 3): update this table,
   BE-03's config and the frontend's `src/lab/config.js` together.
+
+## GET /meta (BE-07): keys inside the free-form fields
+
+| Field | Keys | Source |
+|---|---|---|
+| `materials[]` | `name`, `fuel_type`, `n_tests`, `is_synthetic` | one entry per (material, fuel_type) in `data/processed/tests.parquet` |
+| `ranges` | `{feature: {min, max, is_synthetic}}` for `o2_pct`, `pressure_kpa`, `flow_cm_s` | the `"overall"` section of `ml/artifacts/feature_ranges.json` |
+| `investigations[]` | passed through from `data/processed/investigations.json` (DAT-06) | `[]` until that file exists |
+
 - `ranges` uses training feature names (`flow_cm_s`); the request field is `flow_speed_cm_s`.
   The frontend's `testedRange()` already accepts either name.
 - `is_synthetic` is `true` on a material if any of its tests is synthetic, and on every range if
   any table row is synthetic (the ranges are computed from the table).
 - Missing or malformed table/ranges file -> HTTP 503 whose `detail` says what to run.
+
+## GET /results/{scenario_id} (BE-08)
+
+- In real mode (`MOCK_MODE=0`), returns `ResultsOut` with the requested `scenario_id` and
+  `store.history(scenario_id)`, oldest first. The reader is mounted inside `main.py`'s real-mode
+  `else:` branch alongside the existing real routers.
+- A known scenario with no recorded steps returns 200 with `rows: []`. Nergis's
+  `store.ScenarioNotFound` becomes HTTP 404, including after an in-memory store restart.
+- Saved step names, historical inputs, nulls, probabilities and source-ID strings pass through
+  unchanged. Tuple directions serialize as JSON arrays; no prediction or retrieval is repeated.
+- GET does not append history, update inputs, or otherwise change the scenario.
+- Mock mode retains BE-06's fixed results response. Its rows already match the real store, as
+  checked by `test_results_rows_equal_what_the_real_store_records`; BE-08 changes neither shape.
+  The existing rule 5 question about badging id-only sources remains recorded above.
+
+## GET /export/{scenario_id}.pdf (BE-09)
+
+- Real mode only: an in-memory ReportLab report downloaded as `application/pdf`, with
+  `Content-Disposition: attachment; filename="firetwin-results.pdf"`. Mock mode keeps the fixed
+  BE-06 synthetic PDF. No JSON model changes or frontend type changes.
+- One `store.get()` snapshot supplies current inputs and the same ordered history as `/results`.
+  All eight columns retain saved values, including nulls, zero detection times and source IDs.
+  Unknown scenarios (including after a restart) map `ScenarioNotFound` to 404; known empty
+  histories produce a report saying there are no recorded steps.
+- Includes the title, UTC generation timestamp, current inputs, a paginated results table,
+  recommended action, source list with URLs, and the exact honesty line from the plan.
+- The store does not save suppression rankings. The recommendation is calculated with
+  `suppressor.suppress()` for the snapshot's current inputs, explicitly labeled as calculated at
+  export time, with illustrative ranking assumptions. History outcomes are never re-predicted.
+- Historical sources store only IDs. The PDF resolves those exact IDs in the current unified
+  table and labels synthetic references (`is_synthetic=true`); it also lists the recommendation's
+  sources. Metadata is labeled as resolved at export time. Missing IDs stay visible as unverified,
+  with unknown synthetic status; no URL is invented. No nearest-test replacement of saved IDs.
+- Missing model/data files do not prevent exporting saved rows: the recommendation or source
+  metadata is marked unavailable. PDF rendering performs no network/LLM calls and writes no files.
