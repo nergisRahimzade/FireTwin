@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from app.schemas import ChatOut
 from ml.pipeline import config, stages
 
 log = logging.getLogger(__name__)
@@ -22,6 +23,17 @@ EXPLAIN_PROMPT = PROMPTS_DIR / "explain_v1.txt"
 DEFAULT_MODEL = "gpt-4o-mini"  # override with the OPENAI_MODEL environment variable
 LLM_TIMEOUT_S = 20.0
 EXPLAIN_TOP_K = 3
+DOCS_DIR = config.DOCS_DIR  # data/docs/<investigation>/*.txt (DAT-07)
+CHAT_PROMPT = PROMPTS_DIR / "chat_v1.txt"
+CHAT_TOP_K = 5
+CHAT_MAX_WORDS = 120
+NOTHING_RELEVANT = "I could not find anything about that in the NASA documents I have."
+# Words too common to show that a passage is about the question.
+STOPWORDS = frozenset(
+    "a an and are as at be but by can did do does for from had has have how i if in is it its "
+    "of on or so than that the their them there these they this to was we were what when where "
+    "which who why will with would you your about into over under not no".split()
+)
 
 
 # ---------- shared plumbing ----------
@@ -76,7 +88,7 @@ def retrieve(query: str, k: int) -> list[dict]:
                 "source_url": p.source_url,
                 "snippet": p.snippet,
             }
-            for p in stages.retrieve(query, k=k)
+            for p in stages.retrieve(query, k=k, docs_dir=DOCS_DIR)
         ]
     except Exception:
         log.exception("rag.retrieve failed for query=%r k=%d", query, k)
@@ -157,3 +169,50 @@ def explain(result: Any) -> str:
         log.warning("rag.explain: LLM answer cited none of the given tests; using the template")
         return template
     return " ".join(answer.split())
+
+
+# ---------- ML-07: answer ----------
+
+
+def _keywords(message: str) -> str:
+    """The question without filler words, so "the" alone never makes a passage relevant."""
+    words = "".join(c.lower() if c.isalnum() else " " for c in message).split()
+    return " ".join(w for w in words if len(w) > 2 and w not in STOPWORDS)
+
+
+def _limit_words(text: str, max_words: int = CHAT_MAX_WORDS) -> str:
+    words = text.split()
+    return text.strip() if len(words) <= max_words else " ".join(words[:max_words]) + " ..."
+
+
+def answer(message: str, scenario: Any = None) -> ChatOut:
+    """Answer a chat question from the top 5 retrieved chunks, in at most 120 words.
+
+    `scenario` is an optional summary of the running simulation (dict or model). Citations are
+    the chunks the answer was built from. If nothing relevant is retrieved, it says so.
+    Without a key (or if the LLM call fails) the answer is the text of the top chunk.
+    """
+    try:
+        keywords = _keywords(message)
+        chunks = retrieve(keywords, CHAT_TOP_K) if keywords else []
+    except Exception:
+        log.exception("rag.answer: retrieval failed for message=%r", message)
+        raise
+    if not chunks:
+        return ChatOut(answer=NOTHING_RELEVANT, citations=[])
+
+    top = chunks[0]
+    fallback = _limit_words(f"{top['snippet']} (source: {top['investigation']})")
+    try:
+        payload = {
+            "question": message,
+            "scenario": _plain(scenario),
+            "passages": [{"number": i + 1, **c} for i, c in enumerate(chunks)],
+        }
+        text = _ask_llm(_load_prompt(CHAT_PROMPT), json.dumps(payload, default=str), "answer")
+    except Exception:
+        log.exception("rag.answer: could not build the LLM request for message=%r", message)
+        text = None
+    if not text:
+        return ChatOut(answer=fallback, citations=[top])
+    return ChatOut(answer=_limit_words(" ".join(text.split())), citations=chunks)
