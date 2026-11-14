@@ -29,3 +29,8 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   expand contract tests to cover types, required nullable fields, defaults, enums, and vector shape.
   Second review round: CORS errors name the bad entry and reject host names browsers never send;
   ruff `src` includes the repo root; import rule (`app...`, never `backend.app...`) in OPS_NOTES.
+- **BE-07**: `GET /meta` from real data. `backend/app/services/meta.py` builds materials (with
+  `n_tests`) from the unified table, ranges from the `"overall"` section of `feature_ranges.json`
+  (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
+  `backend/app/routers/meta.py` is a thin router; missing data gives 503. Keys documented in
+  `docs/contract.md`. No change to `schemas.py`. The router is not mounted in `main.py` yet.
