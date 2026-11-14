@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.schemas import ScenarioIn
-from app.services import store
+from app.services import rag, store
 from ml.pipeline import model
 
 
@@ -63,6 +63,7 @@ def test_real_mode_lists_only_built_routes(real_client: TestClient) -> None:
         "/suppress",
         "/results/{scenario_id}",
         "/export/{scenario_id}.pdf",
+        "/chat",
     }
 
 
@@ -108,3 +109,23 @@ def test_real_mode_exports_the_simulated_scenario(real_client: TestClient) -> No
     assert response.content.startswith(b"%PDF-")
     assert scenario_id.encode() in response.content
     assert store.history(scenario_id) == history
+
+
+def test_real_mode_chat_uses_the_simulated_scenario(real_client: TestClient, monkeypatch) -> None:
+    body = {"material": _first_material(), "o2_pct": 21, "flow_speed_cm_s": 10}
+    scenario_id = real_client.post("/simulate", json=body).json()["scenario_id"]
+    seen = []
+    answer = rag.answer
+
+    def capture(message, scenario):
+        seen.append(scenario)
+        return answer(message, scenario)
+
+    monkeypatch.setattr(rag, "answer", capture)
+    # Empty question is a deterministic no-evidence answer, with no docs or network needed.
+    response = real_client.post("/chat", json={"message": "", "scenario_id": scenario_id})
+    assert response.status_code == 200
+    assert response.json() == {"answer": rag.NOTHING_RELEVANT, "citations": []}
+    assert seen[0]["scenario_id"] == scenario_id
+    assert seen[0]["history"] == store.history(scenario_id)
+    assert len(seen[0]["history"]) == 1

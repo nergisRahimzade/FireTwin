@@ -108,3 +108,20 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   between steps, and stops at the first failing step (`make e2e`, `E2E_BASE_URL` for another server).
   Refuses a mock-mode API unless `--allow-mock`. `tests/test_e2e_loop.py` runs the same loop
   in-process against the mock app, so CI keeps the checks themselves tested.
+
+- **BE-10**: real-mode `POST /chat` delegates to the existing `rag.answer()` and passes a detached
+  snapshot of current inputs/history when `scenario_id` is supplied. Unknown IDs return 404;
+  unexpected service errors return a generic 500. Chat leaves scenario state unchanged and keeps
+  the service's citations/offline fallback. Added endpoint and real/mock wiring tests and contract
+  notes. No shared schema, frontend, RAG/store service, prompt or dependency changes.
+
+- **BE-11**: bounded in-memory prediction/explanation cache keyed by all normalized inputs and
+  runtime LLM mode/model settings, with 60-second expiry, LRU eviction, concurrent miss sharing,
+  deep-copy isolation and explicit clearing. With the user's ownership exception, `simulate.py`
+  delegates predict/explain to the cache while preserving fresh scenario IDs and every history
+  write. Added service/concurrency and endpoint regressions. Shared schemas, Nergis's services,
+  ML/data/frontend files and dependencies are unchanged.
+
+- **BE-10 / BE-11 integration**: resolved PR #19 against current main, retaining all real routers,
+  Gemini/OpenAI support and upstream work. Chat and the input cache join the existing real-mode
+  loop; removed obsolete unbuilt-route checks now that all planned endpoints are implemented.

@@ -191,8 +191,8 @@ Add an entry each time an OPS task makes a decision like this.
 - Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
   `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
   starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
-  branch, and BE-09 adds `/export`. `/detect`, `/suppress` and `/chat` remain unbuilt in real
-  mode; mock mode serves all endpoints.
+  branch, BE-09 adds `/export`, and BE-10 adds `/chat`. Merging current `main` also brings
+  the `/detect` and `/suppress` routers; all planned endpoints now exist in both modes.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
 
@@ -328,3 +328,85 @@ git push origin demo-v1                     # tags are pushed separately from br
   on `main` afterwards. If a fix is needed later, tag `demo-v2` instead of moving `demo-v1`.
 - Rehearse on a fresh clone with no `.env`: `make setup` needs the network once (packages), then
   the demo runs offline apart from the optional LLM.
+## BE-10: scenario-aware chat endpoint (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Built on completed BE-09, which includes BE-08 and the `feature/BE-integration` base. The
+  chat router is imported and mounted only inside `main.py`'s existing real-mode `else:` branch.
+  Mock mode retains its fixed fixture; `/chat` moves out of the mock tests' unbuilt-path list.
+- The router calls Nergis's unchanged `rag.answer(message, scenario)` and returns its `ChatOut`.
+  `ChatIn`/`ChatOut`, RAG/store services, ML prompts, frontend types and dependencies are unchanged.
+- Scenario summary = the ID, current inputs and full ordered history from one `store.get()`
+  snapshot. Inputs are dumped into a new JSON-ready dictionary; history is already copied by the
+  store. This lets the answerer compare initial and applied inputs and see saved outcomes, action
+  names, detection times and source IDs, without exposing mutable store references.
+- Omitted/null IDs mean general chat (`scenario=None`). Any supplied ID is looked up, including
+  the empty string: missing IDs become 404 with the store's restart hint, before RAG is invoked.
+  A known scenario with no steps still supplies its inputs and empty history.
+- No chat history row is added (the store's planned steps are simulate/detect/apply). Chat does
+  not change inputs, run a prediction, or include any other scenario in the context.
+- Message text and RAG citations pass through; request validation remains with existing Pydantic
+  models. No new blank-message rejection, truncation or trimming policy is introduced.
+- RAG owns retrieval and offline fallback. Unexpected answerer failures return a generic 500,
+  following `/simulate` and `/apply`; raw exception details stay out of the HTTP response.
+
+**Checks**
+- `test_chat.py` covers general/null IDs, unchanged message/citations, current and historical
+  inputs, empty/unknown scenarios, context isolation, validation, offline retrieval/no evidence,
+  real RAG serialization into a faked LLM call, LLM-failure fallback, generic service errors,
+  OpenAPI and fixed mock behavior. All documents and LLM responses in these tests are synthetic.
+- App wiring includes a real simulate -> chat sequence with the key removed and no documents
+  required; chat receives the newly created scenario without appending history.
+
+
+## BE-11: prediction and explanation cache (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `services/cache.py` memoizes the existing prediction tuple plus `rag.explain()` result using
+  SHA-256 over all normalized `ScenarioIn` fields. This is a plain Python service with no HTTP
+  imports or new dependencies. IDs and state transitions remain outside the cache.
+- Operational bounds: 256 entries per process, least-recently-used eviction, 60-second expiry
+  measured from completion with a monotonic clock. This also bounds how long a successful offline
+  template returned after an LLM failure is reused before retrying the service.
+- Cache keys include online/offline API-key availability and OpenAI/Gemini model environment
+  settings, not raw keys, plus `BURN_THRESHOLD`. Input defaults are normalized so omitted/default
+  flow directions and explicitly supplied floating-point equivalents share an entry.
+- A lock protects cache bookkeeping; a shared future combines concurrent identical misses.
+  Prediction and explanation run outside the lock so different inputs can proceed in parallel.
+  Failures wake waiters and are not cached. Each caller receives a deep copy of the cached data.
+- `clear()` invalidates completed entries and detaches in-flight work using a generation number;
+  older work can finish for existing callers but cannot restore stale entries after clearing.
+- Artifact/data reloading is still owned by the existing ML loaders. Restart the backend after
+  rebuilding those files. No persistent cache, distributed cache, startup hooks or HTTP clearing
+  endpoint is added; mock mode and the chat/results/export/suppression paths are unchanged.
+
+**Ownership exception approved by the user**
+- `routers/simulate.py` belongs to Nergis. The user explicitly approved the prepared integration
+  patch for BE-11 after reviewing the cache and patch: replace direct predict/explain calls in
+  `run_step()` with `cache.predict_and_explain(inputs)` and adjust its import. Scenario creation,
+  the burn threshold, `/apply` input updates and every history write remain in her router.
+  Predictor, RAG, store, suppressor, ML files, schemas and frontend are unchanged.
+
+**Checks**
+- `test_cache.py` covers hits, equivalent defaults, changed fields, result isolation, expiry,
+  eviction, errors, model/mode settings, clearing and concurrent work, using synthetic results.
+- `test_cache_api.py` proves repeated simulations keep distinct IDs, repeated/no-op applications
+  still append history, modified inputs compute separately, applied results can be reused by new
+  scenarios, unknown IDs stay 404 and mock mode never invokes the cache.
+
+
+## BE-10 / BE-11 integration into main (2026-11-14, Ryan)
+
+- PR #19 uses `feature/BE-09`, which now includes merged BE-10 and BE-11 PRs. Main already
+  contains BE-08/BE-09 through the real-mode integration, so this PR adds chat and caching.
+- Resolved the real-router conflict by keeping every router: simulate/apply, meta, detect,
+  suppress, results, export and chat. Kept main's Gemini/OpenAI RAG support and all upstream
+  data, frontend, CI and end-to-end work. Shared schemas are unchanged.
+- All endpoints are now implemented in real mode, so the old mock-only/unbuilt-route list and
+  empty parameterized check are removed. App wiring still checks the complete real route set;
+  per-app mode isolation uses mock acceptance versus real 404 for an unknown scenario ID.
+- Both sides' changelog and operational notes are retained. The backend ownership exception
+  remains limited to BE-11's approved predict/explain call-site change.
+- Validation of the resolved integration: `make test` 492 passed, `make lint` passed (83 files),
+  and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
+  removed. An additional real-mode chat request returned the expected no-evidence response.

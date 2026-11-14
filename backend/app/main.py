@@ -47,9 +47,8 @@ def create_app() -> FastAPI:
         app.include_router(router)
     else:
         # Real routers, imported only here: they load pandas, the model and the data files,
-        # which mock mode must not need. /chat has no real router yet (BE-10), so it returns 404
-        # in this mode until that task lands.
-        from app.routers import detect, export, meta, results, simulate, suppress
+        # which mock mode must not need. All planned feature routes have real routers.
+        from app.routers import chat, detect, export, meta, results, simulate, suppress
 
         app.include_router(simulate.router)  # POST /simulate, POST /apply (BE-02)
         app.include_router(meta.router)  # GET /meta (BE-07)
@@ -57,6 +56,7 @@ def create_app() -> FastAPI:
         app.include_router(suppress.router)  # POST /suppress (BE-04 service)
         app.include_router(results.router)  # GET /results/{scenario_id} (BE-08)
         app.include_router(export.router)  # GET /export/{scenario_id}.pdf (BE-09)
+        app.include_router(chat.router)  # POST /chat (BE-10)
 
     return app
 
