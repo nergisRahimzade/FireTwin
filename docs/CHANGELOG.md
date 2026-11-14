@@ -98,3 +98,8 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **Real mode, end to end**: `feature/BE-real-mode` combines the real-mode wiring, `/detect`,
   `/suppress`, `/results` (BE-08) and `/export` (BE-09) on top of `main`. A real-mode server
   (`MOCK_MODE=0`, no API keys) passes OPS-04's `make e2e` in all 8 steps.
+- **OPS-04**: `tests/e2e_loop.py` walks health -> meta -> simulate -> detect -> suppress -> apply ->
+  results -> export against a running API, checks each response against `schemas.py` and the links
+  between steps, and stops at the first failing step (`make e2e`, `E2E_BASE_URL` for another server).
+  Refuses a mock-mode API unless `--allow-mock`. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the mock app, so CI keeps the checks themselves tested.
