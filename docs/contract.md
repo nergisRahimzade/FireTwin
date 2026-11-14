@@ -25,3 +25,36 @@ Changing them is a contract change (rule 3).
   `detection_s`). Rows have no flag of their own: a row counts as synthetic when any of its
   `sources` has `is_synthetic=true`, and the frontend shows the badge for it (rule 5).
   So every row, detect rows included, carries the sources behind the current verdict.
+
+## 3D coordinate system (frontend and backend)
+
+One frame for the 3D scene (`frontend/src/scene/`) and the detector service (BE-03,
+`ml/pipeline/config.py` `DETECTORS`). Everything is in metres, in the ISS lab module.
+
+| | Value |
+|---|---|
+| Origin `(0, 0, 0)` | Centre of the module: 8.5 m long along x, 4.2 m across |
+| `+x` | **Fore**, the forward airflow direction: `ScenarioIn.flow_dir` defaults to `(1, 0, 0)` |
+| `+y` | Overhead (deck is `-y`) |
+| `+z` | Port (starboard is `-z`) |
+| Fire position | Always `(0, 0, 0)`. `ScenarioIn` has no position field, so the fire starts at the module centre. |
+
+**Vent detectors.** These keep BE-03's x and z, but move each vent onto the overhead rack face. The
+overhead racks fill y ≈ 1.38–1.93 m, so y = 1.5 is inside a rack and y = 2.0 is behind it, and a
+marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|y|, |z| < 1.38).
+
+| id | position `[x, y, z]` | where |
+|---|---|---|
+| `vent_fwd` | `[4.0, 1.37, 0.0]` | overhead, fore end |
+| `vent_aft` | `[-4.0, 1.37, 0.0]` | overhead, aft end |
+| `vent_mid` | `[0.0, 1.37, 0.0]` | overhead, above the fire |
+
+- **Backend follow-up (Nergis, BE-03):** `ml/pipeline/config.py` still has `vent_aft` at
+  `(4.0, 1.5, 0)`, `vent_fwd` at `(-4.0, 1.5, 0)` and `vent_mid` at `(0, 2.0, 0)`. With `+x` = fore,
+  the two end names swap. Updating `DETECTORS` to the table above also changes the
+  `time_to_detect_s` values its tests expect.
+- The frontend draws detectors only where `DetectOut.detectors` puts them (FE-04). The alarm
+  follows `time_to_detect_s` (FE-06), so particles never decide which vent trips. A wrong position
+  is a visual bug, not a wrong verdict.
+- Changing an axis, the fire position or a vent is a contract change (rule 3): update this table,
+  BE-03's config and the frontend's `src/lab/config.js` together.
