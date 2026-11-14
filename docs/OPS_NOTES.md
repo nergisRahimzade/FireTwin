@@ -170,3 +170,32 @@ Add an entry each time an OPS task makes a decision like this.
 - Once CI has run green once, make it required for `main`: Settings -> Rules -> Rulesets ->
   `protect-main` -> **Require status checks to pass** -> add **"Python (ruff + pytest)"** and
   **"Frontend (tsc + vitest + build)"** (GitHub only offers checks it has already seen run).
+
+## OPS-04: end-to-end loop (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `tests/e2e_loop.py` is a script run by `make e2e`, not by `make test`: it needs a server that's
+  already running (`make dev` or `docker compose up`, with `MOCK_MODE=0`). Its name doesn't start
+  with `test_`, so pytest never collects it. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the BE-06 mock app (no server, no network), so CI tests the checks themselves.
+- Beyond "PDF is non-empty", each step is checked against `schemas.py`, and the steps against each
+  other: same `scenario_id` throughout; `/suppress` sorted by score with `recommended` on top;
+  `/apply` inputs equal the recommended action's `new_inputs` (plan BE-02); `/results` contains the
+  apply step; `/export` is `application/pdf` starting with `%PDF`.
+- It ignites "cable insulation" (the demo script's material) when `/meta` offers it, else the first
+  material, at 21 % O2 and 10 cm/s.
+- A mock-mode API fails the run (the plan says "hits the real API"); `--allow-mock` checks wiring only.
+- `make help` now lists targets with digits in their names (`e2e`).
+
+**Status on 2026-11-14, `main` at `897a3a7`:**
+- Mock mode (`--allow-mock`): **PASS**, all 8 steps.
+- Real mode: the server only has `/health`, because `main.py` on `main` doesn't mount the real
+  routers yet, so the loop stops at `meta: HTTP 404`.
+- These pieces exist but haven't reached `main`: the real-mode wiring and the `make dev`
+  `PYTHONPATH` fix (merged into `feature/BE-07` via #9, never into `main`), and the `/detect` +
+  `/suppress` routers (`feature/BE-03-04-routers`). With those, the real loop reaches `/results`
+  (BE-08), then `/export` (BE-09).
+
+**Gap in the plan:** BE-03 and BE-04 build the detector and suppressor *services*, but no task ID
+creates the `/detect` and `/suppress` *routers*. Under the plan's ownership table they fall under
+"rest of `backend/`" (Ryan); they're built on `feature/BE-03-04-routers`.

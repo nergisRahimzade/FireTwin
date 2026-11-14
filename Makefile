@@ -12,11 +12,11 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # Plain `make` shows the help instead of running something by surprise.
 .DEFAULT_GOAL := help
 # These are command names, not files, so make always runs them.
-.PHONY: help setup data train dev test lint
+.PHONY: help setup data train dev test lint e2e
 
 help: ## Show this list of targets
 	@echo "FireTwin make targets:"
-	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-6s %s\n", $$1, $$2}'
+	@grep -E '^[a-z0-9]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-6s %s\n", $$1, $$2}'
 
 setup: ## Install Python deps (uv) and frontend deps (npm, once the frontend exists)
 	uv sync
@@ -64,3 +64,8 @@ test: ## Run all pytest suites (data, ml, backend, repo-wide)
 lint: ## Check Python code: ruff lint rules, then formatting
 	uv run ruff check .
 	uv run ruff format --check .
+
+e2e: ## Run the full demo loop against a running API (OPS-04); E2E_BASE_URL picks the server
+	@# Needs a server already running in real mode (MOCK_MODE=0): `make dev` or `docker compose up`.
+	@# PYTHONPATH=backend lets the script import app.schemas to check every response.
+	PYTHONPATH=backend uv run python tests/e2e_loop.py
