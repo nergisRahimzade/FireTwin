@@ -61,3 +61,89 @@ Add an entry each time an OPS task makes a decision like this.
   isn't empty. Choose "Ignore files and continue".
 - `ml/prompts/` (ML-06/07) appears in the tasks but not in the repo tree, so OPS-01 didn't create it.
 - The CI status check can only be required on `main` after OPS-03 adds the GitHub Actions workflow.
+
+## BE-05: root-config changes and follow-ups (2026-11-14, Ryan)
+
+**Changed in root files**
+- `pyproject.toml`: runtime deps `fastapi` and `uvicorn`. Plain `uvicorn`, not `uvicorn[standard]`,
+  so it reloads with StatReload. pytest `pythonpath = [".", "backend"]`, so tests import `app...`
+  the same way uvicorn does and can import `data.pipeline` and `ml` from the repo root. The root
+  entry was added on review: importlib mode does not add it automatically when `uv run pytest`
+  runs the console entry point. `tests/test_python_imports.py` guards all three layer imports.
+  Ruff `src = [".", "backend"]` makes the import sorter treat `data`, `ml` and `app` as our own
+  code; it does not affect Python module resolution.
+  **Import rule:** always `import app...`, never `backend.app...`. With the repo root on the path,
+  `backend.app.schemas` would load a second, separate copy of the same file, whose classes don't
+  match `app.schemas` (so `isinstance` checks and model comparisons would quietly fail).
+- `scripts/dev.py` (the backend command `make dev` runs): added `--reload-dir backend`. See the
+  OPS-01 `dev` note above.
+
+**Chosen (the plan left it open)**
+- New optional env var `CORS_ORIGINS` (comma-separated; default `http://localhost:5173` and
+  `http://127.0.0.1:5173`). It is left out of `.env.example` because the plan lists only
+  `OPENAI_API_KEY` and `MOCK_MODE`; add it there if Docker or a deployed frontend needs another origin.
+  Review follow-up: every entry must be an explicit HTTP(S) origin with a host and a valid optional
+  port, without credentials, whitespace, wildcards, paths (including a trailing slash), queries,
+  or fragments. `*` and `null` are intentionally unsupported. Invalid entries reject the entire
+  setting at app construction, so a URL typo cannot silently block the frontend. The error names
+  the bad entry. Hosts with an empty part (`a..test`, `localhost.`) or a part starting or ending in
+  `-` are rejected too, because no browser sends them. A valid but wrong origin (e.g. port `5137`
+  instead of `5173`) still can't be detected: check the browser console's CORS error if it happens.
+  Pydantic's existing URL parser normalizes host case, default ports, IDNs, and IPv6 to browser
+  Origin serialization; this avoids rejecting a browser whose configured URL uses another spelling.
+- `/health` lives in `main.py`, not a router, because the plan's router list has no place for it.
+- Contract tests pin all field types, requiredness, defaults, and Literal values, including named
+  inline bodies. Behavioral cases distinguish explicit null from omission, exercise allowed and
+  rejected enum values, and check the three-number direction vector. The API contract itself
+  has not changed, so no frontend type regeneration is needed for this review follow-up.
+
+**Follow-ups**
+- Starlette prints a deprecation warning: using `httpx` with its TestClient is deprecated in
+  favour of `httpx2`. The plan specifies httpx (BE-12), so it stays for now. Revisit before
+  OPS-03 if warnings ever become errors.
+- Proposals only, **not done** (they change contract behaviour, so all three must agree):
+  reject unknown request fields (`extra="forbid"`), and enforce the commented ranges
+  (O2 10–40, flow 0–40) as validation.
+
+## BE-06: fixed synthetic mock API (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `MOCK_MODE` defaults to `1`, matching `.env.example`, so Phase 0 works without local `.env`,
+  keys, data, or artifacts. Only `0` and `1` are accepted after whitespace trimming; an invalid
+  flag fails app construction. Each app captures the setting once.
+- Mock routes live in `backend/app/mocks/router.py`, including `/simulate` and `/apply`, so no real
+  router or service ever contains mock code. `/health` is defined once in `main.py` and exists in
+  both modes. With the flag off, only `/health` is mounted until the real feature tasks land.
+- Every valid request returns a fixed fixture from `mocks/responses.py`. Request bodies are still
+  validated against the existing contract, but valid inputs, action choices, chat text and IDs
+  are ignored. Unknown scenario IDs return the same fixture, and no scenario history is stored.
+  `/apply` always returns the combined fans-off + CO2 example; its explanation labels this.
+  These mocks do not implement the real simulation, scenario store, or suppression logic.
+- All test references set `is_synthetic=true`; flexible dictionaries also include the flag.
+  Numbers without a top-level flag in the fixed contract are labeled through explanations/notes
+  and synthetic source references. All sources use reserved `https://example.com`, not invented
+  NASA citations; trust is weak, extrapolated is true, and action data support is none.
+  Frontend owners must display the plan's synthetic badges when using these fixtures.
+- `/meta.ranges` uses the training feature name `flow_cm_s`; the request field remains
+  `flow_speed_cm_s`, as in the plan. No contract fields or types changed. All 13 named models
+  now appear in OpenAPI through actual request/response annotations; frontend generation is FE-01.
+- PDF export returns a static, valid one-page `mocks/export.pdf` fixture with synthetic labels
+  and the same sample outcomes. It was authored once using the Python standard library, so
+  BE-06 adds no dependency and does not implement the later ReportLab renderer (BE-09).
+  `backend/app/mocks/README.md` documents the frontend handoff and fixed-response limitations.
+- Review follow-up: the mocks' free-form dictionaries are now the de facto contract, so their keys
+  are written down in `docs/contract.md`. `/results` rows use exactly the BE-01 store's shape:
+  the plan's 8 keys, `step` as a number, `None` where a step made no value, and no row-level
+  `is_synthetic` (a row is badged when any of its sources is synthetic). **Ask Nathan** whether
+  FE-09 wants `step` as a number; switching to names would change BE-01 and these mocks together.
+
+**Follow-ups**
+- `MOCK_MODE` defaulting to `1` suits Phase 0, but once real routes exist a deployment that
+  forgets to set it would quietly serve fixtures. OPS-02 should flip the default to `0`, or switch
+  to mock mode only when `ml/artifacts/` is missing (the plan's wording for `docker compose up`).
+- Open with Nergis: how ML-03's per-fuel-type ranges map onto the flat `MetaOut.ranges` shape.
+
+**Checks**
+- `backend/tests/test_mocks.py` covers each endpoint, request validation, the fixed mock loop,
+  synthetic labels, disabled mode, app isolation, PDF structure, and all OpenAPI models.
+  Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.

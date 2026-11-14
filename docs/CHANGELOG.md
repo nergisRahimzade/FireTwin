@@ -16,3 +16,26 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   without calling uv, a deliberate second Ctrl+C force-stops (uv's echoed copy is ignored), `.env`
   reaching only the backend is tested, and the dev tests skip on non-POSIX systems. Reasons and
   lifecycle choices are recorded in `docs/OPS_NOTES.md`.
+- **BE-05** (API contract added): `backend/app/schemas.py` with every model from the plan's
+  "Shared API contract", field for field. Also added named models for the request/response bodies
+  the plan's endpoint table writes inline: `ScenarioRef` `{scenario_id}` (/detect, /suppress),
+  `ApplyIn` `{scenario_id, action}`, `ChatIn` `{message, scenario_id?}`, `HealthOut` `{status}`,
+  plus the alias `ActionName` for the five actions. `TestRef.__test__ = False` only stops pytest
+  mistaking it for a test class; the JSON schema is unchanged. FastAPI app with CORS for the Vite dev
+  server (`backend/app/main.py`, `config.py`) and `GET /health`. Frontend types: nothing to
+  regenerate yet (FE-01 not started).
+  Review fixes (no API contract changes): validate configured CORS origins before app construction;
+  make root data/ML packages importable under pytest, with `tests/test_python_imports.py` as a guard;
+  expand contract tests to cover types, required nullable fields, defaults, enums, and vector shape.
+  Second review round: CORS errors name the bad entry and reject host names browsers never send;
+  ruff `src` includes the repo root; import rule (`app...`, never `backend.app...`) in OPS_NOTES.
+- **BE-06**: `MOCK_MODE` configuration (default `1`, strict `0`/`1` flag) and conditional mock-router
+  mounting. Every planned endpoint returns fixed, explicitly synthetic fixtures from
+  `backend/app/mocks/`, including all five suppression actions, a fixed results table, chat
+  citations, and a valid static PDF. Existing request validation and the shared contract remain
+  unchanged; OpenAPI now exposes all request/response schemas. Added mock/config acceptance tests,
+  frontend handoff notes in `backend/app/mocks/README.md`, and decisions in `docs/OPS_NOTES.md`.
+  With `MOCK_MODE=0`, health remains available and mock feature routes are absent pending real tasks.
+  Review fixes: `/results` mock rows match the BE-01 store shape (plan's 8 keys, numbered steps);
+  keys of all free-form dict fields documented in `docs/contract.md`; `/health` defined once in
+  `main.py`. No change to `schemas.py`.
