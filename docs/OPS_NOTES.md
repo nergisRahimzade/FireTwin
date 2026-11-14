@@ -165,8 +165,9 @@ Add an entry each time an OPS task makes a decision like this.
 **Integration follow-ups (not done here)**
 - Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
   `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
-  starts without pandas, the model or data files. `/detect`, `/suppress`, `/results`, `/chat` and
-  `/export` stay 404 in real mode until their routers land; mock mode serves all of them.
+  starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
+  branch. `/detect`, `/suppress`, `/chat` and `/export` remain unbuilt in real mode; mock mode
+  serves all endpoints.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
 
@@ -185,3 +186,29 @@ Add an entry each time an OPS task makes a decision like this.
 - `make dev` now gives the backend `PYTHONPATH=<repo root>` (the frontend is unchanged), like
   the OPS-02 image's `PYTHONPATH=/app/backend:/app`. Tests hadn't caught the missing path because
   pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.
+
+
+## BE-08: read-only scenario results (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Rebased onto `origin/feature/BE-integration` (PR #9), which already combines BE-06 and Nergis's
+  stack plus BE-07. OPS-02's pending work and running containers remain separate.
+- `backend/app/routers/results.py` serves the copied rows from `store.history(scenario_id)`
+  in the existing `ResultsOut` model. Unknown IDs map Nergis's `store.ScenarioNotFound` to HTTP 404
+  with its restart hint; a known empty history returns 200 with an empty list.
+- `main.py` imports and mounts the reader only in the existing real-mode `else:` branch
+  (`MOCK_MODE=0`). Mock mode keeps its fixed router, with no duplicate real results route.
+  Results is removed from the mock tests' unbuilt-route list and added to real app wiring checks.
+- Stored step names, source-ID strings, snapshots and nulls pass through unchanged; GET neither
+  recalculates outcomes nor changes history/current inputs. No store, schema or frontend changes.
+- Mock results already match this shape through the integration branch's
+  `test_results_rows_equal_what_the_real_store_records` regression. The earlier BE-08 notes about
+  numbered mock steps/full references were stale and are removed. The existing id-only synthetic
+  badge question remains with the store/frontend owners, without introducing unapproved row keys.
+
+**Checks**
+- `backend/tests/test_results.py` explicitly selects real mode and covers ordered snapshots,
+  JSON arrays, nulls, source IDs/probabilities, empty/unknown scenarios, isolation, read-only
+  behavior, new rows after earlier reads, restart loss and OpenAPI.
+- `test_app_wiring.py` checks a real simulate/apply/results sequence against the stored history,
+  while a mock request for a real scenario still returns the fixed synthetic fixture.

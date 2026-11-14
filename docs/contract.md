@@ -42,3 +42,17 @@ Changing them is a contract change (rule 3).
 - `is_synthetic` is `true` on a material if any of its tests is synthetic, and on every range if
   any table row is synthetic (the ranges are computed from the table).
 - Missing or malformed table/ranges file -> HTTP 503 whose `detail` says what to run.
+
+## GET /results/{scenario_id} (BE-08)
+
+- In real mode (`MOCK_MODE=0`), returns `ResultsOut` with the requested `scenario_id` and
+  `store.history(scenario_id)`, oldest first. The reader is mounted inside `main.py`'s real-mode
+  `else:` branch alongside the existing real routers.
+- A known scenario with no recorded steps returns 200 with `rows: []`. Nergis's
+  `store.ScenarioNotFound` becomes HTTP 404, including after an in-memory store restart.
+- Saved step names, historical inputs, nulls, probabilities and source-ID strings pass through
+  unchanged. Tuple directions serialize as JSON arrays; no prediction or retrieval is repeated.
+- GET does not append history, update inputs, or otherwise change the scenario.
+- Mock mode retains BE-06's fixed results response. Its rows already match the real store, as
+  checked by `test_results_rows_equal_what_the_real_store_records`; BE-08 changes neither shape.
+  The existing rule 5 question about badging id-only sources remains recorded above.

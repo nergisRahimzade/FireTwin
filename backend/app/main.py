@@ -48,11 +48,12 @@ def create_app() -> FastAPI:
     else:
         # Real routers, imported only here: they load pandas, the model and the data files,
         # which mock mode must not need. Endpoints without a real router yet (/detect,
-        # /suppress, /results, /chat, /export) return 404 in this mode until their tasks land.
-        from app.routers import meta, simulate
+        # /suppress, /chat, /export) return 404 in this mode until their tasks land.
+        from app.routers import meta, results, simulate
 
         app.include_router(simulate.router)  # POST /simulate, POST /apply (BE-02)
         app.include_router(meta.router)  # GET /meta (BE-07)
+        app.include_router(results.router)  # GET /results/{scenario_id} (BE-08)
 
     return app
 

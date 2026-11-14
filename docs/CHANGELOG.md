@@ -56,3 +56,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   `--app-dir backend` exposes only `backend/`, but `/simulate` and `/meta` import `ml.pipeline`
   from the repo root. `scripts/dev.py` now puts the repo root first on the backend's
   `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.
+
+- **BE-08**: `GET /results/{scenario_id}` serves `store.history(scenario_id)` through `ResultsOut`
+  and maps Nergis's `ScenarioNotFound` to 404. Rebased onto `origin/feature/BE-integration`
+  (PR #9) and mounted only in the real-mode `else:` branch. Updated built/unbuilt route lists,
+  added results and app-wiring regressions, and documented the endpoint. Mock rows already match
+  the real store; no schema, store, frontend or OPS-02 changes.
