@@ -77,6 +77,35 @@ ATM_TO_KPA = 101.325
 PSI_TO_KPA = 6.894757
 
 
+# DAT-05 unit rules: pressure -> kPa, airflow -> cm/s.
+# (Mole fraction x 100 -> O2 % happens in clean_flex.py.)
+PRESSURE_TO_KPA = {"kpa": 1.0, "psi": PSI_TO_KPA, "mmhg": MMHG_TO_KPA, "atm": ATM_TO_KPA}
+FLOW_TO_CM_S = {"cm/s": 1.0, "mm/s": 0.1, "m/s": 100.0}
+
+
+def to_kpa(value: float | None, unit: str) -> float | None:
+    """Pressure in kPa from psi, mmHg, atm or kPa. Raises on an unknown unit."""
+    factor = PRESSURE_TO_KPA.get(unit.strip().lower())
+    if factor is None:
+        raise ValueError(f"unknown pressure unit {unit!r}")
+    return None if value is None else value * factor
+
+
+def to_cm_s(value: float | None, unit: str) -> float | None:
+    """Airflow in cm/s from cm/s, mm/s or m/s. Raises on an unknown unit."""
+    factor = FLOW_TO_CM_S.get(unit.strip().lower())
+    if factor is None:
+        raise ValueError(f"unknown flow unit {unit!r}")
+    return None if value is None else value * factor
+
+
+def flow_cm_s(text: object) -> float | None:
+    """'20 cm/s' -> 20.0, '5 mm/s' -> 0.5. A bare number is taken as cm/s."""
+    value = first_number(text)
+    unit = re.search(r"(cm/s|mm/s|m/s)", str(text or "").lower())
+    return to_cm_s(value, unit.group(1) if unit else "cm/s")
+
+
 def numbers_in(text: object) -> list[float]:
     """Every number written in a cell: '~ 21.5' -> [21.5], '22.1 to 22.0' -> [22.1, 22.0].
     A leading dot counts ('.5' -> 0.5), as the PSI tables often drop the zero."""
