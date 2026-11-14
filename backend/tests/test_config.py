@@ -93,3 +93,50 @@ def test_origins_match_browser_serialization(
 ) -> None:
     monkeypatch.setenv("CORS_ORIGINS", configured)
     assert get_settings().cors_origins == (expected,)
+
+
+def test_mock_mode_defaults_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MOCK_MODE", raising=False)
+    assert get_settings().mock_mode is True
+
+
+@pytest.mark.parametrize("raw,expected", [("1", True), ("0", False), (" 1 ", True), (" 0 ", False)])
+def test_mock_mode_reads_flag(monkeypatch: pytest.MonkeyPatch, raw: str, expected: bool) -> None:
+    monkeypatch.setenv("MOCK_MODE", raw)
+    assert get_settings().mock_mode is expected
+
+
+@pytest.mark.parametrize("raw", ["", "true", "false", "yes", "2", "-1"])
+def test_invalid_mock_mode_raises(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
+    monkeypatch.setenv("MOCK_MODE", raw)
+    with pytest.raises(ValueError, match="MOCK_MODE"):
+        get_settings()
+
+
+def test_openai_key_is_read_and_trimmed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", " sk-test-not-real ")
+    assert get_settings().openai_api_key == "sk-test-not-real"
+
+
+@pytest.mark.parametrize("raw", [None, "", "   "])
+def test_missing_or_blank_openai_key_is_none(monkeypatch: pytest.MonkeyPatch, raw) -> None:
+    if raw is None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPENAI_API_KEY", raw)
+    assert get_settings().openai_api_key is None
+
+
+def test_openai_key_never_appears_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-real")
+    assert "sk-test-not-real" not in repr(get_settings())
+
+
+def test_openai_model_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    assert get_settings().openai_model == "gpt-4o-mini"
+
+
+def test_openai_model_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
+    assert get_settings().openai_model == "gpt-test"

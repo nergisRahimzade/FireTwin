@@ -1,0 +1,58 @@
+"""Which routers main.py mounts in each mode (MOCK_MODE=0 real, MOCK_MODE=1 mocks)."""
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import create_app
+from ml.pipeline import model
+
+
+@pytest.fixture
+def real_client(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MOCK_MODE", "0")
+    # No key: rag.explain uses its offline template, so no network call happens.
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(create_app()) as client:
+        yield client
+
+
+@pytest.fixture
+def mock_client(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("MOCK_MODE", "1")
+    with TestClient(create_app()) as client:
+        yield client
+
+
+def _first_material() -> str:
+    return sorted(model.load_table()["material"].dropna())[0]
+
+
+def test_real_mode_serves_meta_from_the_table(real_client: TestClient) -> None:
+    names = {m["name"] for m in real_client.get("/meta").json()["materials"]}
+    assert names == set(model.load_table()["material"].dropna())
+
+
+def test_real_mode_simulate_runs_the_predictor(real_client: TestClient) -> None:
+    body = {"material": _first_material(), "o2_pct": 21, "flow_speed_cm_s": 10}
+    response = real_client.post("/simulate", json=body)
+    assert response.status_code == 200
+    # Real ids come from the store (32 hex characters), not the mock's fixed id.
+    assert response.json()["scenario_id"] != "synthetic-scenario-001"
+
+
+def test_real_mode_apply_reuses_the_scenario(real_client: TestClient) -> None:
+    body = {"material": _first_material(), "o2_pct": 21, "flow_speed_cm_s": 10}
+    scenario_id = real_client.post("/simulate", json=body).json()["scenario_id"]
+    response = real_client.post("/apply", json={"scenario_id": scenario_id, "action": "fans_off"})
+    assert response.status_code == 200
+    assert response.json()["scenario_id"] == scenario_id
+
+
+def test_real_mode_lists_only_built_routes(real_client: TestClient) -> None:
+    paths = set(real_client.get("/openapi.json").json()["paths"])
+    assert paths == {"/health", "/simulate", "/apply", "/meta"}
+
+
+def test_mock_mode_meta_is_the_fixture(mock_client: TestClient) -> None:
+    materials = mock_client.get("/meta").json()["materials"]
+    assert [m["name"] for m in materials] == ["Synthetic cotton"]

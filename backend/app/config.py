@@ -1,17 +1,19 @@
 """Backend settings read from environment variables (BE-05).
 
-Later tasks add their own settings here (MOCK_MODE in BE-06; detector and trust thresholds in
-BE-03/ML-04). Read them with get_settings(); never call os.getenv() elsewhere in the backend.
+Later tasks add detector and trust thresholds here (BE-03/ML-04). Read settings with
+get_settings(); never call os.getenv() elsewhere in the backend.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from pydantic import AnyHttpUrl
 
 # The Vite dev server (FE-01) runs on port 5173; browsers may use either host name for it.
 DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+# Same default rag.py uses today, so switching it to get_settings() changes nothing.
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 
 def _parse_origin(origin: str) -> str:
@@ -56,6 +58,11 @@ def _host_labels_ok(host: str) -> bool:
 class Settings:
     # Web pages allowed to call the API from a browser (CORS). A tuple, so it can't be edited.
     cors_origins: tuple[str, ...]
+    mock_mode: bool
+    # None = no key: rag.py answers with its offline template instead of calling the LLM.
+    # repr=False: printing or logging the settings never shows the key.
+    openai_api_key: str | None = field(default=None, repr=False)
+    openai_model: str = DEFAULT_OPENAI_MODEL
 
 
 def get_settings() -> Settings:
@@ -69,4 +76,16 @@ def get_settings() -> Settings:
     # Fail loudly: an empty list would silently block the frontend from calling the API.
     if not origins:
         raise ValueError("CORS_ORIGINS must list at least one origin")
-    return Settings(cors_origins=tuple(_parse_origin(origin) for origin in origins))
+    # Phase 0 works without a .env or model artifacts, matching .env.example.
+    mock_mode = os.getenv("MOCK_MODE", "1").strip()
+    if mock_mode not in {"0", "1"}:
+        raise ValueError("MOCK_MODE must be '0' or '1'")
+    # Blank counts as "not set", so `OPENAI_API_KEY=` from .env.example means offline mode.
+    openai_api_key = os.getenv("OPENAI_API_KEY", "").strip() or None
+    openai_model = os.getenv("OPENAI_MODEL", "").strip() or DEFAULT_OPENAI_MODEL
+    return Settings(
+        cors_origins=tuple(_parse_origin(origin) for origin in origins),
+        mock_mode=mock_mode == "1",
+        openai_api_key=openai_api_key,
+        openai_model=openai_model,
+    )
