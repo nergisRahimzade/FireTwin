@@ -58,3 +58,8 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
   names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
   `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.
+- **OPS-04**: `tests/e2e_loop.py` walks health -> meta -> simulate -> detect -> suppress -> apply ->
+  results -> export against a running API, checks each response against `schemas.py` and the links
+  between steps, and stops at the first failing step (`make e2e`, `E2E_BASE_URL` for another server).
+  Refuses a mock-mode API unless `--allow-mock`. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the mock app, so CI keeps the checks themselves tested.
