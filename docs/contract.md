@@ -78,3 +78,22 @@ Changing them is a contract change (rule 3).
   with unknown synthetic status; no URL is invented. No nearest-test replacement of saved IDs.
 - Missing model/data files do not prevent exporting saved rows: the recommendation or source
   metadata is marked unavailable. PDF rendering performs no network/LLM calls and writes no files.
+
+
+## POST /chat (BE-10)
+
+- In real mode (`MOCK_MODE=0`), validates the existing `ChatIn` body and returns the existing
+  `ChatOut` from `rag.answer(message, scenario)`. Message text and citation dictionaries pass
+  through unchanged; there are no new length limits, trimming rules or contract fields.
+- An omitted or explicitly null `scenario_id` sends `scenario=None` for a general question.
+  A supplied ID is resolved before retrieval. Unknown IDs (including an empty string or an ID
+  lost after restart) map `store.ScenarioNotFound` to 404.
+- Scenario context has `scenario_id`, current `inputs` serialized from `ScenarioIn`, and the
+  ordered `history` from one `store.get()` snapshot. This retains historical inputs, verdicts,
+  actions, detection times and source IDs for comparison; only the requested scenario is included.
+  Inputs and history are detached from store objects before handing them to the answerer.
+- Chat never creates scenarios, applies actions, re-predicts outcomes, or appends history.
+- Retrieval, citations, answer length, no-evidence answers and offline/LLM-failure fallback belong
+  to the existing RAG service. Unexpected service failures are logged and return a generic 500
+  (`chat failed; see server log`), without exposing exception text to the client.
+- Mock mode retains BE-06's fixed synthetic chat response and ignores supplied scenario IDs.
