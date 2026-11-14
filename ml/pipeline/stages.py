@@ -96,7 +96,7 @@ def candidate_sequences() -> list[tuple[str, ...]]:
     return sequences
 
 
-def _delay_penalty(base: Detection, after: Detection) -> float:
+def delay_penalty(base: Detection, after: Detection) -> float:
     """0-1: how much later smoke is detected after the plan (1 = never detected)."""
     if not base.detected:
         return 0.0  # it was already undetectable; the plan did not make it worse
@@ -130,7 +130,7 @@ def plan(scenario: Scenario, evidence: Evidence, tool_log: ToolLog | None = None
             for action in steps:
                 safe *= 1.0 - config.CREW_RISK[action]
             crew_risk = 1.0 - safe
-            penalty = _delay_penalty(base_detection, after)
+            penalty = delay_penalty(base_detection, after)
             score = (
                 extinction
                 - crew_risk * config.CREW_RISK_WEIGHT
