@@ -97,3 +97,26 @@ Changing them is a contract change (rule 3).
   to the existing RAG service. Unexpected service failures are logged and return a generic 500
   (`chat failed; see server log`), without exposing exception text to the client.
 - Mock mode retains BE-06's fixed synthetic chat response and ignores supplied scenario IDs.
+
+
+## Prediction/explanation caching (BE-11)
+
+- Real `/simulate` and `/apply` reuse the prediction tuple and grounded explanation for identical
+  `ScenarioIn` values. A SHA-256 key includes every input field; omitted defaults and explicit
+  equivalent defaults normalize to the same key. Direction, pressure, module and material are
+  included even when the current predictor uses only a subset of them.
+- The process-local cache holds at most 256 entries, evicts least-recently-used entries and
+  expires results 60 seconds after computation finishes. Concurrent identical requests share
+  one computation; different inputs may compute concurrently. Exceptions are not cached.
+- Keys also distinguish API-key availability (never the key values), OpenAI/Gemini model settings
+  and the burn threshold. A change between online/offline settings misses the previous entry.
+  A template returned by RAG after an LLM failure counts as a successful result and can be reused
+  until expiry; the router does not invent an alternative answer or citation.
+- Every caller receives detached source objects. Neither scenario IDs nor store/history writes
+  are cached: every `/simulate` still creates a scenario, and every `/apply` still resolves its
+  ID, updates current inputs and appends a history row, including on a cache hit.
+- Mock mode stays independent of the cache. `/chat`, `/results`, export and suppression ranking
+  are not wrapped by this simulation cache. Shared request/response schemas are unchanged.
+- `cache.clear()` invalidates entries and prevents already-running older work from refilling the
+  cache. It does not reload the ML loaders: restart the backend after rebuilding model/data
+  artifacts. The cache is not shared across worker processes and disappears on restart.

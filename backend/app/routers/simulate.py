@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.schemas import ApplyIn, ScenarioIn, SimulateOut
-from app.services import predictor, rag, store, suppressor
+from app.services import cache, store, suppressor
 from ml.pipeline import config
 
 log = logging.getLogger(__name__)
@@ -22,18 +22,8 @@ router = APIRouter(tags=["simulation"])
 
 def run_step(scenario_id: str, inputs: ScenarioIn, step: str, action: str | None) -> SimulateOut:
     """Predict, explain, and record one history row. Shared by /simulate and /apply."""
-    prob, spread, trust, extrapolated, nearest = predictor.predict(inputs)
+    (prob, spread, trust, extrapolated, nearest), explanation = cache.predict_and_explain(inputs)
     state = "burning" if prob >= config.BURN_THRESHOLD else "extinguished"
-    explanation = rag.explain(
-        {
-            "inputs": inputs,
-            "state": state,
-            "burn_probability": prob,
-            "trust": trust,
-            "extrapolated": extrapolated,
-            "nearest_tests": nearest,
-        }
-    )
     store.append(
         scenario_id,
         step,

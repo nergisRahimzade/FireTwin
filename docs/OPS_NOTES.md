@@ -278,3 +278,39 @@ Add an entry each time an OPS task makes a decision like this.
   OpenAPI and fixed mock behavior. All documents and LLM responses in these tests are synthetic.
 - App wiring includes a real simulate -> chat sequence with the key removed and no documents
   required; chat receives the newly created scenario without appending history.
+
+
+## BE-11: prediction and explanation cache (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `services/cache.py` memoizes the existing prediction tuple plus `rag.explain()` result using
+  SHA-256 over all normalized `ScenarioIn` fields. This is a plain Python service with no HTTP
+  imports or new dependencies. IDs and state transitions remain outside the cache.
+- Operational bounds: 256 entries per process, least-recently-used eviction, 60-second expiry
+  measured from completion with a monotonic clock. This also bounds how long a successful offline
+  template returned after an LLM failure is reused before retrying the service.
+- Cache keys include online/offline API-key availability and OpenAI/Gemini model environment
+  settings, not raw keys, plus `BURN_THRESHOLD`. Input defaults are normalized so omitted/default
+  flow directions and explicitly supplied floating-point equivalents share an entry.
+- A lock protects cache bookkeeping; a shared future combines concurrent identical misses.
+  Prediction and explanation run outside the lock so different inputs can proceed in parallel.
+  Failures wake waiters and are not cached. Each caller receives a deep copy of the cached data.
+- `clear()` invalidates completed entries and detaches in-flight work using a generation number;
+  older work can finish for existing callers but cannot restore stale entries after clearing.
+- Artifact/data reloading is still owned by the existing ML loaders. Restart the backend after
+  rebuilding those files. No persistent cache, distributed cache, startup hooks or HTTP clearing
+  endpoint is added; mock mode and the chat/results/export/suppression paths are unchanged.
+
+**Ownership exception approved by the user**
+- `routers/simulate.py` belongs to Nergis. The user explicitly approved the prepared integration
+  patch for BE-11 after reviewing the cache and patch: replace direct predict/explain calls in
+  `run_step()` with `cache.predict_and_explain(inputs)` and adjust its import. Scenario creation,
+  the burn threshold, `/apply` input updates and every history write remain in her router.
+  Predictor, RAG, store, suppressor, ML files, schemas and frontend are unchanged.
+
+**Checks**
+- `test_cache.py` covers hits, equivalent defaults, changed fields, result isolation, expiry,
+  eviction, errors, model/mode settings, clearing and concurrent work, using synthetic results.
+- `test_cache_api.py` proves repeated simulations keep distinct IDs, repeated/no-op applications
+  still append history, modified inputs compute separately, applied results can be reused by new
+  scenarios, unknown IDs stay 404 and mock mode never invokes the cache.
