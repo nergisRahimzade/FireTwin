@@ -56,3 +56,25 @@ Changing them is a contract change (rule 3).
 - Mock mode retains BE-06's fixed results response. Its rows already match the real store, as
   checked by `test_results_rows_equal_what_the_real_store_records`; BE-08 changes neither shape.
   The existing rule 5 question about badging id-only sources remains recorded above.
+
+
+## GET /export/{scenario_id}.pdf (BE-09)
+
+- Real mode only: an in-memory ReportLab report downloaded as `application/pdf`, with
+  `Content-Disposition: attachment; filename="firetwin-results.pdf"`. Mock mode keeps the fixed
+  BE-06 synthetic PDF. No JSON model changes or frontend type changes.
+- One `store.get()` snapshot supplies current inputs and the same ordered history as `/results`.
+  All eight columns retain saved values, including nulls, zero detection times and source IDs.
+  Unknown scenarios (including after a restart) map `ScenarioNotFound` to 404; known empty
+  histories produce a report saying there are no recorded steps.
+- Includes the title, UTC generation timestamp, current inputs, a paginated results table,
+  recommended action, source list with URLs, and the exact honesty line from the plan.
+- The store does not save suppression rankings. The recommendation is calculated with
+  `suppressor.suppress()` for the snapshot's current inputs, explicitly labeled as calculated at
+  export time, with illustrative ranking assumptions. History outcomes are never re-predicted.
+- Historical sources store only IDs. The PDF resolves those exact IDs in the current unified
+  table and labels synthetic references (`is_synthetic=true`); it also lists the recommendation's
+  sources. Metadata is labeled as resolved at export time. Missing IDs stay visible as unverified,
+  with unknown synthetic status; no URL is invented. No nearest-test replacement of saved IDs.
+- Missing model/data files do not prevent exporting saved rows: the recommendation or source
+  metadata is marked unavailable. PDF rendering performs no network/LLM calls and writes no files.

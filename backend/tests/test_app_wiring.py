@@ -54,7 +54,14 @@ def test_real_mode_apply_reuses_the_scenario(real_client: TestClient) -> None:
 
 def test_real_mode_lists_only_built_routes(real_client: TestClient) -> None:
     paths = set(real_client.get("/openapi.json").json()["paths"])
-    assert paths == {"/health", "/simulate", "/apply", "/meta", "/results/{scenario_id}"}
+    assert paths == {
+        "/health",
+        "/simulate",
+        "/apply",
+        "/meta",
+        "/results/{scenario_id}",
+        "/export/{scenario_id}.pdf",
+    }
 
 
 def test_mock_mode_meta_is_the_fixture(mock_client: TestClient) -> None:
@@ -87,3 +94,15 @@ def test_mock_results_ignore_real_scenario_history(mock_client: TestClient) -> N
     assert response.status_code == 200
     assert response.json()["scenario_id"] == "synthetic-scenario-001"
     assert len(response.json()["rows"]) == 3
+
+
+def test_real_mode_exports_the_simulated_scenario(real_client: TestClient) -> None:
+    body = {"material": _first_material(), "o2_pct": 21, "flow_speed_cm_s": 10}
+    scenario_id = real_client.post("/simulate", json=body).json()["scenario_id"]
+    history = store.history(scenario_id)
+    response = real_client.get(f"/export/{scenario_id}.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF-")
+    assert scenario_id.encode() in response.content
+    assert store.history(scenario_id) == history

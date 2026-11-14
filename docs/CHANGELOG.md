@@ -62,3 +62,10 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   (PR #9) and mounted only in the real-mode `else:` branch. Updated built/unbuilt route lists,
   added results and app-wiring regressions, and documented the endpoint. Mock rows already match
   the real store; no schema, store, frontend or OPS-02 changes.
+
+- **BE-09**: real-mode `GET /export/{scenario_id}.pdf` and ReportLab service render the same saved
+  history as `/results`, with timestamp, inputs, all eight table columns, an explicitly export-time
+  recommended action, source URLs/synthetic labels and the plan's honesty line. Unknown scenarios
+  return 404; missing model/source data is labeled without losing saved rows. Added PDF content,
+  history-parity, pagination, error and mode-isolation tests; updated wiring and contract notes.
+  Mock export and shared schemas remain unchanged; ReportLab was already a runtime dependency.

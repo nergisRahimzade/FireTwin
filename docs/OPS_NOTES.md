@@ -166,8 +166,8 @@ Add an entry each time an OPS task makes a decision like this.
 - Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
   `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
   starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
-  branch. `/detect`, `/suppress`, `/chat` and `/export` remain unbuilt in real mode; mock mode
-  serves all endpoints.
+  branch, and BE-09 adds `/export`. `/detect`, `/suppress` and `/chat` remain unbuilt in real
+  mode; mock mode serves all endpoints.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
 
@@ -212,3 +212,38 @@ Add an entry each time an OPS task makes a decision like this.
   behavior, new rows after earlier reads, restart loss and OpenAPI.
 - `test_app_wiring.py` checks a real simulate/apply/results sequence against the stored history,
   while a mock request for a real scenario still returns the fixed synthetic fixture.
+
+
+## BE-09: PDF export (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Based on completed BE-08 (itself based on `feature/BE-integration`). `routers/export.py` mounts
+  only in `main.py`'s real-mode branch; BE-06's fixed synthetic PDF stays unchanged.
+- `services/pdf.py` uses ReportLab (already a runtime dependency) and `BytesIO`; no report files,
+  new packages, HTTP/LLM calls, or changes to the store, shared schemas or teammates' files.
+- `store.get()` provides one snapshot of current inputs plus the same saved rows as `/results`.
+  The landscape table includes all eight columns, exact saved values and input snapshots, repeats
+  column headers across pages, and splits long rows. Current inputs are labeled separately.
+- The store saves no ranked recommendation. The report calls Nergis's existing
+  `suppressor.suppress()` for the snapshot's current inputs and labels it "Calculated at export
+  time", alongside the ranking's illustrative crew-risk/detection-delay assumptions. It never
+  calls `predict()` or `rag.explain()` to replace recorded history outcomes.
+- Sources are resolved by the saved IDs in the current test table, not by rerunning nearest-test
+  retrieval. The selected recommendation's references are included too. The PDF explicitly labels
+  metadata as resolved at export time, synthetic sources with `is_synthetic=true`, model outputs
+  and illustrative detection times. It does not solve the results JSON's id-only badge question
+  by changing that contract.
+- If artifacts/data are missing or malformed, saved rows still export; recommendation and source
+  metadata are labeled unavailable/unverified, and unknown IDs get no invented URL or synthetic
+  status. Unknown scenarios map `ScenarioNotFound` to 404; an existing empty history is a valid PDF.
+- PDFs include a UTC timestamp, a stable generic download filename (never raw user text in headers),
+  and the required line "Flame is illustrative; verdicts come from NASA PSI data." All text is
+  escaped before ReportLab markup parsing so source URLs/materials cannot cause image fetching.
+- PDF page compression is disabled so report content can be checked without adding a PDF-parser
+  package. PDFs remain standard, downloadable documents; source URLs are printed as text.
+
+**Checks**
+- `test_export.py` checks required content, exact results-to-renderer parity, precision/nulls/zero,
+  synthetic and unknown sources, read-only behavior, empty/unknown IDs, unavailable data/model,
+  escaped markup without image loading, pagination, scenario isolation, PDF OpenAPI and mock mode.
+- `test_app_wiring.py` runs simulate -> export on the real seed files with the API key removed.
