@@ -1,0 +1,10 @@
+test_id,investigation,fuel_type,material,hardware,o2_pct,pressure_kpa,flow_cm_s,outcome,spread_rate_mm_s,source_url,is_synthetic
+Saffire-II-2-1,Saffire-II,solid,Silicone,Cygnus,21.5,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-2,Saffire-II,solid,Silicone,Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-3,Saffire-II,solid,Silicone,Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-4,Saffire-II,solid,Silicone,Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-5,Saffire-II,solid,Cotton-Fiberglass (SIBAL),Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-6,Saffire-II,solid,unspecified,Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-7,Saffire-II,solid,PMMA & Nomex,Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-8,Saffire-II,solid,PMMA,Cygnus,22.1,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
+Saffire-II-2-9,Saffire-II,solid,unspecified,Cygnus,22.0,,20.0,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-99,False
