@@ -34,10 +34,11 @@ export function nextPhase(phase: Phase, ev: PhaseEvent): Phase {
   }
 }
 
-export type Step = "meta" | "simulate" | "detect" | "suppress" | "apply" | "results" | "chat";
+export type Step = "health" | "meta" | "simulate" | "detect" | "suppress" | "apply" | "results" | "chat";
 export interface ChatTurn { question: string; reply: ChatOut }
 
 interface ScenarioData {
+  apiUp: boolean | null; // null = not checked yet
   inputs: ScenarioIn;
   meta: MetaOut | null;
   simulate: SimulateOut | null; // latest prediction (from /simulate or /apply)
@@ -53,6 +54,7 @@ interface ScenarioData {
 
 interface ScenarioActions {
   setInputs: (patch: Partial<ScenarioIn>) => void;
+  checkHealth: () => Promise<boolean>; // GET /health
   clearError: () => void;
   loadMeta: () => Promise<void>; // GET /meta
   runSimulate: () => Promise<SimulateOut | null>; // POST /simulate
@@ -61,6 +63,7 @@ interface ScenarioActions {
   runApply: (action: ActionName) => Promise<SimulateOut | null>; // POST /apply
   loadResults: () => Promise<ResultsOut | null>; // GET /results/{id}
   ask: (message: string) => Promise<ChatOut | null>; // POST /chat
+  exportUrl: () => string | null; // GET /export/{id}.pdf (a download link, not a fetch)
   ignite: () => Promise<void>; // FE-03: /simulate, then /detect if the fire keeps burning
   reset: () => void;
 }
@@ -68,10 +71,11 @@ interface ScenarioActions {
 export type ScenarioStore = ScenarioData & ScenarioActions;
 
 const IDLE_LOADING: Record<Step, boolean> = {
-  meta: false, simulate: false, detect: false, suppress: false, apply: false, results: false, chat: false,
+  health: false, meta: false, simulate: false, detect: false, suppress: false, apply: false, results: false, chat: false,
 };
 
 export const initialScenario: ScenarioData = {
+  apiUp: null,
   inputs: DEFAULT_SCENARIO,
   meta: null,
   simulate: null,
@@ -109,6 +113,14 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
 
     setInputs: patch => set(s => ({ inputs: { ...s.inputs, ...patch } })),
     clearError: () => set({ error: null }),
+
+    // Not through run(): an offline API is shown by the banner, not as an error message.
+    checkHealth: async () => {
+      set(s => ({ loading: { ...s.loading, health: true } }));
+      const up = await api.health().then(() => true, () => false);
+      set(s => ({ apiUp: up, loading: { ...s.loading, health: false } }));
+      return up;
+    },
 
     loadMeta: async () => {
       const meta = await run("meta", api.meta);
@@ -174,12 +186,17 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       return res;
     },
 
+    exportUrl: () => {
+      const id = scenarioId();
+      return id ? api.exportUrl(id) : null;
+    },
+
     ignite: async () => {
       const sim = await get().runSimulate();
       if (sim?.state === "burning") await get().runDetect();
     },
 
     // Keeps the chosen inputs and the loaded /meta, so the user can rerun the loop at once.
-    reset: () => set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat })),
+    reset: () => set(s => ({ ...initialScenario, apiUp: s.apiUp, inputs: s.inputs, meta: s.meta, chat: s.chat })),
   };
 });

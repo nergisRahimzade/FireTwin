@@ -107,6 +107,24 @@ describe("useScenario store", () => {
     expect(store().inputs.material).toBe("Nomex");
   });
 
+  it("checkHealth records whether the API answers, without an error message", async () => {
+    fake.health.mockResolvedValueOnce({ status: "ok" });
+    expect(await store().checkHealth()).toBe(true);
+    expect(store().apiUp).toBe(true);
+    fake.health.mockRejectedValueOnce(new Error("down"));
+    expect(await store().checkHealth()).toBe(false);
+    expect(store().apiUp).toBe(false);
+    expect(store().error).toBeNull();
+  });
+
+  it("exportUrl needs a scenario, then points at its PDF", async () => {
+    expect(store().exportUrl()).toBeNull();
+    fake.simulate.mockResolvedValue(sim("extinguished", "abc"));
+    fake.exportUrl.mockImplementation((id: string) => `http://test/export/${id}.pdf`);
+    await store().ignite();
+    expect(store().exportUrl()).toBe("http://test/export/abc.pdf");
+  });
+
   it("reset keeps the inputs so the loop can rerun", async () => {
     fake.simulate.mockResolvedValue(sim("burning"));
     fake.detect.mockResolvedValue(det(false));
