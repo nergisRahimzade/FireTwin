@@ -98,9 +98,10 @@ Add an entry each time an OPS task makes a decision like this.
   has not changed, so no frontend type regeneration is needed for this review follow-up.
 
 **Follow-ups**
-- Starlette prints a deprecation warning: using `httpx` with its TestClient is deprecated in
-  favour of `httpx2`. The plan specifies httpx (BE-12), so it stays for now. Revisit before
-  OPS-03 if warnings ever become errors.
+- Starlette warns that using `httpx` with its TestClient is deprecated in favour of `httpx2`.
+  The plan specifies httpx (BE-12), so `pyproject.toml` ignores **exactly** that message and
+  class (`StarletteDeprecationWarning`, which is a `UserWarning`, not a `DeprecationWarning`).
+  Any other warning still shows. Switch to httpx2 if Starlette ever drops httpx support.
 - Proposals only, **not done** (they change contract behaviour, so all three must agree):
   reject unknown request fields (`extra="forbid"`), and enforce the commented ranges
   (O2 10–40, flow 0–40) as validation.

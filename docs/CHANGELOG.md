@@ -43,3 +43,5 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   to `main`. Job "Python (ruff + pytest)": `uv sync --locked --dev`, `make lint`, `make test`.
   Job "Frontend (tsc + vitest + build)": `npm ci`, `npm run typecheck`, `npm test`, `npm run build`.
   `tests/test_ci_workflow.py` fails if a planned check is removed from the workflow.
+- **OPS-01 follow-up**: pytest ignores Starlette's "use httpx2" deprecation warning (that exact
+  message and class only), so `make test` reports no warnings. The plan's httpx stays.

@@ -17,6 +17,12 @@ testpaths = ["data/tests", "ml/tests", "backend/tests", "tests"]
 addopts = "--import-mode=importlib"
 # Root exposes data/ml modules; backend exposes app just as uvicorn's --app-dir does.
 pythonpath = [".", "backend"]
+# Starlette's TestClient prefers the httpx2 package and warns when it falls back to httpx. The plan
+# names httpx (BE-12), so ignore exactly that one message and class; every other warning still shows.
+# Revisit if Starlette drops httpx support (the tests would then fail, not just warn).
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100
