@@ -270,3 +270,7 @@ input, select, textarea { font-size: 16px; }
   .lab3d-controls { grid-template-columns: minmax(0, 1fr); padding: 16px 18px; }
   .lab3d-status { padding: 0 18px 18px; }
 }
+
+/* ---------- FireTwin app ---------- */
+.api-status { margin: 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; border: 1px solid var(--line); color: var(--muted); }
+.api-status.down { border-color: rgba(255,138,61,.5); color: var(--risk-2); background: rgba(255,138,61,.08); }
