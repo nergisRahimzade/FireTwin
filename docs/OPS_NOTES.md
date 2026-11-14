@@ -148,6 +148,29 @@ Add an entry each time an OPS task makes a decision like this.
   synthetic labels, disabled mode, app isolation, PDF structure, and all OpenAPI models.
   Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.
 
+## OPS-03: CI (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Python runs `make lint` and `make test`, the same commands as rule 7, so CI and laptops can't
+  disagree about what "passing" means. `UV_LOCKED=1` makes any `uv run` fail if `uv.lock` is out
+  of date with `pyproject.toml` (someone forgot `uv lock`), instead of quietly re-locking.
+- Versions match OPS-02: uv 0.13.5 (as in `docker/backend.Dockerfile`), Python 3.11 from
+  `.python-version`, Node 22 (as in `docker/frontend.Dockerfile`).
+- Runs on pull requests into **any** branch, so stacked PRs (e.g. into a teammate's branch) are
+  checked too, plus pushes to `main`. A newer push cancels the older run of the same PR.
+- The workflow token is read-only (`permissions: contents: read`); CI never writes to the repo.
+- Actions are pinned to major tags (`@v4`, `@v6`), not commit SHAs: simpler for a 24-hour build;
+  pin SHAs if the repo outlives the hackathon.
+
+**Added (beyond the plan's "npm run build + tsc")**
+- The frontend job also runs `npm test` (vitest), because FE already has unit tests
+  (e.g. `controlPanel.logic.test.ts`); untested tests rot.
+
+**Follow-up for the repo owner**
+- Once CI has run green once, make it required for `main`: Settings -> Rules -> Rulesets ->
+  `protect-main` -> **Require status checks to pass** -> add **"Python (ruff + pytest)"** and
+  **"Frontend (tsc + vitest + build)"** (GitHub only offers checks it has already seen run).
+
 ## BE-07: /meta choices and integration follow-ups (2026-11-14, Ryan)
 
 **Chosen (the plan left it open)**
@@ -166,8 +189,8 @@ Add an entry each time an OPS task makes a decision like this.
 - Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
   `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
   starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
-  branch, BE-09 adds `/export`, and BE-10 adds `/chat`. `/detect` and `/suppress` remain
-  unbuilt on this branch in real mode; mock mode serves all endpoints.
+  branch, BE-09 adds `/export`, and BE-10 adds `/chat`. Merging current `main` also brings
+  the `/detect` and `/suppress` routers; all planned endpoints now exist in both modes.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
 
@@ -186,7 +209,14 @@ Add an entry each time an OPS task makes a decision like this.
 - `make dev` now gives the backend `PYTHONPATH=<repo root>` (the frontend is unchanged), like
   the OPS-02 image's `PYTHONPATH=/app/backend:/app`. Tests hadn't caught the missing path because
   pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.
-
+- **Gap closed for `/detect` and `/suppress`** (`feature/BE-03-04-routers`): thin routers over
+  Nergis's services, mounted in real mode. `/detect` appends the "detect" row (with the current
+  verdict's source ids); `/suppress` appends nothing. Combined with BE-08 and BE-09 on
+  `feature/BE-real-mode`, the real-mode e2e loop (`make e2e`, OPS-04) **passes all 8 steps**:
+  cable insulation -> burning (p 0.93) -> alarm at 40 s -> `fans_off_co2` -> extinguished ->
+  3 history rows -> a 2-page PDF with the honesty line and synthetic labels.
+  Seen in that run: with flow `+x` (fore) the backend reports `vent_aft` tripping, because
+  `ml/pipeline/config.py` still uses the old vent names (see "3D coordinate system", BE-03 follow-up).
 
 ## BE-08: read-only scenario results (2026-11-14, Ryan)
 
@@ -212,7 +242,6 @@ Add an entry each time an OPS task makes a decision like this.
   behavior, new rows after earlier reads, restart loss and OpenAPI.
 - `test_app_wiring.py` checks a real simulate/apply/results sequence against the stored history,
   while a mock request for a real scenario still returns the fixed synthetic fixture.
-
 
 ## BE-09: PDF export (2026-11-14, Ryan)
 
@@ -248,6 +277,31 @@ Add an entry each time an OPS task makes a decision like this.
   escaped markup without image loading, pagination, scenario isolation, PDF OpenAPI and mock mode.
 - `test_app_wiring.py` runs simulate -> export on the real seed files with the API key removed.
 
+## OPS-04: end-to-end loop (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `tests/e2e_loop.py` is a script run by `make e2e`, not by `make test`: it needs a server that's
+  already running (`make dev` or `docker compose up`, with `MOCK_MODE=0`). Its name doesn't start
+  with `test_`, so pytest never collects it. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the BE-06 mock app (no server, no network), so CI tests the checks themselves.
+- Beyond "PDF is non-empty", each step is checked against `schemas.py`, and the steps against each
+  other: same `scenario_id` throughout; `/suppress` sorted by score with `recommended` on top;
+  `/apply` inputs equal the recommended action's `new_inputs` (plan BE-02); `/results` contains the
+  apply step; `/export` is `application/pdf` starting with `%PDF`.
+- It ignites "cable insulation" (the demo script's material) when `/meta` offers it, else the first
+  material, at 21 % O2 and 10 cm/s.
+- A mock-mode API fails the run (the plan says "hits the real API"); `--allow-mock` checks wiring only.
+- `make help` now lists targets with digits in their names (`e2e`).
+
+**Status on 2026-11-14:**
+- On `main` before #16: mock mode passed all 8 steps; real mode stopped at `meta: HTTP 404`
+  because `main.py` mounted no real routers.
+- With #16 (`feature/BE-real-mode`: real-mode wiring, `/detect`, `/suppress`, `/results`,
+  `/export`), a real-mode server with no API keys **passes all 8 steps** (`make e2e`).
+
+**Gap in the plan:** BE-03 and BE-04 build the detector and suppressor *services*, but no task ID
+creates the `/detect` and `/suppress` *routers*. Under the plan's ownership table they fall under
+"rest of `backend/`" (Ryan); they're built on `feature/BE-03-04-routers`.
 
 ## BE-10: scenario-aware chat endpoint (2026-11-14, Ryan)
 
@@ -314,3 +368,20 @@ Add an entry each time an OPS task makes a decision like this.
 - `test_cache_api.py` proves repeated simulations keep distinct IDs, repeated/no-op applications
   still append history, modified inputs compute separately, applied results can be reused by new
   scenarios, unknown IDs stay 404 and mock mode never invokes the cache.
+
+
+## BE-10 / BE-11 integration into main (2026-11-14, Ryan)
+
+- PR #19 uses `feature/BE-09`, which now includes merged BE-10 and BE-11 PRs. Main already
+  contains BE-08/BE-09 through the real-mode integration, so this PR adds chat and caching.
+- Resolved the real-router conflict by keeping every router: simulate/apply, meta, detect,
+  suppress, results, export and chat. Kept main's Gemini/OpenAI RAG support and all upstream
+  data, frontend, CI and end-to-end work. Shared schemas are unchanged.
+- All endpoints are now implemented in real mode, so the old mock-only/unbuilt-route list and
+  empty parameterized check are removed. App wiring still checks the complete real route set;
+  per-app mode isolation uses mock acceptance versus real 404 for an unknown scenario ID.
+- Both sides' changelog and operational notes are retained. The backend ownership exception
+  remains limited to BE-11's approved predict/explain call-site change.
+- Validation of the resolved integration: `make test` 492 passed, `make lint` passed (83 files),
+  and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
+  removed. An additional real-mode chat request returned the expected no-evidence response.

@@ -39,6 +39,25 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   Review fixes: `/results` mock rows match the BE-01 store shape (plan's 8 keys, numbered steps);
   keys of all free-form dict fields documented in `docs/contract.md`; `/health` defined once in
   `main.py`. No change to `schemas.py`.
+- **OPS-03**: GitHub Actions CI (`.github/workflows/ci.yml`) on every pull request and every push
+  to `main`. Job "Python (ruff + pytest)": `uv sync --locked --dev`, `make lint`, `make test`.
+  Job "Frontend (tsc + vitest + build)": `npm ci`, `npm run typecheck`, `npm test`, `npm run build`.
+  `tests/test_ci_workflow.py` fails if a planned check is removed from the workflow.
+- **FE-04** (contract change, rule 3): `frontend/src/scene/` ISS module scene: the glTF from
+  `/models/iss_lab-transformed.glb` loads in `Suspense`, with the coded 8.5 m × 4.2 m module as the
+  fallback (also used when the file is missing), plus OrbitControls and detector markers at the
+  `DetectOut.detectors` positions. `docs/contract.md` gains a "3D coordinate system" section shared
+  by the frontend and BE-03:
+  - **Axes:** origin at the module centre, `+x` = fore (the default `flow_dir`), `+y` = overhead,
+    `+z` = port.
+  - **Fire:** always at `(0, 0, 0)`.
+  - **Vents:** BE-03's detector positions moved onto the overhead rack face (y = 1.37), so the
+    markers are visible. They are `vent_fwd` `[4.0, 1.37, 0]`, `vent_aft` `[-4.0, 1.37, 0]` and
+    `vent_mid` `[0, 1.37, 0]`; with `+x` = fore, the two end names swap.
+
+  **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
+  names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
+  `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.
 - **BE-07**: `GET /meta` from real data. `backend/app/services/meta.py` builds materials (with
   `n_tests`) from the unified table, ranges from the `"overall"` section of `feature_ranges.json`
   (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
@@ -69,6 +88,21 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   return 404; missing model/source data is labeled without losing saved rows. Added PDF content,
   history-parity, pagination, error and mode-isolation tests; updated wiring and contract notes.
   Mock export and shared schemas remain unchanged; ReportLab was already a runtime dependency.
+- **BE-03 router (gap fix)**: `POST /detect` (`backend/app/routers/detect.py`), mounted in real mode.
+  Runs the detector service at the scenario's current inputs and appends the `"detect"` history row
+  (`detection_s`, plus the current verdict's source ids). Unknown scenario -> 404. No task in the
+  plan created this router; OPS-04's e2e loop stopped here.
+- **BE-04 router (gap fix)**: `POST /suppress` (`backend/app/routers/suppress.py`), mounted in real
+  mode. Runs the suppressor service at the scenario's current inputs; adds no history row (ranking
+  changes nothing). Unknown scenario -> 404.
+- **Real mode, end to end**: `feature/BE-real-mode` combines the real-mode wiring, `/detect`,
+  `/suppress`, `/results` (BE-08) and `/export` (BE-09) on top of `main`. A real-mode server
+  (`MOCK_MODE=0`, no API keys) passes OPS-04's `make e2e` in all 8 steps.
+- **OPS-04**: `tests/e2e_loop.py` walks health -> meta -> simulate -> detect -> suppress -> apply ->
+  results -> export against a running API, checks each response against `schemas.py` and the links
+  between steps, and stops at the first failing step (`make e2e`, `E2E_BASE_URL` for another server).
+  Refuses a mock-mode API unless `--allow-mock`. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the mock app, so CI keeps the checks themselves tested.
 
 - **BE-10**: real-mode `POST /chat` delegates to the existing `rag.answer()` and passes a detached
   snapshot of current inputs/history when `scenario_id` is supplied. Unknown IDs return 404;
@@ -82,3 +116,7 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   delegates predict/explain to the cache while preserving fresh scenario IDs and every history
   write. Added service/concurrency and endpoint regressions. Shared schemas, Nergis's services,
   ML/data/frontend files and dependencies are unchanged.
+
+- **BE-10 / BE-11 integration**: resolved PR #19 against current main, retaining all real routers,
+  Gemini/OpenAI support and upstream work. Chat and the input cache join the existing real-mode
+  loop; removed obsolete unbuilt-route checks now that all planned endpoints are implemented.
