@@ -244,7 +244,7 @@ export class Smoke {
   setScale(heightPx, fovDeg) { this.material.uniforms.uScale.value = heightPx / (2 * Math.tan((fovDeg * Math.PI) / 360)); }
   reset() { this.age.fill(-1); this.alpha.fill(0); this.acc = 0; this.flag(); }
   flag() { for (const k of ["position", "aAlpha", "aSize"]) this.geometry.attributes[k].needsUpdate = true; }
-  spawn(src, r, g) {
+  spawn(src, r, g, life) {
     const i = this.cursor; this.cursor = (this.cursor + 1) % this.n;
     let x, y, z, d;
     do { x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1; d = x * x + y * y + z * z; } while (d > 1 || d < 0.01);
@@ -252,16 +252,17 @@ export class Smoke {
     const j = i * 3;
     this.pos[j] = src.x + x * r; this.pos[j + 1] = src.y + y * r + g * r * 1.6; this.pos[j + 2] = src.z + z * r;
     this.vel[j] = x * 0.25; this.vel[j + 1] = y * 0.25 + g * 0.35; this.vel[j + 2] = z * 0.25;
-    this.age[i] = 0; this.life[i] = 9 + Math.random() * 5;
+    this.age[i] = 0; this.life[i] = life ? life * (0.8 + Math.random() * 0.4) : 9 + Math.random() * 5;
   }
-  // p: { rate (particles per simulated second), g, flow: AIRFLOW item, src: Vector3, radius }
+  // p: { rate (particles per simulated second), g, flow: AIRFLOW item, src: Vector3, radius,
+  //      speed? (m/s along flow.dir; default: the demo cabin flow), life? (simulated s per particle) }
   // vents: buildVents().items. onHit(vent) fires when a particle reaches a vent.
   // Simple cabin airflow: the fans push air along the chosen direction and it bends toward the
   // return vent furthest downstream. Every vent also pulls in what comes within ~0.5 m.
   // With the fans off nothing moves the smoke in 0 g except slow spreading.
   step(dt, p, vents, onHit) {
     this.acc += p.rate * dt;
-    while (this.acc >= 1) { this.spawn(p.src, p.radius, p.g); this.acc -= 1; }
+    while (this.acc >= 1) { this.spawn(p.src, p.radius, p.g, p.life); this.acc -= 1; }
     const [fx, fy, fz] = p.flow.dir, fans = p.flow.fans ? 1 : 0, relax = Math.min(1, dt * 1.5), jit = 0.35 * Math.sqrt(dt);
     let target = null, best = -Infinity;
     if (fans) for (const v of vents) { const s = v.position.x * fx + v.position.y * fy + v.position.z * fz; if (s > best) { best = s; target = v; } }
@@ -270,7 +271,8 @@ export class Smoke {
       const a = (this.age[i] += dt), j = i * 3;
       if (a > this.life[i]) { this.age[i] = -1; this.alpha[i] = 0; continue; }
       let px = this.pos[j], py = this.pos[j + 1], pz = this.pos[j + 2];
-      let ax = fx * FLOW_SPEED * 0.6, ay = fy * FLOW_SPEED * 0.6 + p.g * 0.38 * Math.exp(-a / 6), az = fz * FLOW_SPEED * 0.6;
+      const base = p.speed ?? FLOW_SPEED * 0.6;
+      let ax = fx * base, ay = fy * base + p.g * 0.38 * Math.exp(-a / 6), az = fz * base;
       if (target) {
         const tx = target.position.x - px, ty = target.position.y - py, tz = target.position.z - pz, td = Math.max(Math.sqrt(tx * tx + ty * ty + tz * tz), 1e-3);
         ax += (tx / td) * FLOW_SPEED * 0.55; ay += (ty / td) * FLOW_SPEED * 0.55; az += (tz / td) * FLOW_SPEED * 0.55;
