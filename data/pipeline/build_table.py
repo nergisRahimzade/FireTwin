@@ -88,16 +88,27 @@ def build_real(clean_dir: Path = CLEAN_DIR, labels_csv: Path = LABELS_CSV) -> pd
             log.exception("build_real: could not read clean CSV %s", path)
             raise
     table = pd.concat(frames, ignore_index=True)
+    if "outcome" not in table:
+        table["outcome"] = "unknown"
+    if "spread_rate_mm_s" not in table:
+        table["spread_rate_mm_s"] = float("nan")
     if labels_csv.exists():
         try:
-            labels = pd.read_csv(labels_csv)[["test_id", "outcome", "spread_rate_mm_s"]]
-            table = table.drop(columns=["outcome", "spread_rate_mm_s"], errors="ignore")
-            table = table.merge(labels, on="test_id", how="left")
+            labels = pd.read_csv(labels_csv, dtype={"test_id": str})
+            uncited = labels[labels["outcome"].isin(["burned", "extinguished"])]
+            uncited = uncited[uncited["source_page"].isna()]
+            if not uncited.empty:
+                raise ValueError(
+                    f"labels without a source_page (DAT-02): {uncited['test_id'].tolist()[:5]}"
+                )
+            labels = labels.drop_duplicates("test_id").set_index("test_id")
+            # A label wins over whatever the clean CSV says; rows without a label keep theirs.
+            ids = table["test_id"].astype(str)
+            for col in ("outcome", "spread_rate_mm_s"):
+                table[col] = ids.map(labels[col]).combine_first(table[col])
         except Exception:
             log.exception("build_real: could not merge labels from %s", labels_csv)
             raise
-    if "outcome" not in table:
-        table["outcome"] = "unknown"
     table["outcome"] = table["outcome"].fillna("unknown")
     if "is_synthetic" not in table:
         table["is_synthetic"] = False
