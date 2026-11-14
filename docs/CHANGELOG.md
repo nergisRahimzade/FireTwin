@@ -60,3 +60,6 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   Runs the detector service at the scenario's current inputs and appends the `"detect"` history row
   (`detection_s`, plus the current verdict's source ids). Unknown scenario -> 404. No task in the
   plan created this router; OPS-04's e2e loop stopped here.
+- **BE-04 router (gap fix)**: `POST /suppress` (`backend/app/routers/suppress.py`), mounted in real
+  mode. Runs the suppressor service at the scenario's current inputs; adds no history row (ranking
+  changes nothing). Unknown scenario -> 404.

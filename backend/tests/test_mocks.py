@@ -30,7 +30,7 @@ FEATURE_REQUESTS = [
 ]
 FEATURE_REQUESTS.append(("GET", f"/export/{SCENARIO_ID}.pdf", None))
 # Paths with a real router already: they exist with MOCK_MODE=0 too (see test_app_wiring.py).
-REAL_PATHS = {"/meta", "/simulate", "/apply", "/detect"}
+REAL_PATHS = {"/meta", "/simulate", "/apply", "/detect", "/suppress"}
 UNBUILT_REQUESTS = [request for request in FEATURE_REQUESTS if request[1] not in REAL_PATHS]
 
 
