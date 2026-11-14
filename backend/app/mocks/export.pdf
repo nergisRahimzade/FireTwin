@@ -1,0 +1,72 @@
+%PDF-1.4
+% Fixed synthetic fixture for BE-06
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 1085 >>
+stream
+BT
+/F1 10 Tf
+50 750 Td
+16 TL
+(SYNTHETIC MOCK - NOT NASA DATA) Tj
+T*
+(FireTwin Phase 0 fixed PDF fixture; is_synthetic=true.) Tj
+T*
+(Scenario: synthetic-scenario-001) Tj
+T*
+(All values below are synthetic UI placeholders.) Tj
+T*
+(Material: Synthetic cotton; module: iss_lab) Tj
+T*
+(Inputs: oxygen 21%, pressure 101.3 kPa, flow 10 cm/s, direction \(1, 0, 0\)) Tj
+T*
+(Results \(fixed example history, independent of requests\):) Tj
+T*
+(simulate: burning; probability 0.80; trust weak; outside tested range) Tj
+T*
+(detect: synthetic-vent-1; synthetic detection time 12.5 s) Tj
+T*
+(Recommended action: fans_off_co2 \(synthetic ranking, no NASA evidence\)) Tj
+T*
+(apply: extinguished; probability 0.10; trust weak) Tj
+T*
+(Applied inputs: oxygen 15%, pressure 101.3 kPa, flow 0 cm/s) Tj
+T*
+(Sources: synthetic-test-001, synthetic-test-002, synthetic-test-003) Tj
+T*
+(Placeholder source URL: https://example.com \(not NASA evidence\)) Tj
+T*
+(Flame is illustrative; verdicts come from NASA PSI data.) Tj
+T*
+(This mock fixture contains no NASA verdicts; every outcome above is synthetic.) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Title (Synthetic FireTwin mock report) /Subject (is_synthetic=true; not NASA data) >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000045 00000 n 
+0000000094 00000 n 
+0000000151 00000 n 
+0000000277 00000 n 
+0000000347 00000 n 
+0000001483 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R /Info 6 0 R >>
+startxref
+1588
+%%EOF

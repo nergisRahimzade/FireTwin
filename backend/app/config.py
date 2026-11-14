@@ -1,7 +1,7 @@
 """Backend settings read from environment variables (BE-05).
 
-Later tasks add their own settings here (MOCK_MODE in BE-06; detector and trust thresholds in
-BE-03/ML-04). Read them with get_settings(); never call os.getenv() elsewhere in the backend.
+Later tasks add detector and trust thresholds here (BE-03/ML-04). Read settings with
+get_settings(); never call os.getenv() elsewhere in the backend.
 """
 
 import os
@@ -56,6 +56,7 @@ def _host_labels_ok(host: str) -> bool:
 class Settings:
     # Web pages allowed to call the API from a browser (CORS). A tuple, so it can't be edited.
     cors_origins: tuple[str, ...]
+    mock_mode: bool
 
 
 def get_settings() -> Settings:
@@ -69,4 +70,10 @@ def get_settings() -> Settings:
     # Fail loudly: an empty list would silently block the frontend from calling the API.
     if not origins:
         raise ValueError("CORS_ORIGINS must list at least one origin")
-    return Settings(cors_origins=tuple(_parse_origin(origin) for origin in origins))
+    # Phase 0 works without a .env or model artifacts, matching .env.example.
+    mock_mode = os.getenv("MOCK_MODE", "1").strip()
+    if mock_mode not in {"0", "1"}:
+        raise ValueError("MOCK_MODE must be '0' or '1'")
+    return Settings(
+        cors_origins=tuple(_parse_origin(origin) for origin in origins), mock_mode=mock_mode == "1"
+    )

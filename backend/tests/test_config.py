@@ -93,3 +93,21 @@ def test_origins_match_browser_serialization(
 ) -> None:
     monkeypatch.setenv("CORS_ORIGINS", configured)
     assert get_settings().cors_origins == (expected,)
+
+
+def test_mock_mode_defaults_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MOCK_MODE", raising=False)
+    assert get_settings().mock_mode is True
+
+
+@pytest.mark.parametrize("raw,expected", [("1", True), ("0", False), (" 1 ", True), (" 0 ", False)])
+def test_mock_mode_reads_flag(monkeypatch: pytest.MonkeyPatch, raw: str, expected: bool) -> None:
+    monkeypatch.setenv("MOCK_MODE", raw)
+    assert get_settings().mock_mode is expected
+
+
+@pytest.mark.parametrize("raw", ["", "true", "false", "yes", "2", "-1"])
+def test_invalid_mock_mode_raises(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
+    monkeypatch.setenv("MOCK_MODE", raw)
+    with pytest.raises(ValueError, match="MOCK_MODE"):
+        get_settings()

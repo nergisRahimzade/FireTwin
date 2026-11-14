@@ -1,0 +1,2 @@
+# Preserve the fixed PDF's byte-oriented cross-reference table and use binary diffs.
+backend/app/mocks/export.pdf binary
