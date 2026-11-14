@@ -40,6 +40,7 @@ signal.signal(signal.SIGTERM, stop)
 signal.signal(signal.SIGUSR1, lambda *_: sys.exit(42))
 # Record what this server got from .env, so tests can check where the file was loaded.
 (folder / (role + ".secret")).write_text(os.environ.get("DEV_TEST_SECRET", ""))
+(folder / (role + ".pythonpath")).write_text(os.environ.get("PYTHONPATH", ""))
 (folder / (role + ".pid")).write_text(str(os.getpid()))
 while True: time.sleep(0.05)
 '''
@@ -71,6 +72,7 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("DEV_TEST_DIR", str(tmp_path))
     # Only a .env file written by a test may set this.
     monkeypatch.delenv("DEV_TEST_SECRET", raising=False)
+    monkeypatch.delenv("PYTHONPATH", raising=False)
     return tmp_path
 
 
@@ -212,3 +214,10 @@ def test_second_stop_request_forces_shutdown(
     os.killpg(process.pid, signal.SIGINT)
     output, _ = process.communicate(timeout=10)
     assert "second Ctrl+C; force-stopping servers" in output
+
+
+def test_backend_gets_repo_root_on_pythonpath(project: Path, running_dev) -> None:
+    # The backend imports ml/ from the repo root, which --app-dir backend alone doesn't expose.
+    running_dev(("backend", "frontend"))
+    assert (project / "backend.pythonpath").read_text().split(os.pathsep)[0] == str(project)
+    assert (project / "frontend.pythonpath").read_text() == ""

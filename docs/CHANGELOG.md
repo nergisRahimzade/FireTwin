@@ -58,3 +58,33 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
   names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
   `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.
+- **BE-07**: `GET /meta` from real data. `backend/app/services/meta.py` builds materials (with
+  `n_tests`) from the unified table, ranges from the `"overall"` section of `feature_ranges.json`
+  (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
+  `backend/app/routers/meta.py` is a thin router; missing data gives 503. Keys documented in
+  `docs/contract.md`. No change to `schemas.py`. The router is not mounted in `main.py` yet.
+- **BE-06 (integration)**: `main.py` mounts the real routers when `MOCK_MODE=0` (`/simulate`,
+  `/apply`, `/meta`); mock mode is unchanged. `backend/tests/test_app_wiring.py` checks both modes.
+- **BE-05 follow-up (Nergis's request)**: `Settings` gains `openai_api_key` (`None` when unset or
+  blank; hidden from `repr`) and `openai_model` (default `gpt-4o-mini`, env `OPENAI_MODEL`), so
+  `rag.py` can read them through `get_settings()` instead of `os.getenv`. `rag.py` itself unchanged.
+- **BE-06 follow-up**: mock `/results` rows now match Nergis's real store exactly (`step` names,
+  `sources` as `test_id` strings); a test feeds each mock row through `store.append()` and requires
+  identical JSON. Open rule 5 question (badging id-only sources) recorded in `docs/contract.md`.
+- **OPS-01 fix**: `make dev` could not start the real backend (`No module named 'ml'`):
+  `--app-dir backend` exposes only `backend/`, but `/simulate` and `/meta` import `ml.pipeline`
+  from the repo root. `scripts/dev.py` now puts the repo root first on the backend's
+  `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.
+
+- **BE-08**: `GET /results/{scenario_id}` serves `store.history(scenario_id)` through `ResultsOut`
+  and maps Nergis's `ScenarioNotFound` to 404. Rebased onto `origin/feature/BE-integration`
+  (PR #9) and mounted only in the real-mode `else:` branch. Updated built/unbuilt route lists,
+  added results and app-wiring regressions, and documented the endpoint. Mock rows already match
+  the real store; no schema, store, frontend or OPS-02 changes.
+
+- **BE-09**: real-mode `GET /export/{scenario_id}.pdf` and ReportLab service render the same saved
+  history as `/results`, with timestamp, inputs, all eight table columns, an explicitly export-time
+  recommended action, source URLs/synthetic labels and the plan's honesty line. Unknown scenarios
+  return 404; missing model/source data is labeled without losing saved rows. Added PDF content,
+  history-parity, pagination, error and mode-isolation tests; updated wiring and contract notes.
+  Mock export and shared schemas remain unchanged; ReportLab was already a runtime dependency.
