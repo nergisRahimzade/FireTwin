@@ -28,13 +28,15 @@ const RANGE_KEYS: Record<SliderKey, string[]> = {
   flow_speed_cm_s: ["flow_cm_s", "flow_speed_cm_s"],
   pressure_kpa: ["pressure_kpa"],
 };
-export interface Range { min: number; max: number }
+export interface Range { min: number; max: number; synthetic?: boolean }
 
 export function testedRange(meta: MetaOut | null, key: SliderKey): Range | null {
   if (!meta?.ranges) return null;
   for (const k of RANGE_KEYS[key]) {
     const r = meta.ranges[k];
-    if (r && Number.isFinite(r.min) && Number.isFinite(r.max) && r.max >= r.min) return { min: r.min, max: r.max };
+    if (r && Number.isFinite(r.min) && Number.isFinite(r.max) && r.max >= r.min) {
+      return { min: r.min, max: r.max, ...(r.is_synthetic ? { synthetic: true } : {}) };
+    }
   }
   return null;
 }
@@ -52,6 +54,10 @@ export function bandPercent(range: Range, key: SliderKey) {
 export function outsideKeys(inputs: ScenarioIn, meta: MetaOut | null): SliderKey[] {
   return (Object.keys(LIMITS) as SliderKey[]).filter(k => isOutside(inputs[k], testedRange(meta, k)));
 }
+
+// Dropdown text for a material. Synthetic rows (rule 5) never claim to be NASA tests.
+export const materialLabel = (m: { name: string; fuel_type: string; n_tests: number; is_synthetic?: boolean }) =>
+  `${m.name} · ${m.fuel_type} · ${m.n_tests} ${m.is_synthetic ? "synthetic test rows (not NASA data)" : "NASA tests"}`;
 
 export function igniteBlocker(inputs: ScenarioIn, meta: MetaOut | null, busy: boolean): string | null {
   if (busy) return "Running…";

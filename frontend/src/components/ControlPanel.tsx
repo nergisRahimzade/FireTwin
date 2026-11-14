@@ -4,7 +4,8 @@
 import { useEffect, useId } from "react";
 import { useScenario, type Phase } from "../store/useScenario";
 import {
-  FLOW_DIRS, LIMITS, bandPercent, igniteBlocker, isOutside, outsideKeys, sameDir, testedRange, type SliderKey,
+  FLOW_DIRS, LIMITS, bandPercent, igniteBlocker, isOutside, materialLabel, outsideKeys, sameDir, testedRange,
+  type SliderKey,
 } from "./controlPanel.logic";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -40,6 +41,7 @@ function Slider({ field, label }: { field: SliderKey; label: string }) {
         />
       </div>
       <span className="note">
+        {tested?.synthetic && <span className="badge-synthetic">synthetic</span>}
         {tested
           ? outside
             ? `Outside tested range (${tested.min}–${tested.max} ${unit}): no direct NASA data.`
@@ -81,7 +83,7 @@ export function ControlPanel() {
           {!meta && <option value="">{loadingMeta ? "Loading materials…" : "No materials (API offline)"}</option>}
           {meta && !inputs.material && <option value="">Choose a material</option>}
           {meta?.materials.map(m => (
-            <option key={m.name} value={m.name}>{m.name} · {m.fuel_type} · {m.n_tests} NASA tests</option>
+            <option key={m.name} value={m.name}>{materialLabel(m)}</option>
           ))}
         </select>
         {!meta && !loadingMeta && (

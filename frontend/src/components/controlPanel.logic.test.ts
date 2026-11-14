@@ -2,7 +2,9 @@
 import { describe, expect, it } from "vitest";
 import type { MetaOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
-import { FLOW_DIRS, bandPercent, igniteBlocker, isOutside, outsideKeys, testedRange } from "./controlPanel.logic";
+import {
+  FLOW_DIRS, bandPercent, igniteBlocker, isOutside, materialLabel, outsideKeys, testedRange,
+} from "./controlPanel.logic";
 
 const meta = (ranges: MetaOut["ranges"]): MetaOut => ({
   materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges, investigations: [],
@@ -41,6 +43,15 @@ describe("bandPercent", () => {
   });
   it("clips a band that runs past the slider", () => {
     expect(bandPercent({ min: 5, max: 50 }, "o2_pct")).toEqual({ left: 0, right: 0 });
+  });
+});
+
+describe("synthetic data (rule 5)", () => {
+  it("marks a synthetic range and never calls synthetic rows NASA tests", () => {
+    expect(testedRange(meta({ o2_pct: { min: 10, max: 40, is_synthetic: true } }), "o2_pct")?.synthetic).toBe(true);
+    expect(materialLabel({ name: "Synthetic cotton", fuel_type: "solid", n_tests: 3, is_synthetic: true }))
+      .toBe("Synthetic cotton · solid · 3 synthetic test rows (not NASA data)");
+    expect(materialLabel({ name: "Nomex", fuel_type: "solid", n_tests: 12 })).toBe("Nomex · solid · 12 NASA tests");
   });
 });
 
