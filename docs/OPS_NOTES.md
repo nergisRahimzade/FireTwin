@@ -147,3 +147,26 @@ Add an entry each time an OPS task makes a decision like this.
 - `backend/tests/test_mocks.py` covers each endpoint, request validation, the fixed mock loop,
   synthetic labels, disabled mode, app isolation, PDF structure, and all OpenAPI models.
   Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.
+
+## OPS-03: CI (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Python runs `make lint` and `make test`, the same commands as rule 7, so CI and laptops can't
+  disagree about what "passing" means. `UV_LOCKED=1` makes any `uv run` fail if `uv.lock` is out
+  of date with `pyproject.toml` (someone forgot `uv lock`), instead of quietly re-locking.
+- Versions match OPS-02: uv 0.13.5 (as in `docker/backend.Dockerfile`), Python 3.11 from
+  `.python-version`, Node 22 (as in `docker/frontend.Dockerfile`).
+- Runs on pull requests into **any** branch, so stacked PRs (e.g. into a teammate's branch) are
+  checked too, plus pushes to `main`. A newer push cancels the older run of the same PR.
+- The workflow token is read-only (`permissions: contents: read`); CI never writes to the repo.
+- Actions are pinned to major tags (`@v4`, `@v6`), not commit SHAs: simpler for a 24-hour build;
+  pin SHAs if the repo outlives the hackathon.
+
+**Added (beyond the plan's "npm run build + tsc")**
+- The frontend job also runs `npm test` (vitest), because FE already has unit tests
+  (e.g. `controlPanel.logic.test.ts`); untested tests rot.
+
+**Follow-up for the repo owner**
+- Once CI has run green once, make it required for `main`: Settings -> Rules -> Rulesets ->
+  `protect-main` -> **Require status checks to pass** -> add **"Python (ruff + pytest)"** and
+  **"Frontend (tsc + vitest + build)"** (GitHub only offers checks it has already seen run).

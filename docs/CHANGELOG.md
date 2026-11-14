@@ -39,3 +39,7 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   Review fixes: `/results` mock rows match the BE-01 store shape (plan's 8 keys, numbered steps);
   keys of all free-form dict fields documented in `docs/contract.md`; `/health` defined once in
   `main.py`. No change to `schemas.py`.
+- **OPS-03**: GitHub Actions CI (`.github/workflows/ci.yml`) on every pull request and every push
+  to `main`. Job "Python (ruff + pytest)": `uv sync --locked --dev`, `make lint`, `make test`.
+  Job "Frontend (tsc + vitest + build)": `npm ci`, `npm run typecheck`, `npm test`, `npm run build`.
+  `tests/test_ci_workflow.py` fails if a planned check is removed from the workflow.
