@@ -276,3 +276,29 @@ Add an entry each time an OPS task makes a decision like this.
   synthetic and unknown sources, read-only behavior, empty/unknown IDs, unavailable data/model,
   escaped markup without image loading, pagination, scenario isolation, PDF OpenAPI and mock mode.
 - `test_app_wiring.py` runs simulate -> export on the real seed files with the API key removed.
+
+## OPS-04: end-to-end loop (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `tests/e2e_loop.py` is a script run by `make e2e`, not by `make test`: it needs a server that's
+  already running (`make dev` or `docker compose up`, with `MOCK_MODE=0`). Its name doesn't start
+  with `test_`, so pytest never collects it. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the BE-06 mock app (no server, no network), so CI tests the checks themselves.
+- Beyond "PDF is non-empty", each step is checked against `schemas.py`, and the steps against each
+  other: same `scenario_id` throughout; `/suppress` sorted by score with `recommended` on top;
+  `/apply` inputs equal the recommended action's `new_inputs` (plan BE-02); `/results` contains the
+  apply step; `/export` is `application/pdf` starting with `%PDF`.
+- It ignites "cable insulation" (the demo script's material) when `/meta` offers it, else the first
+  material, at 21 % O2 and 10 cm/s.
+- A mock-mode API fails the run (the plan says "hits the real API"); `--allow-mock` checks wiring only.
+- `make help` now lists targets with digits in their names (`e2e`).
+
+**Status on 2026-11-14:**
+- On `main` before #16: mock mode passed all 8 steps; real mode stopped at `meta: HTTP 404`
+  because `main.py` mounted no real routers.
+- With #16 (`feature/BE-real-mode`: real-mode wiring, `/detect`, `/suppress`, `/results`,
+  `/export`), a real-mode server with no API keys **passes all 8 steps** (`make e2e`).
+
+**Gap in the plan:** BE-03 and BE-04 build the detector and suppressor *services*, but no task ID
+creates the `/detect` and `/suppress` *routers*. Under the plan's ownership table they fall under
+"rest of `backend/`" (Ryan); they're built on `feature/BE-03-04-routers`.
