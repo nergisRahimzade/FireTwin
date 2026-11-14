@@ -1,8 +1,8 @@
 """Smoke detector tool (BE-03): when and where the alarm trips.
 
 In microgravity smoke does not rise: it is carried along the airflow towards the vent it points at,
-and spreads sideways by diffusion. Time to detect = distance along the flow / flow speed. The geometry and diffusion numbers
-are illustrative values from config, not NASA measurements.
+and spreads sideways by diffusion. Time to detect = distance along the flow / flow speed.
+The geometry and diffusion numbers are illustrative values from config, not NASA measurements.
 """
 
 from __future__ import annotations
@@ -63,7 +63,8 @@ def detect(
         if not moving:
             note = config.NOTE_FANS_OFF
         elif too_slow:
-            note = f"airflow too slow: smoke needs over {config.DETECT_TIMEOUT_S:.0f} s to reach a vent"
+            limit = f"{config.DETECT_TIMEOUT_S:.0f} s"
+            note = f"airflow too slow: smoke needs over {limit} to reach a vent"
         else:
             note = "airflow carries smoke away from all vents"
         return Detection(False, None, None, detectors, note)
