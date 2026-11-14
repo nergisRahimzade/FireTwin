@@ -24,6 +24,9 @@ data/raw/*
 # ...but keep the empty folder itself tracked.
 !data/raw/.gitkeep
 
+# Team planning documents are private; this rule must protect every clone.
+docs/plan/*.pdf
+
 # --- Vector store ---
 # Local Chroma database built by ml/ingest_rag.py (ML-08); rebuild it instead of committing it.
 chroma_db/

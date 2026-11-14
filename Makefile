@@ -3,7 +3,7 @@
 # and prints a "skipping" message instead of failing.
 # Recipe lines MUST start with a real TAB character, not spaces, or make refuses to run.
 
-# bash (not the default sh) so `dev` can use `trap` and `jobs` reliably.
+# Use bash consistently for the pipeline recipes.
 SHELL := /bin/bash
 
 # Pass .env to `uv run` only when it exists: a fresh clone has just .env.example.
@@ -49,24 +49,13 @@ train: ## Train the burn model (ml/train.py writes ml/artifacts/)
 	fi
 
 dev: ## Start backend (:8000) and frontend (:5173) dev servers; Ctrl+C stops both
+	@# Skip before calling uv: on a fresh clone `uv run` would create .venv and install packages.
 	@if [ ! -f backend/app/main.py ] && [ ! -f frontend/package.json ]; then \
-		echo "dev: skipping (no backend/app/main.py (BE-05) or frontend/package.json (FE-01) yet)"; \
-		exit 0; \
-	fi; \
-	trap 'kill $$(jobs -p) 2>/dev/null' INT TERM EXIT; \
-	if [ -f backend/app/main.py ]; then \
-		echo "dev: backend on http://localhost:8000"; \
-		uv run $(ENV_FILE) uvicorn app.main:app --app-dir backend --reload --port 8000 & \
-	else \
 		echo "dev: skipping backend (no backend/app/main.py yet, BE-05)"; \
-	fi; \
-	if [ -f frontend/package.json ]; then \
-		echo "dev: frontend on http://localhost:5173"; \
-		(cd frontend && npm run dev) & \
-	else \
 		echo "dev: skipping frontend (no frontend/package.json yet, FE-01)"; \
-	fi; \
-	wait
+	else \
+		uv run python scripts/dev.py; \
+	fi
 
 test: ## Run all pytest suites (data, ml, backend, repo-wide)
 	@# No --env-file here on purpose: tests must never see real API keys.
