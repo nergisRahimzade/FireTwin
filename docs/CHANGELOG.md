@@ -44,3 +44,5 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
   `backend/app/routers/meta.py` is a thin router; missing data gives 503. Keys documented in
   `docs/contract.md`. No change to `schemas.py`. The router is not mounted in `main.py` yet.
+- **BE-06 (integration)**: `main.py` mounts the real routers when `MOCK_MODE=0` (`/simulate`,
+  `/apply`, `/meta`); mock mode is unchanged. `backend/tests/test_app_wiring.py` checks both modes.

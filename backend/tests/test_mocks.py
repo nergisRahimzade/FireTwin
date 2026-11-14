@@ -27,6 +27,9 @@ FEATURE_REQUESTS = [
     (method, path, body) for method, path, body, _ in ENDPOINTS if path != "/health"
 ]
 FEATURE_REQUESTS.append(("GET", f"/export/{SCENARIO_ID}.pdf", None))
+# Paths with a real router already: they exist with MOCK_MODE=0 too (see test_app_wiring.py).
+REAL_PATHS = {"/meta", "/simulate", "/apply"}
+UNBUILT_REQUESTS = [request for request in FEATURE_REQUESTS if request[1] not in REAL_PATHS]
 
 
 @pytest.fixture
@@ -235,8 +238,8 @@ def test_openapi_documents_pdf_instead_of_json(client: TestClient) -> None:
     assert set(operation["responses"]["200"]["content"]) == {"application/pdf"}
 
 
-@pytest.mark.parametrize("method,path,body", FEATURE_REQUESTS)
-def test_mock_routes_are_absent_when_disabled(
+@pytest.mark.parametrize("method,path,body", UNBUILT_REQUESTS)
+def test_unbuilt_routes_are_absent_when_mocks_disabled(
     monkeypatch: pytest.MonkeyPatch, method, path, body
 ) -> None:
     monkeypatch.setenv("MOCK_MODE", "0")
@@ -256,5 +259,6 @@ def test_mode_is_captured_per_app(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MOCK_MODE", "0")
     real = create_app()
     with TestClient(mocked) as mock_client, TestClient(real) as real_client:
-        assert mock_client.get("/meta").status_code == 200
-        assert real_client.get("/meta").status_code == 404
+        # /chat has no real router yet, so it only exists in the mocked app.
+        assert mock_client.post("/chat", json={"message": "Why?"}).status_code == 200
+        assert real_client.post("/chat", json={"message": "Why?"}).status_code == 404

@@ -163,8 +163,9 @@ Add an entry each time an OPS task makes a decision like this.
 - Missing or broken data files -> 503 with a "run `make data` / `make train`" message.
 
 **Integration follow-ups (not done here)**
-- No real router is mounted in `main.py` yet (`/simulate` from BE-02 and `/meta` from BE-07 are
-  only mounted in tests). Wiring them in, alongside BE-06's `MOCK_MODE` switch, is one small
-  follow-up after BE-06 is rebased onto this stack, to avoid conflicting edits to `main.py`.
+- Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
+  `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
+  starts without pandas, the model or data files. `/detect`, `/suppress`, `/results`, `/chat` and
+  `/export` stay 404 in real mode until their routers land; mock mode serves all of them.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
