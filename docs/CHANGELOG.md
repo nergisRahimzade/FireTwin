@@ -95,3 +95,6 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **BE-04 router (gap fix)**: `POST /suppress` (`backend/app/routers/suppress.py`), mounted in real
   mode. Runs the suppressor service at the scenario's current inputs; adds no history row (ranking
   changes nothing). Unknown scenario -> 404.
+- **Real mode, end to end**: `feature/BE-real-mode` combines the real-mode wiring, `/detect`,
+  `/suppress`, `/results` (BE-08) and `/export` (BE-09) on top of `main`. A real-mode server
+  (`MOCK_MODE=0`, no API keys) passes OPS-04's `make e2e` in all 8 steps.

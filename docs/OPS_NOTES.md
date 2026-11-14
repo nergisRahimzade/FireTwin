@@ -211,8 +211,10 @@ Add an entry each time an OPS task makes a decision like this.
   pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.
 - **Gap closed for `/detect` and `/suppress`** (`feature/BE-03-04-routers`): thin routers over
   Nergis's services, mounted in real mode. `/detect` appends the "detect" row (with the current
-  verdict's source ids); `/suppress` appends nothing. With them, the real-mode e2e loop runs
-  health -> meta -> simulate -> detect -> suppress -> apply and stops at `/results` (BE-08).
+  verdict's source ids); `/suppress` appends nothing. Combined with BE-08 and BE-09 on
+  `feature/BE-real-mode`, the real-mode e2e loop (`make e2e`, OPS-04) **passes all 8 steps**:
+  cable insulation -> burning (p 0.93) -> alarm at 40 s -> `fans_off_co2` -> extinguished ->
+  3 history rows -> a 2-page PDF with the honesty line and synthetic labels.
   Seen in that run: with flow `+x` (fore) the backend reports `vent_aft` tripping, because
   `ml/pipeline/config.py` still uses the old vent names (see "3D coordinate system", BE-03 follow-up).
 
