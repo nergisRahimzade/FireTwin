@@ -1,8 +1,8 @@
 """Grounded LLM service (ML-06 explain, ML-07 answer).
 
 The LLM only ever sees the nearest NASA tests and retrieved report passages, and its output is
-checked against them. With no OPENAI_API_KEY, or when a call fails, a template built from the
-same data is returned instead, so the demo never crashes. No FastAPI imports.
+checked against them. With no GEMINI_API_KEY or OPENAI_API_KEY, or when a call fails, a template
+built from the same data is returned instead, so the demo never crashes. No FastAPI imports.
 """
 
 from __future__ import annotations
@@ -20,7 +20,25 @@ log = logging.getLogger(__name__)
 
 PROMPTS_DIR = config.ROOT / "ml" / "prompts"
 EXPLAIN_PROMPT = PROMPTS_DIR / "explain_v1.txt"
-DEFAULT_MODEL = "gpt-4o-mini"  # override with the OPENAI_MODEL environment variable
+# LLM providers, in order of preference: the first one whose key is set is used.
+# Gemini is reached through its OpenAI-compatible endpoint, so the same SDK and (in Phase B)
+# the same tool-calling format work for both.
+PROVIDERS = (
+    {
+        "name": "gemini",
+        "key_env": "GEMINI_API_KEY",
+        "model_env": "GEMINI_MODEL",
+        "default_model": "gemini-3.8-flash",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    },
+    {
+        "name": "openai",
+        "key_env": "OPENAI_API_KEY",
+        "model_env": "OPENAI_MODEL",
+        "default_model": "gpt-4o-mini",
+        "base_url": None,  # the SDK's default
+    },
+)
 LLM_TIMEOUT_S = 20.0
 EXPLAIN_TOP_K = 3
 DOCS_DIR = config.DOCS_DIR  # data/docs/<investigation>/*.txt (DAT-07)
@@ -47,18 +65,41 @@ def _load_prompt(path: Path) -> str:
         raise
 
 
+def llm_provider() -> dict | None:
+    """The provider to call: {name, api_key, model, base_url}; None when no key is set.
+
+    GEMINI_API_KEY wins over OPENAI_API_KEY. An empty value counts as missing.
+    """
+    for provider in PROVIDERS:
+        key = os.getenv(provider["key_env"], "").strip()
+        if key:
+            model = os.getenv(provider["model_env"], "").strip() or provider["default_model"]
+            return {
+                "name": provider["name"],
+                "api_key": key,
+                "model": model,
+                "base_url": provider["base_url"],
+            }
+    return None
+
+
 def llm_available() -> bool:
-    """True when an OpenAI key is set (an empty value counts as missing)."""
-    return bool(os.getenv("OPENAI_API_KEY", "").strip())
+    """True when a Gemini or OpenAI key is set."""
+    return llm_provider() is not None
 
 
 def _chat(system: str, user: str) -> str:
-    """One OpenAI chat call. Raises on any failure; callers decide how to fall back."""
+    """One chat call to the configured provider. Raises on any failure; callers fall back."""
     from openai import OpenAI  # imported here so the offline path never needs the SDK
 
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=LLM_TIMEOUT_S)
+    provider = llm_provider()
+    if provider is None:
+        raise RuntimeError("rag._chat: no GEMINI_API_KEY or OPENAI_API_KEY is set")
+    client = OpenAI(
+        api_key=provider["api_key"], base_url=provider["base_url"], timeout=LLM_TIMEOUT_S
+    )
     response = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", DEFAULT_MODEL),
+        model=provider["model"],
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
     return (response.choices[0].message.content or "").strip()
