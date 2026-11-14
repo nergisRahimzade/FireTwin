@@ -12,6 +12,10 @@ METRICS_PATH = ARTIFACTS_DIR / "metrics.json"
 PHYSICS_PARAMS_PATH = ARTIFACTS_DIR / "physics_params.json"
 
 # --- Physics-shaped model (A1) ---
+# Solid-fuel tables (BASS-II in the MSG, Saffire in Cygnus) record no pressure. Those tests
+# ran in cabin air, so the model ASSUMES one standard atmosphere for them. The table itself
+# keeps the value empty, and metrics.json counts how many rows rely on this assumption.
+NOMINAL_PRESSURE_KPA = 101.3
 U0_CM_S = 0.5  # offset inside ln(u + u0) so zero flow is finite
 FUEL_TYPES = ["solid", "droplet", "gas"]
 BURN_THRESHOLD = 0.5  # state = burning if P(burn) >= this
@@ -29,13 +33,15 @@ MODULE_LENGTH_M = 8.5
 MODULE_DIAMETER_M = 4.2
 FIRE_POSITION = (0.0, 0.0, 0.0)
 DETECTORS = [
-    {"id": "vent_aft", "position": (4.0, 1.5, 0.0)},
-    {"id": "vent_fwd", "position": (-4.0, 1.5, 0.0)},
-    {"id": "vent_mid", "position": (0.0, 2.0, 0.0)},
+    # Positions from the coordinate table in docs/contract.md (+x = fore). Changing one is
+    # a contract change: update that table and the frontend's src/lab/config.js together.
+    {"id": "vent_fwd", "position": (4.0, 1.37, 0.0)},
+    {"id": "vent_aft", "position": (-4.0, 1.37, 0.0)},
+    {"id": "vent_mid", "position": (0.0, 1.37, 0.0)},
 ]
 DIFFUSION_M2_S = 0.01  # plume spreading while fans mix the air (illustrative, not NASA data)
 # Still air mixes far less than fan-driven air, so smoke creeps instead of spreading.
-STILL_AIR_DIFFUSION_M2_S = 0.002  # illustrative, not NASA data
+STILL_AIR_DIFFUSION_M2_S = 0.001  # illustrative, not NASA data
 PLUME_RADIUS_M = 0.3  # smoke plume radius at the source
 # A vent is "downstream" when it lies within this angle of the airflow direction: cabin air
 # leaves through the vents, so the flow carries smoke into a vent it points towards.

@@ -27,7 +27,7 @@ def _by_steps(plans, *steps):
 
 def test_detect_flow_on_trips_downstream_vent() -> None:
     d = detect(BASE)
-    assert d.detected and d.detector_id == "vent_aft"
+    assert d.detected and d.detector_id == "vent_fwd"
     assert d.time_to_detect_s == 40.0  # 4.0 m downstream at 0.10 m/s
 
 
