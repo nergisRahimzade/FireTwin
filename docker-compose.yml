@@ -1,0 +1,4 @@
+# Placeholder created by OPS-01 so the repo matches the planned structure.
+# OPS-02 fills this in: a backend service (uvicorn, port 8000) and a frontend service (Vite, port 5173),
+# with data/ and ml/artifacts/ mounted read-only into the backend.
+# Until then, `docker compose up` stops with an "empty compose file" error, and that is expected.

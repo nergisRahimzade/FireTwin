@@ -1,0 +1,32 @@
+# FireTwin .gitignore (OPS-01)
+# Note: ml/artifacts/ is deliberately NOT ignored, because OPS-05 commits prebuilt model files there.
+
+# --- Secrets ---
+# .env holds real API keys; only the empty template .env.example is committed.
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+
+# --- Data ---
+# Raw PSI downloads are large and re-downloadable (make data), so keep them out of Git...
+data/raw/*
+# ...but keep the empty folder itself tracked.
+!data/raw/.gitkeep
+
+# --- Vector store ---
+# Local Chroma database built by ml/ingest_rag.py (ML-08); rebuild it instead of committing it.
+chroma_db/
+
+# --- Editors / OS ---
+.DS_Store
