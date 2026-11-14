@@ -75,3 +75,10 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   unexpected service errors return a generic 500. Chat leaves scenario state unchanged and keeps
   the service's citations/offline fallback. Added endpoint and real/mock wiring tests and contract
   notes. No shared schema, frontend, RAG/store service, prompt or dependency changes.
+
+- **BE-11**: bounded in-memory prediction/explanation cache keyed by all normalized inputs and
+  runtime LLM mode/model settings, with 60-second expiry, LRU eviction, concurrent miss sharing,
+  deep-copy isolation and explicit clearing. With the user's ownership exception, `simulate.py`
+  delegates predict/explain to the cache while preserving fresh scenario IDs and every history
+  write. Added service/concurrency and endpoint regressions. Shared schemas, Nergis's services,
+  ML/data/frontend files and dependencies are unchanged.
