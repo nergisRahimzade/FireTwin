@@ -1,7 +1,7 @@
 """Smoke detector tool (BE-03): when and where the alarm trips.
 
-In microgravity smoke does not rise: it is carried along the airflow and spreads sideways by
-diffusion. A detector trips when the plume passes over it. The geometry and diffusion numbers
+In microgravity smoke does not rise: it is carried along the airflow towards the vent it points at,
+and spreads sideways by diffusion. Time to detect = distance along the flow / flow speed. The geometry and diffusion numbers
 are illustrative values from config, not NASA measurements.
 """
 
@@ -26,7 +26,8 @@ def detect(
         moving = speed_m_s > 0 and norm > 0
         direction = tuple(c / norm for c in scenario.flow_dir) if moving else (0.0, 0.0, 0.0)
 
-        detectors, best = [], None
+        detectors, best, too_slow = [], None, False
+        cone = math.tan(math.radians(config.DOWNSTREAM_CONE_DEG))
         for det in config.DETECTORS:
             offset = tuple(p - f for p, f in zip(det["position"], fire_position))
             dist = math.sqrt(sum(c * c for c in offset))
@@ -38,8 +39,9 @@ def detect(
                     t = along / speed_m_s
                     radius = config.PLUME_RADIUS_M + math.sqrt(4 * config.DIFFUSION_M2_S * t)
                     peak = math.exp(-((lateral / radius) ** 2))
-                    if lateral <= radius:
+                    if lateral <= along * cone:  # the flow points at this vent
                         time_s = t
+                        too_slow = too_slow or t > config.DETECT_TIMEOUT_S
             else:  # no airflow: diffusion only, very slow
                 time_s = dist * dist / (4 * config.STILL_AIR_DIFFUSION_M2_S)
                 peak = math.exp(-time_s / config.DETECT_TIMEOUT_S)
@@ -58,7 +60,12 @@ def detect(
         if best is not None:
             note = f"smoke reaches {best[0]} after {best[1]:.0f} s"
             return Detection(True, best[0], round(best[1], 1), detectors, note)
-        note = config.NOTE_FANS_OFF if not moving else "airflow carries smoke away from all vents"
+        if not moving:
+            note = config.NOTE_FANS_OFF
+        elif too_slow:
+            note = f"airflow too slow: smoke needs over {config.DETECT_TIMEOUT_S:.0f} s to reach a vent"
+        else:
+            note = "airflow carries smoke away from all vents"
         return Detection(False, None, None, detectors, note)
     except Exception:
         log.exception("detect failed for scenario=%s fire_position=%s", scenario, fire_position)

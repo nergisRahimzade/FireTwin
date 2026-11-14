@@ -52,3 +52,18 @@ def test_fire_next_to_a_vent_is_detected_with_fans_off() -> None:
         BASE.model_copy(update={"flow_speed_cm_s": 0.0}), fire_position=(3.8, 1.5, 0.0)
     )
     assert out.detected is True and out.detector_id == "vent_aft"
+
+
+def test_detection_holds_across_the_whole_flow_slider() -> None:
+    times = [
+        detector.detect(BASE.model_copy(update={"flow_speed_cm_s": speed})).time_to_detect_s
+        for speed in (2.0, 5.0, 10.0, 20.0, 40.0)
+    ]
+    assert all(t is not None for t in times)
+    assert times == sorted(times, reverse=True)
+
+
+def test_very_slow_flow_times_out_with_its_own_note() -> None:
+    out = detector.detect(BASE.model_copy(update={"flow_speed_cm_s": 1.0}))
+    assert out.detected is False
+    assert "too slow" in out.note

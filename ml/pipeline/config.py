@@ -37,6 +37,9 @@ DIFFUSION_M2_S = 0.01  # plume spreading while fans mix the air (illustrative, n
 # Still air mixes far less than fan-driven air, so smoke creeps instead of spreading.
 STILL_AIR_DIFFUSION_M2_S = 0.002  # illustrative, not NASA data
 PLUME_RADIUS_M = 0.3  # smoke plume radius at the source
+# A vent is "downstream" when it lies within this angle of the airflow direction: cabin air
+# leaves through the vents, so the flow carries smoke into a vent it points towards.
+DOWNSTREAM_CONE_DEG = 30.0
 DETECT_TIMEOUT_S = 300.0
 NOTE_FANS_OFF = "fans off: smoke cannot reach vents"
 
