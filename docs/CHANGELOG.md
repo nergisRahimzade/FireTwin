@@ -29,6 +29,16 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   expand contract tests to cover types, required nullable fields, defaults, enums, and vector shape.
   Second review round: CORS errors name the bad entry and reject host names browsers never send;
   ruff `src` includes the repo root; import rule (`app...`, never `backend.app...`) in OPS_NOTES.
+- **BE-06**: `MOCK_MODE` configuration (default `1`, strict `0`/`1` flag) and conditional mock-router
+  mounting. Every planned endpoint returns fixed, explicitly synthetic fixtures from
+  `backend/app/mocks/`, including all five suppression actions, a fixed results table, chat
+  citations, and a valid static PDF. Existing request validation and the shared contract remain
+  unchanged; OpenAPI now exposes all request/response schemas. Added mock/config acceptance tests,
+  frontend handoff notes in `backend/app/mocks/README.md`, and decisions in `docs/OPS_NOTES.md`.
+  With `MOCK_MODE=0`, health remains available and mock feature routes are absent pending real tasks.
+  Review fixes: `/results` mock rows match the BE-01 store shape (plan's 8 keys, numbered steps);
+  keys of all free-form dict fields documented in `docs/contract.md`; `/health` defined once in
+  `main.py`. No change to `schemas.py`.
 - **BE-07**: `GET /meta` from real data. `backend/app/services/meta.py` builds materials (with
   `n_tests`) from the unified table, ranges from the `"overall"` section of `feature_ranges.json`
   (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
