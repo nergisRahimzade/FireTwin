@@ -58,3 +58,6 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
   names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
   `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.
+- **OPS-05**: `tests/test_demo_build.py` keeps the demo artifacts committed, non-empty and loadable,
+  and checks a real prediction works with no API keys. `docs/OPS_NOTES.md` has the `demo-v1`
+  tagging steps (after #14 and #16 merge; not tagged yet).

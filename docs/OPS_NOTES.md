@@ -170,3 +170,27 @@ Add an entry each time an OPS task makes a decision like this.
 - Once CI has run green once, make it required for `main`: Settings -> Rules -> Rulesets ->
   `protect-main` -> **Require status checks to pass** -> add **"Python (ruff + pytest)"** and
   **"Frontend (tsc + vitest + build)"** (GitHub only offers checks it has already seen run).
+
+## OPS-05: demo build (2026-11-14, Ryan)
+
+**Done**
+- The prebuilt artifacts are committed on `main`: `data/processed/tests.parquet` and
+  `ml/artifacts/{model.joblib,feature_ranges.json,metrics.json,physics_params.json}`.
+  `tests/test_demo_build.py` fails if any is untracked, empty or unloadable, or if a real
+  prediction needs an API key. RAG retrieval is keyword search over `data/docs` (no Chroma), and
+  `rag.py` falls back to a template without `GEMINI_API_KEY`/`OPENAI_API_KEY`, so the only network
+  use is the optional LLM.
+
+**Tag `demo-v1` only after #14 (OPS-04) and #16 (real mode) are merged, on a green `main`:**
+```bash
+git switch main && git pull                 # or: git fetch origin main:main
+make lint && make test                      # rule 7
+MOCK_MODE=0 make dev                        # in one terminal (or docker compose up, once OPS-02 lands)
+make e2e                                    # in another: must print "e2e: PASS (real API ...)"
+git tag -a demo-v1 -m "Demo build: real mode passes make e2e"
+git push origin demo-v1                     # tags are pushed separately from branches
+```
+- A tag is a fixed name for one commit: the demo runs from `git checkout demo-v1`, whatever lands
+  on `main` afterwards. If a fix is needed later, tag `demo-v2` instead of moving `demo-v1`.
+- Rehearse on a fresh clone with no `.env`: `make setup` needs the network once (packages), then
+  the demo runs offline apart from the optional LLM.
