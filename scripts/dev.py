@@ -70,10 +70,14 @@ def _stop_servers(processes: list[subprocess.Popen], requests: _StopRequests) ->
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
-    servers: list[tuple[str, list[str], Path]] = []
+    # (name, command, working folder, environment; None = inherit ours unchanged)
+    servers: list[tuple[str, list[str], Path, dict[str, str] | None]] = []
     if (root / "backend/app/main.py").is_file():
         # Only the backend loads this file; the frontend does not receive keys from it.
         env_args = ["--env-file", str(root / ".env")] if (root / ".env").is_file() else []
+        # --app-dir puts only backend/ on the import path, but the backend also imports ml/
+        # (ml.pipeline) from the repo root, so put the root first on PYTHONPATH, as Docker does.
+        python_path = os.pathsep.join(filter(None, [str(root), os.environ.get("PYTHONPATH")]))
         servers.append(
             (
                 "backend (:8000)",
@@ -92,12 +96,13 @@ def main() -> int:
                     "8000",
                 ],
                 root,
+                {**os.environ, "PYTHONPATH": python_path},
             )
         )
     else:
         print("dev: skipping backend (no backend/app/main.py yet, BE-05)", flush=True)
     if (root / "frontend/package.json").is_file():
-        servers.append(("frontend (:5173)", ["npm", "run", "dev"], root / "frontend"))
+        servers.append(("frontend (:5173)", ["npm", "run", "dev"], root / "frontend", None))
     else:
         print("dev: skipping frontend (no frontend/package.json yet, FE-01)", flush=True)
     if not servers:
@@ -109,15 +114,15 @@ def main() -> int:
     }
     processes: list[subprocess.Popen] = []
     try:
-        for name, command, cwd in servers:
+        for name, command, cwd, env in servers:
             if requests.first_signal:
                 break
             print(f"dev: starting {name}", flush=True)
             # start_new_session: each server gets its own process group, so one killpg reaches
             # the server and everything it started (uvicorn's reloader, Vite's esbuild, ...).
-            processes.append(subprocess.Popen(command, cwd=cwd, start_new_session=True))
+            processes.append(subprocess.Popen(command, cwd=cwd, env=env, start_new_session=True))
         while not requests.first_signal:
-            for (name, _, _), process in zip(servers, processes):
+            for (name, *_), process in zip(servers, processes):
                 status = process.poll()
                 if status is not None:
                     print(f"dev: {name} exited (status {status}); stopping servers", flush=True)
