@@ -58,3 +58,20 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
   names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
   `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.
+- **BE-07**: `GET /meta` from real data. `backend/app/services/meta.py` builds materials (with
+  `n_tests`) from the unified table, ranges from the `"overall"` section of `feature_ranges.json`
+  (the predictor's own file), and investigations from `investigations.json` once DAT-06 exists.
+  `backend/app/routers/meta.py` is a thin router; missing data gives 503. Keys documented in
+  `docs/contract.md`. No change to `schemas.py`. The router is not mounted in `main.py` yet.
+- **BE-06 (integration)**: `main.py` mounts the real routers when `MOCK_MODE=0` (`/simulate`,
+  `/apply`, `/meta`); mock mode is unchanged. `backend/tests/test_app_wiring.py` checks both modes.
+- **BE-05 follow-up (Nergis's request)**: `Settings` gains `openai_api_key` (`None` when unset or
+  blank; hidden from `repr`) and `openai_model` (default `gpt-4o-mini`, env `OPENAI_MODEL`), so
+  `rag.py` can read them through `get_settings()` instead of `os.getenv`. `rag.py` itself unchanged.
+- **BE-06 follow-up**: mock `/results` rows now match Nergis's real store exactly (`step` names,
+  `sources` as `test_id` strings); a test feeds each mock row through `store.append()` and requires
+  identical JSON. Open rule 5 question (badging id-only sources) recorded in `docs/contract.md`.
+- **OPS-01 fix**: `make dev` could not start the real backend (`No module named 'ml'`):
+  `--app-dir backend` exposes only `backend/`, but `/simulate` and `/meta` import `ml.pipeline`
+  from the repo root. `scripts/dev.py` now puts the repo root first on the backend's
+  `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.

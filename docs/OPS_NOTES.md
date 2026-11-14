@@ -149,6 +149,7 @@ Add an entry each time an OPS task makes a decision like this.
   Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.
 
 ## OPS-03: CI (2026-11-14, Ryan)
+## BE-07: /meta choices and integration follow-ups (2026-11-14, Ryan)
 
 **Chosen (the plan left it open)**
 - Python runs `make lint` and `make test`, the same commands as rule 7, so CI and laptops can't
@@ -170,3 +171,26 @@ Add an entry each time an OPS task makes a decision like this.
 - Once CI has run green once, make it required for `main`: Settings -> Rules -> Rulesets ->
   `protect-main` -> **Require status checks to pass** -> add **"Python (ruff + pytest)"** and
   **"Frontend (tsc + vitest + build)"** (GitHub only offers checks it has already seen run).
+**Integration follow-ups (not done here)**
+- Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
+  `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
+  starts without pandas, the model or data files. `/detect`, `/suppress`, `/results`, `/chat` and
+  `/export` stay 404 in real mode until their routers land; mock mode serves all of them.
+- BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
+  Nergis's stack merges (her branches contain it).
+
+## Integration follow-ups (2026-11-14, Ryan, `feature/BE-integration`)
+
+- `config.py` now carries the OpenAI settings (`openai_api_key`, `openai_model`). **Nergis:**
+  switch `rag.py`'s `os.getenv("OPENAI_API_KEY")`/`os.getenv("OPENAI_MODEL")` to
+  `get_settings()`; the defaults match, so behaviour doesn't change. `OPENAI_MODEL` is optional and
+  left out of `.env.example`, which lists only the plan's two settings.
+- The key field uses `repr=False`, so logging or printing `Settings` never leaks it.
+- Mock `/results` rows were realigned from my earlier BE-01 shape (numbered steps, full source
+  objects) to Nergis's pushed store (step names, `test_id` strings), which is what BE-08 serves.
+  `test_results_rows_equal_what_the_real_store_records` keeps the two from drifting apart.
+- Open with Nergis and Nathan (rule 5): id-only `sources` can't carry `is_synthetic`; see the
+  "Open" note under `ResultsOut.rows` in `docs/contract.md`.
+- `make dev` now gives the backend `PYTHONPATH=<repo root>` (the frontend is unchanged), like
+  the OPS-02 image's `PYTHONPATH=/app/backend:/app`. Tests hadn't caught the missing path because
+  pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.

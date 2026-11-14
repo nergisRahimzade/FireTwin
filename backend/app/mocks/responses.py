@@ -125,42 +125,42 @@ APPLY = SimulateOut(
     ),
     inputs=COMBINED_INPUTS,
 )
-# Same shape as the real store's rows (BE-01, docs/contract.md): exactly the plan's 8 keys,
-# `step` numbered from 1, and None where a step didn't produce a value.
-# Every row carries the synthetic sources, so the frontend badges every row (rule 5).
-_SOURCES_JSON = [source.model_dump(mode="json") for source in SOURCES]
+# Same shape as rows from the real store (services/store.py, BE-01): the plan's 8 keys, `step`
+# named "simulate"/"detect"/"apply", `sources` as test ids, None where a step made no value.
+# test_mocks.py checks this by feeding each row through the real store.
+_SOURCE_IDS = [source.test_id for source in SOURCES]
 RESULTS = ResultsOut(
     scenario_id=SCENARIO_ID,
     rows=[
         {  # 1: simulate
-            "step": 1,
+            "step": "simulate",
             "inputs": INPUTS.model_dump(mode="json"),
             "state": SIMULATE.state,
             "probability": SIMULATE.burn_probability,
             "trust": SIMULATE.trust,
             "detection_s": None,
             "action": None,
-            "sources": _SOURCES_JSON,
+            "sources": _SOURCE_IDS,
         },
         {  # 2: detect (no new verdict, only the detection time)
-            "step": 2,
+            "step": "detect",
             "inputs": INPUTS.model_dump(mode="json"),
             "state": None,
             "probability": None,
             "trust": None,
             "detection_s": DETECT.time_to_detect_s,
             "action": None,
-            "sources": _SOURCES_JSON,
+            "sources": _SOURCE_IDS,
         },
         {  # 3: apply the recommended action
-            "step": 3,
+            "step": "apply",
             "inputs": APPLY.inputs.model_dump(mode="json"),
             "state": APPLY.state,
             "probability": APPLY.burn_probability,
             "trust": APPLY.trust,
             "detection_s": None,
             "action": SUPPRESS.recommended,
-            "sources": _SOURCES_JSON,
+            "sources": _SOURCE_IDS,
         },
     ],
 )
