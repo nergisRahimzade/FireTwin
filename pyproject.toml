@@ -5,18 +5,25 @@ description = "FireTwin: AI fire-safety digital twin of an ISS module (NASA Spac
 # The stack is fixed to Python 3.11, so uv refuses any other version.
 requires-python = ">=3.11,<3.12"
 # Runtime packages (fastapi, pandas, ...) get added by the tasks that need them (BE-05, ML-01, ...).
-dependencies = []
+dependencies = [
+    "fastapi>=0.163.0",
+    "uvicorn>=0.54.0",
+]
 
 [tool.pytest.ini_options]
 # One test folder per layer, plus tests/ at the root for repo-wide checks.
 testpaths = ["data/tests", "ml/tests", "backend/tests", "tests"]
 # importlib mode: two layers can each have e.g. a test_schema.py without the names clashing.
 addopts = "--import-mode=importlib"
+# Root exposes data/ml modules; backend exposes app just as uvicorn's --app-dir does.
+pythonpath = [".", "backend"]
 
 [tool.ruff]
 line-length = 100
 # Match the fixed Python version so ruff only suggests syntax that 3.11 supports.
 target-version = "py311"
+# Tells ruff's import sorter what is our own code: data/ and ml/ (repo root) and app (backend/).
+src = [".", "backend"]
 
 [tool.ruff.lint]
 # E/F = pycodestyle errors + pyflakes bugs, I = import sorting.
