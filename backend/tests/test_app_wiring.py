@@ -59,6 +59,8 @@ def test_real_mode_lists_only_built_routes(real_client: TestClient) -> None:
         "/simulate",
         "/apply",
         "/meta",
+        "/detect",
+        "/suppress",
         "/results/{scenario_id}",
         "/export/{scenario_id}.pdf",
     }

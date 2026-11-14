@@ -209,6 +209,12 @@ Add an entry each time an OPS task makes a decision like this.
 - `make dev` now gives the backend `PYTHONPATH=<repo root>` (the frontend is unchanged), like
   the OPS-02 image's `PYTHONPATH=/app/backend:/app`. Tests hadn't caught the missing path because
   pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.
+- **Gap closed for `/detect` and `/suppress`** (`feature/BE-03-04-routers`): thin routers over
+  Nergis's services, mounted in real mode. `/detect` appends the "detect" row (with the current
+  verdict's source ids); `/suppress` appends nothing. With them, the real-mode e2e loop runs
+  health -> meta -> simulate -> detect -> suppress -> apply and stops at `/results` (BE-08).
+  Seen in that run: with flow `+x` (fore) the backend reports `vent_aft` tripping, because
+  `ml/pipeline/config.py` still uses the old vent names (see "3D coordinate system", BE-03 follow-up).
 
 ## BE-08: read-only scenario results (2026-11-14, Ryan)
 

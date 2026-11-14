@@ -34,6 +34,8 @@ REAL_PATHS = {
     "/meta",
     "/simulate",
     "/apply",
+    "/detect",
+    "/suppress",
     f"/results/{SCENARIO_ID}",
     f"/export/{SCENARIO_ID}.pdf",
 }
