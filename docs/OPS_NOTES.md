@@ -169,3 +169,11 @@ Add an entry each time an OPS task makes a decision like this.
   `/export` stay 404 in real mode until their routers land; mock mode serves all of them.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
+
+## Integration follow-ups (2026-11-14, Ryan, `feature/BE-integration`)
+
+- `config.py` now carries the OpenAI settings (`openai_api_key`, `openai_model`). **Nergis:**
+  switch `rag.py`'s `os.getenv("OPENAI_API_KEY")`/`os.getenv("OPENAI_MODEL")` to
+  `get_settings()`; the defaults match, so behaviour doesn't change. `OPENAI_MODEL` is optional and
+  left out of `.env.example`, which lists only the plan's two settings.
+- The key field uses `repr=False`, so logging or printing `Settings` never leaks it.

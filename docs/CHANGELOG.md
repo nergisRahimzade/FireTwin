@@ -46,3 +46,6 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   `docs/contract.md`. No change to `schemas.py`. The router is not mounted in `main.py` yet.
 - **BE-06 (integration)**: `main.py` mounts the real routers when `MOCK_MODE=0` (`/simulate`,
   `/apply`, `/meta`); mock mode is unchanged. `backend/tests/test_app_wiring.py` checks both modes.
+- **BE-05 follow-up (Nergis's request)**: `Settings` gains `openai_api_key` (`None` when unset or
+  blank; hidden from `repr`) and `openai_model` (default `gpt-4o-mini`, env `OPENAI_MODEL`), so
+  `rag.py` can read them through `get_settings()` instead of `os.getenv`. `rag.py` itself unchanged.
