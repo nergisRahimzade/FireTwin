@@ -43,3 +43,18 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   to `main`. Job "Python (ruff + pytest)": `uv sync --locked --dev`, `make lint`, `make test`.
   Job "Frontend (tsc + vitest + build)": `npm ci`, `npm run typecheck`, `npm test`, `npm run build`.
   `tests/test_ci_workflow.py` fails if a planned check is removed from the workflow.
+- **FE-04** (contract change, rule 3): `frontend/src/scene/` ISS module scene: the glTF from
+  `/models/iss_lab-transformed.glb` loads in `Suspense`, with the coded 8.5 m × 4.2 m module as the
+  fallback (also used when the file is missing), plus OrbitControls and detector markers at the
+  `DetectOut.detectors` positions. `docs/contract.md` gains a "3D coordinate system" section shared
+  by the frontend and BE-03:
+  - **Axes:** origin at the module centre, `+x` = fore (the default `flow_dir`), `+y` = overhead,
+    `+z` = port.
+  - **Fire:** always at `(0, 0, 0)`.
+  - **Vents:** BE-03's detector positions moved onto the overhead rack face (y = 1.37), so the
+    markers are visible. They are `vent_fwd` `[4.0, 1.37, 0]`, `vent_aft` `[-4.0, 1.37, 0]` and
+    `vent_mid` `[0, 1.37, 0]`; with `+x` = fore, the two end names swap.
+
+  **Pending (Nergis, BE-03):** `ml/pipeline/config.py` must be updated to these positions and
+  names. No change to `schemas.py`, so no frontend types to regenerate. The frontend's
+  `src/lab/config.js` now matches the contract, and the old Concepts prototype is removed.

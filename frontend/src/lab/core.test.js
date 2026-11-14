@@ -15,28 +15,31 @@ function run(flowId, g, seconds = 25) {
 }
 const first = hits => Object.entries(hits).sort((a, b) => a[1] - b[1])[0]?.[0];
 
-describe("ISS lab layout", () => {
-  it("has the three named vents inside the 8.5 m x 4.2 m module", () => {
-    expect(VENTS.map(v => v.id)).toEqual(["vent_1", "vent_2", "vent_3"]);
+describe("ISS lab layout (docs/contract.md, 3D coordinate system)", () => {
+  it("puts the fire at the module centre", () => {
+    expect(FIRE_POS).toEqual([0, 0, 0]);
+  });
+
+  it("has the contract's three vents on the overhead rack face, inside the 8.5 m x 4.2 m module", () => {
+    expect(VENTS.map(v => v.id)).toEqual(["vent_fwd", "vent_aft", "vent_mid"]);
+    expect(VENTS.map(v => v.pos)).toEqual([[4.0, 1.37, 0.0], [-4.0, 1.37, 0.0], [0.0, 1.37, 0.0]]);
     for (const v of VENTS) {
       expect(Math.abs(v.pos[0])).toBeLessThanOrEqual(MODULE.length / 2);
-      expect(Math.hypot(v.pos[1], v.pos[2])).toBeLessThanOrEqual(MODULE.diameter / 2);
+      expect(Math.abs(v.pos[1])).toBeLessThanOrEqual(MODULE.aisle); // visible, not inside a rack
+      expect(Math.abs(v.pos[2])).toBeLessThanOrEqual(MODULE.aisle);
     }
   });
 });
 
 describe("smoke drifts to the vent downstream of the airflow", () => {
-  for (const [flow, vent] of [["fore", "vent_1"], ["aft", "vent_2"], ["starboard", "vent_3"]]) {
-    for (const g of [0, 1]) {
-      // Aft at 1 g: vent_2 is on the deck and hot smoke rises away from it, so sometimes no
-      // vent trips at all. What must never happen is a different vent tripping first.
-      const deckVentIn1g = flow === "aft" && g === 1;
-      it(`${flow} airflow at ${g} g trips ${vent} first${deckVentIn1g ? " (or none)" : ""}`, () => {
-        const got = first(run(flow, g));
-        if (deckVentIn1g) expect([vent, undefined]).toContain(got);
-        else expect(got).toBe(vent);
-      });
-    }
+  for (const [flow, vent] of [["fore", "vent_fwd"], ["aft", "vent_aft"]]) {
+    it(`${flow} airflow at 0 g trips ${vent} first`, () => {
+      expect(first(run(flow, 0))).toBe(vent);
+    });
+    // At 1 g hot smoke rises straight up from the centre, so the vent above the fire may win.
+    it(`${flow} airflow at 1 g trips ${vent} or the vent above the fire first`, () => {
+      expect([vent, "vent_mid"]).toContain(first(run(flow, 1)));
+    });
   }
   it("with the fans off in 0 g, no vent sees smoke", () => {
     expect(run("off", 0)).toEqual({});

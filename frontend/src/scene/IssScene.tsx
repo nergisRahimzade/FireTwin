@@ -35,8 +35,9 @@ function DetectorMarkers({ detect }: { detect: DetectOut | null }) {
   const marks = useMemo(() => detectorMarks(detect), [detect]);
   return (
     <>
-      {marks.map(m => (
-        <group key={m.id} position={m.position} name={m.id}>
+      {marks.map((m, index) => (
+        // index + id: two detectors could share an id
+        <group key={`${index}-${m.id}`} position={m.position} name={m.id}>
           <mesh>
             <sphereGeometry args={[0.05, 16, 12]} />
             <meshBasicMaterial color={0x63e6be} />
