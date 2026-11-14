@@ -104,3 +104,24 @@ Add an entry each time an OPS task makes a decision like this.
 - Proposals only, **not done** (they change contract behaviour, so all three must agree):
   reject unknown request fields (`extra="forbid"`), and enforce the commented ranges
   (O2 10–40, flow 0–40) as validation.
+
+## BE-07: /meta choices and integration follow-ups (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Built on Nergis's branch stack (`BE-02-simulate-apply`), the only place with BE-05, the seed
+  table, `feature_ranges.json` and her cached loaders (`ml.pipeline.model.load_table/load_ranges`),
+  which `/meta` reuses instead of reading the files a second way.
+- `ranges` = the flat `"overall"` section of `feature_ranges.json`, because the frontend's
+  `MetaOut.ranges` type is one `{min, max}` per feature. The per-fuel-type ranges stay in the file
+  for the predictor; if the UI later wants them, that's a contract change.
+- `is_synthetic` is derived from the table (any synthetic row behind a material or the ranges),
+  since `feature_ranges.json` doesn't record it (rule 5).
+- `investigations` is `[]` until DAT-06 writes `investigations.json`; nothing is made up.
+- Missing or broken data files -> 503 with a "run `make data` / `make train`" message.
+
+**Integration follow-ups (not done here)**
+- No real router is mounted in `main.py` yet (`/simulate` from BE-02 and `/meta` from BE-07 are
+  only mounted in tests). Wiring them in, alongside BE-06's `MOCK_MODE` switch, is one small
+  follow-up after BE-06 is rebased onto this stack, to avoid conflicting edits to `main.py`.
+- BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
+  Nergis's stack merges (her branches contain it).
