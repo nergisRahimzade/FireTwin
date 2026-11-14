@@ -56,3 +56,7 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   `--app-dir backend` exposes only `backend/`, but `/simulate` and `/meta` import `ml.pipeline`
   from the repo root. `scripts/dev.py` now puts the repo root first on the backend's
   `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.
+- **BE-03 router (gap fix)**: `POST /detect` (`backend/app/routers/detect.py`), mounted in real mode.
+  Runs the detector service at the scenario's current inputs and appends the `"detect"` history row
+  (`detection_s`, plus the current verdict's source ids). Unknown scenario -> 404. No task in the
+  plan created this router; OPS-04's e2e loop stopped here.

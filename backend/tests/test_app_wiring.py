@@ -50,7 +50,7 @@ def test_real_mode_apply_reuses_the_scenario(real_client: TestClient) -> None:
 
 def test_real_mode_lists_only_built_routes(real_client: TestClient) -> None:
     paths = set(real_client.get("/openapi.json").json()["paths"])
-    assert paths == {"/health", "/simulate", "/apply", "/meta"}
+    assert paths == {"/health", "/simulate", "/apply", "/meta", "/detect"}
 
 
 def test_mock_mode_meta_is_the_fixture(mock_client: TestClient) -> None:
