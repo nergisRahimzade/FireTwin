@@ -5,7 +5,14 @@ description = "FireTwin: AI fire-safety digital twin of an ISS module (NASA Spac
 # The stack is fixed to Python 3.11, so uv refuses any other version.
 requires-python = ">=3.11,<3.12"
 # Runtime packages (fastapi, pandas, ...) get added by the tasks that need them (BE-05, ML-01, ...).
-dependencies = []
+dependencies = [
+    "joblib>=1.6.0",
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "reportlab>=5.1.0",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.17.1",
+]
 
 [tool.pytest.ini_options]
 # One test folder per layer, plus tests/ at the root for repo-wide checks.
