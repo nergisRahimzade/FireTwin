@@ -1,0 +1,46 @@
+{
+  "overall": {
+    "o2_pct": {
+      "min": 13.0,
+      "max": 24.5
+    },
+    "pressure_kpa": {
+      "min": 70.3,
+      "max": 101.3
+    },
+    "flow_cm_s": {
+      "min": 0.0,
+      "max": 29.8
+    }
+  },
+  "by_fuel_type": {
+    "droplet": {
+      "o2_pct": {
+        "min": 14.5,
+        "max": 24.5
+      },
+      "pressure_kpa": {
+        "min": 70.3,
+        "max": 101.3
+      },
+      "flow_cm_s": {
+        "min": 0.0,
+        "max": 28.1
+      }
+    },
+    "solid": {
+      "o2_pct": {
+        "min": 13.0,
+        "max": 24.4
+      },
+      "pressure_kpa": {
+        "min": 70.3,
+        "max": 101.3
+      },
+      "flow_cm_s": {
+        "min": 0.0,
+        "max": 29.8
+      }
+    }
+  }
+}
