@@ -182,3 +182,6 @@ Add an entry each time an OPS task makes a decision like this.
   `test_results_rows_equal_what_the_real_store_records` keeps the two from drifting apart.
 - Open with Nergis and Nathan (rule 5): id-only `sources` can't carry `is_synthetic`; see the
   "Open" note under `ResultsOut.rows` in `docs/contract.md`.
+- `make dev` now gives the backend `PYTHONPATH=<repo root>` (the frontend is unchanged), like
+  the OPS-02 image's `PYTHONPATH=/app/backend:/app`. Tests hadn't caught the missing path because
+  pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.

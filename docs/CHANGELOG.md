@@ -52,3 +52,7 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **BE-06 follow-up**: mock `/results` rows now match Nergis's real store exactly (`step` names,
   `sources` as `test_id` strings); a test feeds each mock row through `store.append()` and requires
   identical JSON. Open rule 5 question (badging id-only sources) recorded in `docs/contract.md`.
+- **OPS-01 fix**: `make dev` could not start the real backend (`No module named 'ml'`):
+  `--app-dir backend` exposes only `backend/`, but `/simulate` and `/meta` import `ml.pipeline`
+  from the repo root. `scripts/dev.py` now puts the repo root first on the backend's
+  `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.
