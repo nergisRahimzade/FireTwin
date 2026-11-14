@@ -1,6 +1,8 @@
-/* FireTwin API contract, typed by hand from the Implementation Tasks doc ("Shared API contract").
-   The source of truth is backend/app/schemas.py (BE-05). Once the backend serves /openapi.json,
-   run `npm run gen:api` to generate src/api/schema.d.ts and switch these types to it. */
+/* FireTwin API contract. Source of truth: backend/app/schemas.py (BE-05).
+   src/api/schema.d.ts is generated from the backend's /openapi.json (`npm run gen:api`).
+   These hand-written types add detail the schema leaves as plain dicts (detectors, results rows,
+   materials, citations); contract.check.ts makes `tsc` fail if their fields drift from it.
+   Synthetic data (rule 5) carries is_synthetic=true and must show a "synthetic" badge. */
 
 export type Vec3 = [number, number, number];
 export type Outcome = "burned" | "extinguished" | "unknown";
@@ -43,8 +45,9 @@ export interface SimulateOut {
 
 export interface DetectorReading {
   id: string;
-  position: Vec3;
+  position: Vec3; // metres, origin at the module centre
   peak_concentration: number;
+  is_synthetic?: boolean;
 }
 
 export interface DetectOut {
@@ -74,9 +77,9 @@ export interface SuppressOut {
 }
 
 export interface ResultsRow {
-  step: string;
+  step: number; // 1, 2, ... in the order the scenario ran
   inputs: ScenarioIn;
-  state: string;
+  state: SimulateOut["state"] | null; // null on rows without a new verdict (e.g. detect)
   probability: number | null;
   trust: Trust | null;
   detection_s: number | null;
@@ -105,11 +108,16 @@ export interface MaterialOption {
   name: string;
   fuel_type: string;
   n_tests: number;
+  is_synthetic?: boolean;
+}
+
+export interface HealthOut {
+  status: string;
 }
 
 export interface MetaOut {
   materials: MaterialOption[];
-  ranges: Record<string, { min: number; max: number }>; // min/max per feature in the training data
+  ranges: Record<string, { min: number; max: number; is_synthetic?: boolean }>; // per feature, training data
   investigations: Record<string, unknown>[];
 }
 
