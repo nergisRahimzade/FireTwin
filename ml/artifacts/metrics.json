@@ -1,0 +1,66 @@
+{
+  "n_rows": 64,
+  "n_synthetic_rows": 64,
+  "trained_on_synthetic_data": true,
+  "evaluation": "leave-one-investigation-out",
+  "chosen_variant": "physics_ppo2",
+  "accuracy": 0.828125,
+  "physics_model": {
+    "accuracy": 0.828125,
+    "log_loss": 0.3540515926997941,
+    "n_rows": 64
+  },
+  "physics_model_other_variant": {
+    "physics": {
+      "accuracy": 0.84375,
+      "log_loss": 0.35584382121108127,
+      "n_rows": 64
+    }
+  },
+  "boundary_model_option_b": {
+    "accuracy": 0.9791666666666666,
+    "log_loss": 0.17307530591449038,
+    "n_rows": 48
+  },
+  "baseline_plain_logistic": {
+    "accuracy": 0.8125,
+    "log_loss": 0.43721151722012863,
+    "n_rows": 64
+  },
+  "folds": [
+    {
+      "held_out": "BASS-II",
+      "n_test": 16
+    },
+    {
+      "held_out": "FLEX",
+      "n_test": 16
+    },
+    {
+      "held_out": "Saffire-II",
+      "n_test": 16
+    },
+    {
+      "held_out": "Saffire-III",
+      "n_test": 16
+    }
+  ],
+  "coefficient_check": {
+    "coefficients_scaled": {
+      "o2_pct": 1.4121368881187113,
+      "ln_u": 1.8815156167744016,
+      "ln_u_sq": -0.34806416581550886,
+      "ppo2_kpa": 0.20174958118804528,
+      "fuel_solid": -0.5372964238556518,
+      "fuel_droplet": 0.5372964238556518,
+      "fuel_gas": 0.0
+    },
+    "o2_coefficient_positive": true,
+    "ln_u_sq_coefficient_negative": true,
+    "u_shape_ok": true
+  },
+  "spread_model": {
+    "fitted": false,
+    "n_rows": 0
+  }
+}
