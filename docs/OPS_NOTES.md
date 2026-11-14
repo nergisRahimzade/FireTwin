@@ -166,8 +166,8 @@ Add an entry each time an OPS task makes a decision like this.
 - Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
   `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
   starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
-  branch, and BE-09 adds `/export`. `/detect`, `/suppress` and `/chat` remain unbuilt in real
-  mode; mock mode serves all endpoints.
+  branch, BE-09 adds `/export`, and BE-10 adds `/chat`. `/detect` and `/suppress` remain
+  unbuilt on this branch in real mode; mock mode serves all endpoints.
 - BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
   Nergis's stack merges (her branches contain it).
 
@@ -247,3 +247,34 @@ Add an entry each time an OPS task makes a decision like this.
   synthetic and unknown sources, read-only behavior, empty/unknown IDs, unavailable data/model,
   escaped markup without image loading, pagination, scenario isolation, PDF OpenAPI and mock mode.
 - `test_app_wiring.py` runs simulate -> export on the real seed files with the API key removed.
+
+
+## BE-10: scenario-aware chat endpoint (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Built on completed BE-09, which includes BE-08 and the `feature/BE-integration` base. The
+  chat router is imported and mounted only inside `main.py`'s existing real-mode `else:` branch.
+  Mock mode retains its fixed fixture; `/chat` moves out of the mock tests' unbuilt-path list.
+- The router calls Nergis's unchanged `rag.answer(message, scenario)` and returns its `ChatOut`.
+  `ChatIn`/`ChatOut`, RAG/store services, ML prompts, frontend types and dependencies are unchanged.
+- Scenario summary = the ID, current inputs and full ordered history from one `store.get()`
+  snapshot. Inputs are dumped into a new JSON-ready dictionary; history is already copied by the
+  store. This lets the answerer compare initial and applied inputs and see saved outcomes, action
+  names, detection times and source IDs, without exposing mutable store references.
+- Omitted/null IDs mean general chat (`scenario=None`). Any supplied ID is looked up, including
+  the empty string: missing IDs become 404 with the store's restart hint, before RAG is invoked.
+  A known scenario with no steps still supplies its inputs and empty history.
+- No chat history row is added (the store's planned steps are simulate/detect/apply). Chat does
+  not change inputs, run a prediction, or include any other scenario in the context.
+- Message text and RAG citations pass through; request validation remains with existing Pydantic
+  models. No new blank-message rejection, truncation or trimming policy is introduced.
+- RAG owns retrieval and offline fallback. Unexpected answerer failures return a generic 500,
+  following `/simulate` and `/apply`; raw exception details stay out of the HTTP response.
+
+**Checks**
+- `test_chat.py` covers general/null IDs, unchanged message/citations, current and historical
+  inputs, empty/unknown scenarios, context isolation, validation, offline retrieval/no evidence,
+  real RAG serialization into a faked LLM call, LLM-failure fallback, generic service errors,
+  OpenAPI and fixed mock behavior. All documents and LLM responses in these tests are synthetic.
+- App wiring includes a real simulate -> chat sequence with the key removed and no documents
+  required; chat receives the newly created scenario without appending history.

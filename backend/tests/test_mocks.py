@@ -31,6 +31,7 @@ FEATURE_REQUESTS = [
 FEATURE_REQUESTS.append(("GET", f"/export/{SCENARIO_ID}.pdf", None))
 # Paths with a real router already: they exist with MOCK_MODE=0 too (see test_app_wiring.py).
 REAL_PATHS = {
+    "/chat",
     "/meta",
     "/simulate",
     "/apply",
@@ -284,6 +285,6 @@ def test_mode_is_captured_per_app(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MOCK_MODE", "0")
     real = create_app()
     with TestClient(mocked) as mock_client, TestClient(real) as real_client:
-        # /chat has no real router yet, so it only exists in the mocked app.
-        assert mock_client.post("/chat", json={"message": "Why?"}).status_code == 200
-        assert real_client.post("/chat", json={"message": "Why?"}).status_code == 404
+        # /detect has no real router on this branch, so it only exists in the mocked app.
+        assert mock_client.post("/detect", json={"scenario_id": SCENARIO_ID}).status_code == 200
+        assert real_client.post("/detect", json={"scenario_id": SCENARIO_ID}).status_code == 404

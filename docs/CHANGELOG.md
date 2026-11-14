@@ -69,3 +69,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   return 404; missing model/source data is labeled without losing saved rows. Added PDF content,
   history-parity, pagination, error and mode-isolation tests; updated wiring and contract notes.
   Mock export and shared schemas remain unchanged; ReportLab was already a runtime dependency.
+
+- **BE-10**: real-mode `POST /chat` delegates to the existing `rag.answer()` and passes a detached
+  snapshot of current inputs/history when `scenario_id` is supplied. Unknown IDs return 404;
+  unexpected service errors return a generic 500. Chat leaves scenario state unchanged and keeps
+  the service's citations/offline fallback. Added endpoint and real/mock wiring tests and contract
+  notes. No shared schema, frontend, RAG/store service, prompt or dependency changes.
