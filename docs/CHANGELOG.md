@@ -49,3 +49,6 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **BE-05 follow-up (Nergis's request)**: `Settings` gains `openai_api_key` (`None` when unset or
   blank; hidden from `repr`) and `openai_model` (default `gpt-4o-mini`, env `OPENAI_MODEL`), so
   `rag.py` can read them through `get_settings()` instead of `os.getenv`. `rag.py` itself unchanged.
+- **BE-06 follow-up**: mock `/results` rows now match Nergis's real store exactly (`step` names,
+  `sources` as `test_id` strings); a test feeds each mock row through `store.append()` and requires
+  identical JSON. Open rule 5 question (badging id-only sources) recorded in `docs/contract.md`.

@@ -1,5 +1,6 @@
 """BE-06 acceptance checks: all mock endpoints, synthetic labels, isolation and OpenAPI."""
 
+import json
 import re
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app import schemas
 from app.main import create_app
+from app.services import store
 
 SCENARIO_ID = "synthetic-scenario-001"
 # Keys of a results row, in order: the plan's ResultsOut.rows keys, same as the BE-01 store.
@@ -139,7 +141,19 @@ def test_freeform_numeric_fixtures_are_marked_synthetic(client: TestClient) -> N
 def test_results_rows_match_store_shape(client: TestClient) -> None:
     rows = client.get(f"/results/{SCENARIO_ID}").json()["rows"]
     assert [list(row) for row in rows] == [ROW_KEYS] * len(rows)
-    assert [row["step"] for row in rows] == [1, 2, 3]
+    assert [row["step"] for row in rows] == ["simulate", "detect", "apply"]
+
+
+def test_results_rows_equal_what_the_real_store_records(client: TestClient) -> None:
+    # Record each mock row's values through the real store; the JSON must come out identical,
+    # so the frontend sees the same shape in mock and real mode (BE-08 serves the real rows).
+    rows = client.get(f"/results/{SCENARIO_ID}").json()["rows"]
+    scenario_id = store.create(schemas.ScenarioIn(**rows[0]["inputs"]))
+    for row in rows:
+        values = {key: row[key] for key in ROW_KEYS if key not in ("step", "inputs")}
+        inputs = schemas.ScenarioIn(**row["inputs"])
+        store.append(scenario_id, row["step"], inputs=inputs, **values)
+    assert json.loads(json.dumps(store.history(scenario_id))) == rows
 
 
 def test_detect_row_has_only_the_detection_time(client: TestClient) -> None:
@@ -149,10 +163,15 @@ def test_detect_row_has_only_the_detection_time(client: TestClient) -> None:
     assert detect_row["state"] is detect_row["probability"] is detect_row["trust"] is None
 
 
-def test_every_results_row_has_synthetic_sources(client: TestClient) -> None:
-    # Rows carry no flag of their own: the frontend badges a row if any source is synthetic.
+def test_results_row_sources_are_the_synthetic_tests(client: TestClient) -> None:
+    # Rows hold test ids only; each id must be one of the synthetic TestRefs /simulate returns.
+    synthetic_ids = {
+        ref["test_id"]
+        for ref in client.post("/simulate", json=SCENARIO).json()["nearest_tests"]
+        if ref["is_synthetic"]
+    }
     rows = client.get(f"/results/{SCENARIO_ID}").json()["rows"]
-    assert all(row["sources"] and all(s["is_synthetic"] for s in row["sources"]) for row in rows)
+    assert all(row["sources"] and set(row["sources"]) <= synthetic_ids for row in rows)
 
 
 @pytest.mark.parametrize("path", ["/simulate", "/apply"])

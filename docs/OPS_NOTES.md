@@ -177,3 +177,8 @@ Add an entry each time an OPS task makes a decision like this.
   `get_settings()`; the defaults match, so behaviour doesn't change. `OPENAI_MODEL` is optional and
   left out of `.env.example`, which lists only the plan's two settings.
 - The key field uses `repr=False`, so logging or printing `Settings` never leaks it.
+- Mock `/results` rows were realigned from my earlier BE-01 shape (numbered steps, full source
+  objects) to Nergis's pushed store (step names, `test_id` strings), which is what BE-08 serves.
+  `test_results_rows_equal_what_the_real_store_records` keeps the two from drifting apart.
+- Open with Nergis and Nathan (rule 5): id-only `sources` can't carry `is_synthetic`; see the
+  "Open" note under `ResultsOut.rows` in `docs/contract.md`.
