@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gen:api": "openapi-typescript ${VITE_API_URL:-http://localhost:8000}/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@react-three/drei": "9.117.3",
@@ -15,12 +17,17 @@
     "htm": "3.1.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "three": "0.160.0"
+    "three": "0.160.0",
+    "zustand": "5.0.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.11",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
+    "openapi-typescript": "7.4.3",
     "tailwindcss": "4.1.11",
+    "typescript": "5.6.3",
     "vite": "5.4.11",
     "vitest": "2.1.8"
   }
