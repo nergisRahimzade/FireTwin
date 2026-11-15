@@ -34,11 +34,13 @@ from app.schemas import (
 )
 
 DEFAULT_BASE_URL = "http://localhost:8000"
-# The default scenario must BURN, or ranking suppression is meaningless. On the real NASA data
-# (2026-11-14) only the droplet fuels ever burned, and only with the fans off; Heptane at 30 % O2,
-# fans off, is the one burning case with strong trust and no extrapolation (p = 0.51). The plan's
-# "cable insulation" isn't in the real table. Override with --material/--o2/--flow.
-DEMO_SCENARIO = {"material": "Heptane", "o2_pct": 30.0, "flow_speed_cm_s": 0.0}
+# The default scenario must BURN, or ranking suppression is meaningless. Since the solid-model fix
+# (main 20bf3a9), PMMA rod (28 NASA tests) at 21 % O2 and 10 cm/s runs the whole demo flow: it burns
+# with strong trust, the airflow carries smoke to vent_fwd (alarm at 40 s) and fans off puts it out.
+# Before that fix the default was Heptane at 30 % O2 with fans off, which burns but never trips an
+# alarm. The plan's "cable insulation" isn't in the real table.
+# Override with --material/--o2/--flow.
+DEMO_SCENARIO = {"material": "PMMA rod", "o2_pct": 21.0, "flow_speed_cm_s": 10.0}
 # BE-06 sets this OpenAPI description in mock mode, which is how the loop tells mock from real.
 MOCK_MARKER = "Synthetic mock API"
 
@@ -175,7 +177,14 @@ def run_loop(
     _check("export", pdf.content.startswith(b"%PDF"), "body is not a PDF")
     log(f"ok   export: {len(pdf.content)} bytes")
 
-    return {"scenario_id": sim.scenario_id, "mock": mock, "rows": len(results.rows)}
+    return {
+        "scenario_id": sim.scenario_id,
+        "mock": mock,
+        "rows": len(results.rows),
+        # The demo flow at a glance: did the alarm trip, and did the recommended action work?
+        "alarm": f"{det.detector_id} at {det.time_to_detect_s:.0f} s" if det.detected else "none",
+        "outcome": f"{sup.recommended} -> {applied.state}",
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -198,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             if exc.step == "health":
                 print("     Is the API running? Start it with `make dev` or `docker compose up`.")
             return 1
+    print(f"e2e: demo flow: alarm {summary['alarm']}, {summary['outcome']}")
     print(f"e2e: PASS ({'mock' if summary['mock'] else 'real'} API, {summary['rows']} result rows)")
     return 0
 
