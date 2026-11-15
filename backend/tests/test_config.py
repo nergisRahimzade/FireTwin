@@ -140,3 +140,22 @@ def test_openai_model_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_openai_model_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
     assert get_settings().openai_model == "gpt-test"
+
+
+@pytest.mark.parametrize(
+    "entry, hint",
+    [
+        ("fire-twin.vercel.app", "add the scheme, e.g. 'https://fire-twin.vercel.app'"),
+        (
+            "https://fire-twin.vercel.app/",
+            "remove the trailing slash: 'https://fire-twin.vercel.app'",
+        ),
+    ],
+)
+def test_common_origin_slips_get_an_exact_fix(monkeypatch, entry, hint) -> None:
+    # A deploy log (e.g. Render) should say how to fix the setting, not only that it's wrong.
+    monkeypatch.setenv("CORS_ORIGINS", entry)
+    with pytest.raises(ValueError) as error:
+        get_settings()
+    assert hint in str(error.value)
+    assert repr(entry) in str(error.value)
