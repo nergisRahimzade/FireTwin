@@ -78,12 +78,12 @@ export interface SuppressOut {
 export interface ResultsRow {
   step: string;
   inputs: ScenarioIn;
-  state: string;
+  state: string | null; // null on "detect" rows
   probability: number | null;
   trust: Trust | null;
   detection_s: number | null;
   action: string | null;
-  sources: TestRef[];
+  sources: (TestRef | string)[]; // the backend sends test_id strings today
 }
 
 export interface ResultsOut {
