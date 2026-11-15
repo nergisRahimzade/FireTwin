@@ -123,6 +123,9 @@ export interface MaterialOption {
 export interface MetaOut {
   materials: MaterialOption[];
   ranges: Record<string, { min: number; max: number }>; // min/max per feature in the training data
+  // The same min/max per fuel_type ("solid", "droplet"). The model flags `extrapolated` against the
+  // material's own fuel type, so the sliders shade this one (solids: 14.2-22.2 % O2, not 12-34 %).
+  ranges_by_fuel_type: Record<string, Record<string, { min: number; max: number }>>;
   investigations: Record<string, unknown>[];
 }
 

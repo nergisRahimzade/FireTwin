@@ -127,6 +127,10 @@ class MetaOut(BaseModel):
 
     materials: list[dict]  # name, fuel_type, n_tests
     ranges: dict  # min/max per feature in training data
+    # Same min/max, per fuel_type ("solid", "droplet"). The model flags `extrapolated` against the
+    # material's own fuel_type, so the UI shades this one: solids were tested at 14.2-22.2 % O2,
+    # not the 12-34 % that the droplet tests stretch the overall range to.
+    ranges_by_fuel_type: dict[str, dict]
     investigations: list[dict]
 
 

@@ -7,7 +7,7 @@ import {
 } from "./controlPanel.logic";
 
 const meta = (ranges: MetaOut["ranges"]): MetaOut => ({
-  materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges, investigations: [],
+  materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges, ranges_by_fuel_type: {}, investigations: [],
 });
 
 describe("testedRange", () => {

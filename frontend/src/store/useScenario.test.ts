@@ -114,7 +114,7 @@ describe("useScenario store", () => {
   });
 
   it("loadMeta fills /meta and picks the first material", async () => {
-    fake.meta.mockResolvedValue({ materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges: {}, investigations: [] });
+    fake.meta.mockResolvedValue({ materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges: {}, ranges_by_fuel_type: {}, investigations: [] });
     await store().loadMeta();
     expect(store().inputs.material).toBe("Nomex");
   });
