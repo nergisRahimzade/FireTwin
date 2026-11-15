@@ -1,6 +1,6 @@
 /* The only way the frontend reaches data (CLAUDE.md rule 4): one function per API endpoint. */
 import type {
-  ActionName, ChatOut, DetectOut, MetaOut, ResultsOut, ScenarioIn, SimulateOut, SuppressOut,
+  ActionName, ChatOut, DetectOut, MetaOut, PreviewOut, ResultsOut, ScenarioIn, SimulateOut, SuppressOut,
 } from "./types";
 
 // Dev: the backend from `make dev`. Production: same-origin /api, which Vercel rewrites to the
@@ -42,6 +42,8 @@ export const api = {
   health: () => request<{ status: string }>("/health"),
   meta: () => request<MetaOut>("/meta"),
   simulate: (inputs: ScenarioIn) => post<SimulateOut>("/simulate", inputs),
+  // Verdict only: no scenario is created, so live views can call it on every change.
+  preview: (inputs: ScenarioIn) => post<PreviewOut>("/preview", inputs),
   detect: (scenario_id: string) => post<DetectOut>("/detect", { scenario_id }),
   suppress: (scenario_id: string) => post<SuppressOut>("/suppress", { scenario_id }),
   apply: (scenario_id: string, action: ActionName) => post<SimulateOut>("/apply", { scenario_id, action }),

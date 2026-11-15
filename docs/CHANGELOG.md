@@ -4,6 +4,10 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **BE-05 (contract, rule 3)**: new `POST /preview` -> `PreviewOut` (verdict only: no scenario,
+  history row or explanation) for live views, in real and mock mode. `schemas.py`, `types.ts`,
+  `client.ts` (`api.preview`), `docs/contract.md` and the BE-12 endpoint matrix updated together.
+
 - **OPS-02**: bundle preparation stops before creating files or downloading weights when
   Git cannot verify the output's ignore status in a checkout. Source archives and hosts
   without Git retain their documented setup workflow.

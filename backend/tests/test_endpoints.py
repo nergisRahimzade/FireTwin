@@ -18,6 +18,7 @@ ENDPOINTS = [
     ("GET", "/health", None, schemas.HealthOut),
     ("GET", "/meta", None, schemas.MetaOut),
     ("POST", "/simulate", "scenario", schemas.SimulateOut),
+    ("POST", "/preview", "scenario", schemas.PreviewOut),
     ("POST", "/detect", "ref", schemas.DetectOut),
     ("POST", "/suppress", "ref", schemas.SuppressOut),
     ("POST", "/apply", "apply", schemas.SimulateOut),

@@ -126,6 +126,16 @@ marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|
   metadata is marked unavailable. PDF rendering performs no network/LLM calls and writes no files.
 
 
+## POST /preview (BE-05, added 2026-11-15)
+
+`ScenarioIn` -> `PreviewOut {state, burn_probability, trust, extrapolated, is_synthetic, inputs}`.
+The same prediction and `BURN_THRESHOLD` as `/simulate`, but **no scenario, no history row and no
+explanation** (so no LLM call): it is fast and leaves `/results` untouched. For live views only:
+the 3D scene while sliders move, and the O2 sweep chart. Recording a step still needs `/simulate`
+or `/apply`. `is_synthetic` is `true` in mock mode (rule 5); non-finite inputs give 422 like
+`/simulate`. Added because the O2 chart called `/simulate` once per point (7 scenarios and 7
+explanations per Ignite/Apply).
+
 ## POST /chat (BE-10)
 
 - In real mode (`MOCK_MODE=0`), validates the existing `ChatIn` body and returns the existing

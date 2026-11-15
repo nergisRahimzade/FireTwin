@@ -9,6 +9,7 @@ from app.schemas import (
     ChatOut,
     DetectOut,
     MetaOut,
+    PreviewOut,
     ResultsOut,
     ScenarioIn,
     SimulateOut,
@@ -59,6 +60,15 @@ SIMULATE = SimulateOut(
     extrapolated=True,
     nearest_tests=SOURCES,
     explanation="Synthetic mock: fixed inputs and fire outcome for UI development, not NASA data.",
+    inputs=INPUTS,
+)
+# Same synthetic verdict as SIMULATE, labelled synthetic (rule 5) because it carries no sources.
+PREVIEW = PreviewOut(
+    state=SIMULATE.state,
+    burn_probability=SIMULATE.burn_probability,
+    trust=SIMULATE.trust,
+    extrapolated=SIMULATE.extrapolated,
+    is_synthetic=True,
     inputs=INPUTS,
 )
 DETECT = DetectOut(

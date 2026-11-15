@@ -57,6 +57,7 @@ def test_real_mode_lists_only_built_routes(real_client: TestClient) -> None:
     assert paths == {
         "/health",
         "/simulate",
+        "/preview",
         "/apply",
         "/meta",
         "/detect",
