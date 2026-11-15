@@ -1,6 +1,7 @@
 # Ryan fixes: implementation handoff
 
-Status: active handoff. Audited against main `fd5ec94` (PR #27 merged), 2026-11-15.
+Status: active handoff. Current status checked against main `cc13051` (through PR #49),
+2026-11-15; the original audit below used `fd5ec94` (PR #27 merged).
 Prepared from local review notes, the private source plan PDFs and repository code/docs.
 Give this document to a coding model one work package at a time. The local review note
 and PDFs are not distributed with the public plan; obtain them from the team if needed.
@@ -14,8 +15,8 @@ and PDFs are not distributed with the public plan; obtain them from the team if 
 | 3 — runtime mounts/mode visibility | Merged, PR #27 (`fd5ec94`). | Narrow runtime mounts and startup messages are on main. |
 | 4 — validation | Proposed policy only. | Agree the request/error matrix in `docs/DECISIONS.md` before changing behavior. |
 | 5 — historical PDF recommendation | Pending shared-store handoff. | Coordinate snapshot semantics with Nergis. |
-| 6 — offline vector retrieval | Merged, PR #34 (`60ea3f8`). | Follow-ups RAG-004/RAG-005 (empty-folder search, untracked bundle outputs) on `feature/ML-08-followups`. |
-| 7 — documentation | Merged, PR #29 (`db5f8dd`). | Later corrections (tag status, ordering) on `feature/OPS-01-docs-followups`. |
+| 6 — offline vector retrieval | Merged, PR #34 (`60ea3f8`); vector-only evals #36 and RAG-004/RAG-005 follow-ups #37 also merged. | Re-prepare the optional bundle from the release corpus and run the separate vector evals. |
+| 7 — documentation | Merged, PR #29 (`db5f8dd`); tag/status/ordering corrections #38 also merged. | Keep current status distinct from historical evidence; unresolved team decisions remain below. |
 | 8 — demo freeze | `demo-v1` exists (annotated, on `8f281d9`). Since `20bf3a9` the full flow runs on real data (PMMA rod 21% O2, 10 cm/s). | Confirm the narrative, run the release checks on an exact green SHA, then tag `demo-v2`. |
 
 ## Baseline and findings
