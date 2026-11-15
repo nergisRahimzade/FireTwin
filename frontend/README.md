@@ -40,3 +40,33 @@ simulation, and the lab clock runs 2.5x real time.
 
 The single-file artifact version inlines `config.js` and `core.js` and draws them with plain
 three.js, so both stay in sync if you edit those two files.
+
+## FE-12 (stretch): detailed ISS module from Blender
+
+The scene shows the coded module (`src/scene/FallbackModule.tsx`) until
+`public/models/iss_lab-transformed.glb` exists. That file is built from a source model in one command:
+
+```bash
+cd frontend
+npm run model:iss:check                          # no Blender needed: shows the vent layout it will use
+npm run model:iss -- ~/Downloads/iss_interior.glb  # needs Blender (brew install --cask blender)
+```
+
+`npm run model:iss` runs `scripts/blender/build_iss_model.sh`:
+
+1. **Blender, headless:** `blender --background --factory-startup --python scripts/blender/optimize_iss.py -- --input <model> --output public/models/iss_lab.glb`.
+   - **Import:** the source model (`.glb`/`.gltf`, `.obj` or `.fbx`).
+   - **Clean up:** drops cameras and lights, and bakes every transform.
+   - **Orient and scale:** turns the long axis to +x, centres the model, and scales it to the module size in `ml/pipeline/config.py` (8.5 m long, 4.2 m across; add `--uniform` to keep proportions).
+   - **Decimate:** reduces dense meshes to fit a triangle budget (`--max-tris`, default 100,000), or uses a fixed `--ratio`.
+   - **Join:** merges meshes that share a material.
+   - **Vent empties:** adds an empty at every detector in the backend's `DETECTORS` (`vent_fwd`, `vent_aft`, `vent_mid`), plus `fire_origin` at (0, 0, 0).
+   - **Export:** a Y-up GLB.
+2. **gltfjsx:** `npx gltfjsx@6.5.3 public/models/iss_lab.glb --transform --keepgroups --instance --types --resolution 1024` writes `public/models/iss_lab-transformed.glb`, with Draco and WebP textures at 1024.
+   - `--keepgroups` keeps the vent empties.
+   - `--instance` instances repeated parts.
+   - The JSX component it also writes is sent to a temp folder; `src/scene/IssLab.tsx` loads the GLB instead.
+
+Commit only `public/models/iss_lab-transformed.glb`; the intermediate `iss_lab.glb` is git-ignored. Keep the result under about 5 MB and 100k triangles (guide, section 8). In development, `IssLab.tsx` warns in the console if the model's vent empties are missing or more than 5 cm from the contract positions.
+
+**Source model.** NASA 3D Resources doesn't publish an ISS interior or Destiny laboratory model. Its ISS entries are exterior models: ISS (A), (B) and (D) as `.glb`, and a high-res Lightwave file (github.com/nasa/NASA-3D-Resources, science.nasa.gov/3d-resources). An interior has to come from somewhere else, such as a third-party model whose license allows this use, or one modelled by the team. Check its license before committing it.
