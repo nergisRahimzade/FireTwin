@@ -1,4 +1,8 @@
-"""OPS-01 regression checks for make dev, using local processes instead of real servers."""
+"""OPS-01 regression checks for make dev, using local processes instead of real servers.
+
+The real-process tests need POSIX process groups and signals, so they run on Linux/macOS/WSL only.
+The native-Windows tests check that the launcher stops before starting anything there.
+"""
 
 import os
 import shutil
@@ -7,13 +11,16 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from runpy import run_path
 
 import pytest
 
-# scripts/dev.py relies on POSIX process groups (os.killpg), which Windows doesn't have.
-pytestmark = pytest.mark.skipif(os.name != "posix", reason="make dev is POSIX-only")
+# scripts/dev.py stops servers through POSIX process groups (os.killpg), which Windows lacks.
+posix_only = pytest.mark.skipif(os.name != "posix", reason="needs POSIX process groups")
 
 ROOT = Path(__file__).resolve().parents[1]
+# Load the launcher's functions without running it (its __main__ block is skipped).
+DEV = run_path(str(ROOT / "scripts/dev.py"))
 
 # Each fake server has a descendant, so killing only the wrapper cannot pass these checks.
 SERVER = '''import os, signal, subprocess, sys, time
@@ -125,6 +132,7 @@ def running_dev(project: Path):
         process.communicate(timeout=5)
 
 
+@posix_only
 def test_dev_skips_when_both_layers_are_missing(
     project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -138,6 +146,7 @@ def test_dev_skips_when_both_layers_are_missing(
     assert "skipping frontend" in result.stdout
 
 
+@posix_only
 def test_missing_frontend_command_is_reported(
     project: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -155,6 +164,7 @@ def test_missing_frontend_command_is_reported(
     assert "dev: could not start server" in result.stdout
 
 
+@posix_only
 @pytest.mark.parametrize("failed_role", ["backend", "frontend"])
 def test_server_failure_stops_both_process_groups(project: Path, running_dev, failed_role) -> None:
     process = running_dev(("backend", "frontend"))
@@ -166,6 +176,7 @@ def test_server_failure_stops_both_process_groups(project: Path, running_dev, fa
     assert (project / "frontend.stopped").exists()
 
 
+@posix_only
 @pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGTERM])
 @pytest.mark.parametrize("roles", [("backend",), ("frontend",), ("backend", "frontend")])
 def test_signal_stops_every_server_group(project: Path, running_dev, signum: int, roles) -> None:
@@ -176,6 +187,7 @@ def test_signal_stops_every_server_group(project: Path, running_dev, signum: int
         assert (project / f"{role}.stopped").exists()
 
 
+@posix_only
 def test_shutdown_escalates_for_unresponsive_descendant(
     project: Path, running_dev, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -187,6 +199,7 @@ def test_shutdown_escalates_for_unresponsive_descendant(
     assert not (project / "backend.stopped").exists()
 
 
+@posix_only
 def test_env_file_reaches_backend_only(project: Path, running_dev) -> None:
     (project / ".env").write_text("DEV_TEST_SECRET=from-dotenv\n")
     running_dev(("backend", "frontend"))
@@ -194,6 +207,7 @@ def test_env_file_reaches_backend_only(project: Path, running_dev) -> None:
     assert (project / "frontend.secret").read_text() == ""
 
 
+@posix_only
 def test_echoed_stop_request_still_stops_gracefully(project: Path, running_dev) -> None:
     process = running_dev(("backend",))
     # Back to back, like one Ctrl+C from the terminal plus the copy `uv run` forwards.
@@ -204,6 +218,7 @@ def test_echoed_stop_request_still_stops_gracefully(project: Path, running_dev) 
     assert (project / "backend.stopped").exists()
 
 
+@posix_only
 def test_second_stop_request_forces_shutdown(
     project: Path, running_dev, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -216,8 +231,41 @@ def test_second_stop_request_forces_shutdown(
     assert "second Ctrl+C; force-stopping servers" in output
 
 
+@posix_only
 def test_backend_gets_repo_root_on_pythonpath(project: Path, running_dev) -> None:
     # The backend imports ml/ from the repo root, which --app-dir backend alone doesn't expose.
     running_dev(("backend", "frontend"))
     assert (project / "backend.pythonpath").read_text().split(os.pathsep)[0] == str(project)
     assert (project / "frontend.pythonpath").read_text() == ""
+
+
+def test_native_windows_fails_before_starting_anything(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Runs on every OS: os_name="nt" takes the native-Windows branch without a Windows machine.
+    def no_server(*args, **kwargs):
+        raise AssertionError("a server was started")
+
+    monkeypatch.setattr(subprocess, "Popen", no_server)
+    assert DEV["main"](os_name="nt") == DEV["UNSUPPORTED_STATUS"]
+    output = capsys.readouterr().out
+    assert "Nothing was started" in output
+    assert "docker compose up --build" in output  # Docker Desktop route
+    assert "make setup && make dev" in output  # WSL route
+
+
+@pytest.mark.skipif(os.name == "posix", reason="checks the real launcher on native Windows")
+def test_native_windows_launcher_exits_with_the_message(project: Path) -> None:
+    # Both layers present, so a POSIX launcher would start servers; on Windows it must not.
+    _enable_server(project, "backend")
+    _enable_server(project, "frontend")
+    result = subprocess.run(
+        [sys.executable, str(project / "scripts/dev.py")],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == DEV["UNSUPPORTED_STATUS"]
+    assert "Nothing was started" in result.stdout
+    assert "dev: starting" not in result.stdout
+    assert not list(project.glob("*.pid"))  # no stand-in server ran

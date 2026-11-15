@@ -3,6 +3,9 @@
 `make dev` runs this. It starts whichever servers exist (backend, frontend), stops all of them when
 one exits, and on Ctrl+C stops them gracefully, waiting up to GRACE_PERIOD_S before force-killing.
 Press Ctrl+C a second time (after REPEAT_WINDOW_S) to force-stop at once.
+
+Supported on Linux, macOS and WSL. On native Windows it stops before starting anything and points
+to Docker Desktop or WSL instead (see UNSUPPORTED_PLATFORM).
 """
 
 import os
@@ -17,6 +20,15 @@ GRACE_PERIOD_S = 5.0
 # One Ctrl+C reaches us twice: the terminal signals the whole process group, and `uv run` also
 # forwards it. A repeat inside this window is that echo, not the user pressing Ctrl+C again.
 REPEAT_WINDOW_S = 1.0
+# Exit status when this platform can't run the launcher (1 = a server failed to start).
+UNSUPPORTED_STATUS = 2
+# Native Windows has no process groups or POSIX signals (os.killpg, SIGKILL): the launcher could
+# start the backend but never stop it, leaving it running after a failure. So it starts nothing.
+UNSUPPORTED_PLATFORM = """\
+dev: make dev needs Linux, macOS or WSL: it stops the servers through POSIX process groups,
+dev: which native Windows doesn't have. Nothing was started. On Windows, use one of:
+dev:   Docker Desktop (Linux containers):  docker compose up --build
+dev:   WSL (Ubuntu shell, repo cloned inside WSL):  make setup && make dev"""
 
 
 class _StopRequests:
@@ -68,7 +80,11 @@ def _stop_servers(processes: list[subprocess.Popen], requests: _StopRequests) ->
         process.wait()
 
 
-def main() -> int:
+def main(os_name: str = os.name) -> int:
+    # os_name is a parameter so tests can check the Windows message on any OS.
+    if os_name != "posix":
+        print(UNSUPPORTED_PLATFORM, flush=True)
+        return UNSUPPORTED_STATUS
     root = Path(__file__).resolve().parents[1]
     # (name, command, working folder, environment; None = inherit ours unchanged)
     servers: list[tuple[str, list[str], Path, dict[str, str] | None]] = []
