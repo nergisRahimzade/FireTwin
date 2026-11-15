@@ -21,6 +21,7 @@ from pathlib import Path
 from psi_sources import (
     BY_NAME,
     CLEAN_DIR,
+    COLUMNS,
     first_number,
     numbers_in,
     read_rows,
@@ -87,6 +88,56 @@ def ending(fan: str, air: str) -> str | None:
     return None
 
 
+def _lowered_below_written(air: str) -> bool:
+    """The crew kept lowering the air past the last speed written ('5 down to ext', 'pots ...')."""
+    return lowest_flow_unknown(air) and "incr" not in air.lower()
+
+
+def stated_extinction_flows(raw_path: Path | None = None) -> list[float]:
+    """Extinction speeds the table writes out for tests where the air was lowered step by step."""
+    out = []
+    for r in read_rows(raw_path or SOURCE.raw_path):
+        fan, air = r.get("Fan display", ""), r.get("Air display", "")
+        speeds = flows(air)
+        stepped_down = len(speeds) > 1 and speeds[-1] < speeds[0]
+        if ending(fan, air) == "extinction" and stepped_down and not lowest_flow_unknown(air):
+            out.append(min(speeds))
+    return out
+
+
+def imputed_extinction_flow(raw_path: Path | None = None) -> float | None:
+    """For 'lowered until it went out' tests with no final speed: the median stated one."""
+    stated = sorted(stated_extinction_flows(raw_path))
+    if not stated:
+        return None
+    mid = len(stated) // 2
+    return stated[mid] if len(stated) % 2 else (stated[mid - 1] + stated[mid]) / 2
+
+
+def flow_ramp(fan: str, air: str, imputed: float | None) -> tuple[float | None, float | None, bool]:
+    """(burning speed before the change, speed at extinction, whether that speed is imputed).
+
+    A test where the crew changed the air until the flame went out holds two observations: the
+    flame burned at the first speed written, then went out at the last one. When the air was
+    lowered past the last speed written, the extinction speed is unknown and `imputed` is used
+    (never above the lowest speed written).
+    """
+    speeds, how = flows(air), ending(fan, air)
+    if how == "extinction" and speeds:
+        if _lowered_below_written(air) and imputed is not None:
+            end, was_imputed = min(imputed, min(speeds)), True
+        elif _lowered_below_written(air):
+            return None, None, False
+        else:
+            end, was_imputed = min(speeds), False
+    elif how == "blowoff" and speeds:
+        end, was_imputed = max(speeds), False
+    else:
+        return None, None, False
+    start = speeds[0] if speeds[0] != end else None
+    return start, end, was_imputed
+
+
 def outcome_and_flow(fan: str, air: str) -> tuple[str, float | None]:
     speeds, how = flows(air), ending(fan, air)
     if how == "extinction":
@@ -98,28 +149,41 @@ def outcome_and_flow(fan: str, air: str) -> tuple[str, float | None]:
 
 def clean(raw_path: Path = SOURCE.raw_path) -> list[dict]:
     rows = []
+    imputed = imputed_extinction_flow(raw_path)
     for r in read_rows(raw_path):
         test = r.get("Test #", "")
         if not test:
             continue
-        outcome, flow = outcome_and_flow(r.get("Fan display", ""), r.get("Air display", ""))
+        fan, air = r.get("Fan display", ""), r.get("Air display", "")
+        outcome, flow = outcome_and_flow(fan, air)
+        start, end, _ = flow_ramp(fan, air, imputed)
+        if outcome == "extinguished" and end is not None:
+            flow = end  # includes the imputed speed for 'lowered until it went out' tests
+        base = {
+            "investigation": SOURCE.name,
+            "fuel_type": "solid",
+            "material": material(" ".join(r.get("Fuel Sample Material", "").split())),
+            "hardware": "MSG",
+            "o2_pct": rounded(first_number(r.get("Calibrated initial O2 % by vol"))),
+            "pressure_kpa": None,
+            "spread_rate_mm_s": None,
+            "source_url": SOURCE.page_url,
+            "is_synthetic": False,
+        }
         rows.append(
-            {
-                "test_id": f"BASS-II-{test}",
-                "investigation": SOURCE.name,
-                "fuel_type": "solid",
-                "material": material(" ".join(r.get("Fuel Sample Material", "").split())),
-                "hardware": "MSG",
-                "o2_pct": rounded(first_number(r.get("Calibrated initial O2 % by vol"))),
-                "pressure_kpa": None,
-                "flow_cm_s": rounded(flow),
-                "outcome": outcome,
-                "spread_rate_mm_s": None,
-                "source_url": SOURCE.page_url,
-                "is_synthetic": False,
-            }
+            {"test_id": f"BASS-II-{test}", **base, "flow_cm_s": rounded(flow), "outcome": outcome}
         )
-    return rows
+        if outcome == "extinguished" and start is not None:
+            # Same sample, same O2: the flame was burning at the first speed before the change.
+            rows.append(
+                {
+                    "test_id": f"BASS-II-{test}-start",
+                    **base,
+                    "flow_cm_s": rounded(start),
+                    "outcome": "burned",
+                }
+            )
+    return [{k: row[k] for k in COLUMNS} for row in rows]
 
 
 def main() -> None:

@@ -146,6 +146,15 @@ def trust_thresholds() -> tuple[float, float]:
     return config.TRUST_STRONG_DIST, config.TRUST_MEDIUM_DIST
 
 
+def material_has_own_term(material: str) -> bool | None:
+    """True if the fuel model has a term for this material; False if it uses the fuel average.
+
+    None when the material's fuel type has no model of its own (unknown material or fuel).
+    """
+    entry = load_model().get("per_fuel", {}).get(fuel_type_of(material) or "")
+    return None if entry is None else material in entry["materials"]
+
+
 @lru_cache(maxsize=1)
 def load_metrics() -> dict:
     try:

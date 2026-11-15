@@ -17,7 +17,7 @@ from app.schemas import ChatOut
 from app.services import fallback
 from ml import ingest_rag
 from ml.agents import llm
-from ml.pipeline import config, grounding
+from ml.pipeline import config, grounding, model
 
 log = logging.getLogger(__name__)
 
@@ -158,7 +158,7 @@ def _plain(obj: Any) -> Any:
 # ---------- ML-06: explain ----------
 
 
-def explain(result: Any) -> str:
+def _explain_sentence(result: Any) -> str:
     """One grounded sentence for a prediction.
 
     `result` is a SimulateOut or a dict with: inputs, state, burn_probability, trust,
@@ -195,6 +195,29 @@ def explain(result: Any) -> str:
         log.warning("rag.explain: LLM answer not grounded (%s); using the template", problems)
         return template
     return " ".join(answer.split())
+
+
+def _material_note(result: Any) -> str:
+    """Says so when the chosen material has too few tests for its own term in the model."""
+    try:
+        material = _plain(result)["inputs"]["material"]
+        own = model.material_has_own_term(material)
+        fuel = model.fuel_type_of(material)
+    except Exception:
+        log.exception("rag._material_note failed; leaving the explanation without it")
+        return ""
+    if own is False:
+        return f" Too few NASA tests of {material} for its own term: the {fuel} average is used."
+    return ""
+
+
+def explain(result: Any) -> str:
+    """One grounded sentence for a prediction, plus a note when the material uses its fuel average.
+
+    `result` is a SimulateOut or a dict with: inputs, state, burn_probability, trust,
+    extrapolated, nearest_tests. See _explain_sentence for how the LLM output is checked.
+    """
+    return _explain_sentence(result) + _material_note(result)
 
 
 # ---------- ML-07: answer ----------

@@ -1,12 +1,12 @@
 {
-  "n_rows": 316,
+  "n_rows": 349,
   "n_synthetic_rows": 0,
-  "n_rows_with_assumed_pressure": 104,
+  "n_rows_with_assumed_pressure": 137,
   "assumed_pressure_kpa": 101.3,
   "rows_per_investigation": {
     "BASS-II": {
-      "burned": 85,
-      "extinguished": 7
+      "burned": 103,
+      "extinguished": 22
     },
     "FLEX": {
       "burned": 27,
@@ -23,42 +23,42 @@
   },
   "trained_on_synthetic_data": false,
   "evaluation": "leave-one-investigation-out",
-  "chosen_variant": "physics_ppo2",
-  "accuracy": 0.23734177215189872,
+  "chosen_variant": "physics",
+  "accuracy": 0.6532951289398281,
   "physics_model": {
-    "roc_auc": 0.2523994369321333,
-    "base_rate_log_loss": 0.6623661685183813,
-    "accuracy": 0.23734177215189872,
-    "log_loss": 1.1531922771100744,
-    "n_rows": 316
+    "roc_auc": 0.8874810632144333,
+    "base_rate_log_loss": 0.6698751397699924,
+    "accuracy": 0.6532951289398281,
+    "log_loss": 0.6508878905261746,
+    "n_rows": 349
   },
   "physics_model_other_variant": {
-    "physics": {
-      "roc_auc": 0.24452928379473618,
-      "base_rate_log_loss": 0.6623661685183813,
-      "accuracy": 0.1962025316455696,
-      "log_loss": 1.1601942342333784,
-      "n_rows": 316
+    "physics_ppo2": {
+      "roc_auc": 0.8816623054675664,
+      "base_rate_log_loss": 0.6698751397699924,
+      "accuracy": 0.6532951289398281,
+      "log_loss": 0.6617492535029934,
+      "n_rows": 349
     }
   },
   "boundary_model_option_b": {
-    "roc_auc": 0.5064229249011858,
-    "base_rate_log_loss": 0.33976396794523,
-    "accuracy": 0.8932038834951457,
-    "log_loss": 0.729203355971049,
-    "n_rows": 103
+    "roc_auc": 0.7826923076923077,
+    "base_rate_log_loss": 0.48792436937043204,
+    "accuracy": 0.9191176470588235,
+    "log_loss": 0.6606058391383443,
+    "n_rows": 136
   },
   "baseline_plain_logistic": {
-    "roc_auc": 0.1964978884954997,
-    "base_rate_log_loss": 0.6623661685183813,
-    "accuracy": 0.17088607594936708,
-    "log_loss": 2.2017899073607676,
-    "n_rows": 316
+    "roc_auc": 0.24173667538906488,
+    "base_rate_log_loss": 0.6698751397699924,
+    "accuracy": 0.1977077363896848,
+    "log_loss": 1.1562102185190035,
+    "n_rows": 349
   },
   "folds": [
     {
       "held_out": "BASS-II",
-      "n_test": 92
+      "n_test": 125
     },
     {
       "held_out": "FLEX",
@@ -75,12 +75,12 @@
   ],
   "coefficient_check": {
     "coefficients_scaled": {
-      "o2_pct": 0.6916389018051888,
-      "ln_u": 1.2936265910651898,
-      "ln_u_sq": -1.1006423541666275,
-      "ppo2_kpa": -0.11349065690820859,
-      "fuel_solid": 0.8146304806886678,
-      "fuel_droplet": -0.8146304806886691,
+      "o2_pct": 0.5599352329693953,
+      "ln_u": 2.713503378557261,
+      "ln_u_sq": -0.96035002155147,
+      "pressure_kpa": -0.10766218666887621,
+      "fuel_solid": -0.022695818556492848,
+      "fuel_droplet": 0.022695818556492848,
       "fuel_gas": 0.0
     },
     "o2_coefficient_positive": true,
@@ -89,21 +89,21 @@
   },
   "serving_model": "per-fuel logistic regressions (pooled model only for unknown fuel types)",
   "per_fuel_model": {
-    "roc_auc": 0.166501976284585,
-    "base_rate_log_loss": 0.33976396794523,
-    "accuracy": 0.8932038834951457,
-    "log_loss": 0.5579304823588213,
-    "n_rows": 103
+    "roc_auc": 0.36031468531468525,
+    "base_rate_log_loss": 0.48792436937043204,
+    "accuracy": 0.8088235294117647,
+    "log_loss": 0.6834455408139478,
+    "n_rows": 136
   },
   "per_fuel_stratified_cv": {
     "solid": {
-      "roc_auc": 0.7658102766798418,
-      "base_rate_log_loss": 0.33976396794523,
-      "accuracy": 0.883495145631068,
-      "log_loss": 0.34608690629367156,
-      "n_rows": 103,
-      "majority_class_accuracy": 0.8932038834951457,
-      "beats_base_rate": false
+      "roc_auc": 0.820104895104895,
+      "base_rate_log_loss": 0.48792436937043204,
+      "accuracy": 0.875,
+      "log_loss": 0.3750267893580736,
+      "n_rows": 136,
+      "majority_class_accuracy": 0.8088235294117647,
+      "beats_base_rate": true
     },
     "droplet": {
       "roc_auc": 0.781162883313421,
@@ -116,23 +116,24 @@
     }
   },
   "fuel_models_with_skill": [
-    "droplet"
+    "droplet",
+    "solid"
   ],
   "per_fuel_coefficient_check": {
     "solid": {
       "coefficients_scaled": {
-        "o2_pct": 0.9046814336845952,
-        "ln_u": 0.9645291477869176,
-        "ln_u_sq": -1.7237743808617374,
-        "material=Black rod": -0.047020384739430265,
-        "material=Cotton-Fiberglass (SIBAL)": 1.0136725206731547,
-        "material=PMMA film": -0.2136281408334218,
-        "material=PMMA rod": 0.911690334632649,
-        "material=PMMA slab": 0.4404420970757972
+        "o2_pct": 0.4451872769185745,
+        "ln_u": 2.2252665437662507,
+        "ln_u_sq": -1.7586536663204786,
+        "material=Black rod": 0.05971469794911187,
+        "material=Cotton-Fiberglass (SIBAL)": 1.0318222423181918,
+        "material=PMMA film": 0.1841440035159468,
+        "material=PMMA rod": 0.6126928111188138,
+        "material=PMMA slab": 0.864441731848487
       },
       "o2_coefficient_positive": true,
       "ln_u_sq_coefficient_negative": true,
-      "n_rows": 103
+      "n_rows": 136
     },
     "droplet": {
       "coefficients_scaled": {
@@ -147,7 +148,7 @@
     }
   },
   "per_fuel_rows": {
-    "solid": 103,
+    "solid": 136,
     "droplet": 213
   },
   "spread_model": {

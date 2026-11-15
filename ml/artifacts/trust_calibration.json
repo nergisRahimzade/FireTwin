@@ -1,84 +1,84 @@
 {
-  "strong_distance": 0.15,
-  "medium_distance": 0.3,
+  "strong_distance": 0.02,
+  "medium_distance": 0.02,
   "calibrated": {
     "strong": false,
-    "medium": false
+    "medium": true
   },
-  "majority_rate": 0.88,
-  "finding": "no distance makes a neighbour's outcome beat the majority guess: the config defaults are kept, and trust mainly reflects whether the fuel model has skill",
+  "majority_rate": 0.848,
+  "finding": "neighbours beat the majority guess at the chosen distances",
   "rule": "medium: nearest neighbour right >= 75%; strong: vote of >= 3 right >= 90%; >= 20 tests",
-  "n_known_tests": 316,
+  "n_known_tests": 349,
   "by_distance": [
     {
       "distance": 0.02,
-      "nearest_neighbour_accuracy": 0.842,
-      "nearest_neighbour_support": 298,
-      "majority_vote_accuracy": 0.882,
-      "majority_vote_support": 263
+      "nearest_neighbour_accuracy": 0.852,
+      "nearest_neighbour_support": 325,
+      "majority_vote_accuracy": 0.889,
+      "majority_vote_support": 287
     },
     {
       "distance": 0.05,
-      "nearest_neighbour_accuracy": 0.838,
-      "nearest_neighbour_support": 309,
+      "nearest_neighbour_accuracy": 0.845,
+      "nearest_neighbour_support": 343,
       "majority_vote_accuracy": 0.887,
-      "majority_vote_support": 293
+      "majority_vote_support": 327
     },
     {
       "distance": 0.08,
-      "nearest_neighbour_accuracy": 0.831,
-      "nearest_neighbour_support": 313,
-      "majority_vote_accuracy": 0.889,
-      "majority_vote_support": 305
+      "nearest_neighbour_accuracy": 0.841,
+      "nearest_neighbour_support": 346,
+      "majority_vote_accuracy": 0.879,
+      "majority_vote_support": 339
     },
     {
       "distance": 0.1,
-      "nearest_neighbour_accuracy": 0.831,
-      "nearest_neighbour_support": 313,
-      "majority_vote_accuracy": 0.889,
-      "majority_vote_support": 305
+      "nearest_neighbour_accuracy": 0.841,
+      "nearest_neighbour_support": 346,
+      "majority_vote_accuracy": 0.876,
+      "majority_vote_support": 339
     },
     {
       "distance": 0.15,
-      "nearest_neighbour_accuracy": 0.831,
-      "nearest_neighbour_support": 314,
-      "majority_vote_accuracy": 0.888,
-      "majority_vote_support": 312
+      "nearest_neighbour_accuracy": 0.841,
+      "nearest_neighbour_support": 347,
+      "majority_vote_accuracy": 0.858,
+      "majority_vote_support": 345
     },
     {
       "distance": 0.2,
-      "nearest_neighbour_accuracy": 0.832,
-      "nearest_neighbour_support": 315,
-      "majority_vote_accuracy": 0.888,
-      "majority_vote_support": 312
+      "nearest_neighbour_accuracy": 0.842,
+      "nearest_neighbour_support": 348,
+      "majority_vote_accuracy": 0.855,
+      "majority_vote_support": 345
     },
     {
       "distance": 0.25,
-      "nearest_neighbour_accuracy": 0.832,
-      "nearest_neighbour_support": 315,
-      "majority_vote_accuracy": 0.888,
-      "majority_vote_support": 313
+      "nearest_neighbour_accuracy": 0.842,
+      "nearest_neighbour_support": 348,
+      "majority_vote_accuracy": 0.855,
+      "majority_vote_support": 346
     },
     {
       "distance": 0.3,
-      "nearest_neighbour_accuracy": 0.832,
-      "nearest_neighbour_support": 316,
-      "majority_vote_accuracy": 0.885,
-      "majority_vote_support": 314
+      "nearest_neighbour_accuracy": 0.842,
+      "nearest_neighbour_support": 349,
+      "majority_vote_accuracy": 0.853,
+      "majority_vote_support": 347
     },
     {
       "distance": 0.4,
-      "nearest_neighbour_accuracy": 0.832,
-      "nearest_neighbour_support": 316,
-      "majority_vote_accuracy": 0.883,
-      "majority_vote_support": 316
+      "nearest_neighbour_accuracy": 0.842,
+      "nearest_neighbour_support": 349,
+      "majority_vote_accuracy": 0.851,
+      "majority_vote_support": 349
     },
     {
       "distance": 0.5,
-      "nearest_neighbour_accuracy": 0.832,
-      "nearest_neighbour_support": 316,
-      "majority_vote_accuracy": 0.88,
-      "majority_vote_support": 316
+      "nearest_neighbour_accuracy": 0.842,
+      "nearest_neighbour_support": 349,
+      "majority_vote_accuracy": 0.848,
+      "majority_vote_support": 349
     }
   ]
 }
