@@ -129,3 +129,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   synthetic mock fallback when required files are missing, startup regression tests and
   `docker/README.md`. Optional host-port overrides keep browser API URL/CORS aligned. The native
   API contract and mode parsing remain unchanged; container settings need no `.env` or API key.
+- **BE-12**: `backend/tests/test_endpoints.py` tests every endpoint over HTTP in mock and real mode
+  (status + `schemas.py` shape, PDF for export), fails if a mode serves a route the matrix doesn't
+  list, checks unknown scenarios give 404 in real mode, and checks `fans_off` ranks above
+  `water_mist` through `/suppress` on the default data. All 9 endpoints, both modes.
+  Fix: `backend/tests/conftest.py` now also clears `OPENAI_API_KEY`, so a key in a developer's
+  shell can no longer make real, billed API calls during tests (a guard test proves it).

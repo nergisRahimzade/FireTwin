@@ -357,7 +357,6 @@ git push origin demo-v1                     # tags are pushed separately from br
 - App wiring includes a real simulate -> chat sequence with the key removed and no documents
   required; chat receives the newly created scenario without appending history.
 
-
 ## BE-11: prediction and explanation cache (2026-11-14, Ryan)
 
 **Chosen (the plan left it open)**
@@ -392,7 +391,6 @@ git push origin demo-v1                     # tags are pushed separately from br
 - `test_cache_api.py` proves repeated simulations keep distinct IDs, repeated/no-op applications
   still append history, modified inputs compute separately, applied results can be reused by new
   scenarios, unknown IDs stay 404 and mock mode never invokes the cache.
-
 
 ## BE-10 / BE-11 integration into main (2026-11-14, Ryan)
 
@@ -460,3 +458,20 @@ git push origin demo-v1                     # tags are pushed separately from br
   failure on missing artifacts, explicit mocks with artifacts and Gemini model forwarding using
   a fake key without an LLM call. The temporary project was removed cleanly; the existing user
   stack was left running. Host Python/Node dependencies and application files were not modified.
+
+## BE-12: endpoint tests (2026-11-14, Ryan)
+
+- Most endpoints already had detailed tests in their own files (mocks, meta, detect, suppress,
+  results, export, app wiring). BE-12 adds one matrix, `backend/tests/test_endpoints.py`, that
+  answers "is every endpoint tested in both modes?" with status + contract checks, instead of
+  duplicating those detailed tests.
+- **Coverage guard:** each mode's OpenAPI routes must equal the matrix rows, so a new endpoint
+  fails the suite until it gets a row (and so a test in both modes).
+- BE-10 (#15, via #19) brought the real `/chat`, so all 9 endpoints are tested in **both** modes,
+  and `/chat` is in the unknown-scenario 404 check.
+- The plan's ordering test already existed at service level (`test_suppressor.py`); BE-12 adds the
+  same check through `POST /suppress` in real mode.
+- Requests go through FastAPI's `TestClient` (httpx's client API; it now runs on httpx2, which the
+  `openai` package brings in).
+- **Fixed:** `conftest.py` cleared the Gemini key but not `OPENAI_API_KEY`, despite its comment.
+  `test_no_llm_key_reaches_a_test` fails without the fix (checked by reverting it).
