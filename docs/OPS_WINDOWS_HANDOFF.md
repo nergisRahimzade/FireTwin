@@ -198,3 +198,7 @@ Python 3.11, with the new Windows Python 3.11 CI job providing the remaining pla
 
 Codex checks: `make lint` passed (104 files); `make test`: 604 passed, 5 skipped in
 24.69s. The two extra skips are native-Windows checks on this Linux host.
+
+The first PR #31 CI run passed all three jobs, including `Windows (startup checks)`
+on Windows Python 3.11 (run 43679203380). This verifies the locked native startup suite;
+it does not add native Windows server-supervisor support.

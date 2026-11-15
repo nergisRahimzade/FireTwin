@@ -168,4 +168,4 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **OPS-02**: refuse native Windows entrypoint execution; test exact dispatch, PID,
   signal and exit-status preservation on POSIX. Bound readiness waiting in the signal test.
 - **OPS-03**: add Windows Python 3.11 startup checks without Make, retaining current
-  required check names. Native Windows execution of the locked environment awaits CI.
+  required check names. Native Windows startup tests passed with the locked Python 3.11 CI environment.
