@@ -20,9 +20,10 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
   const ignitedAt = useScenario(s => s.ignitedAt);
   const alarmId = useScenario(s => s.alarmId);
   const inputs = useScenario(s => s.inputs);
+  const viewing = useScenario(s => s.viewing);
   const clockEl = useRef<HTMLSpanElement | null>(null);
   // The scene follows the controls live; the verdict, alarm and dashboard stay on the ignition.
-  const { scene, previewing } = useLiveScene(simulate, inputs);
+  const { scene, previewing } = useLiveScene(simulate, inputs, viewing === null);
 
   const banner = alarmBanner(detect, alarmId != null);
   return (
@@ -41,6 +42,9 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
             <button type="button" className="btn-ghost" onClick={onCompare}>Compare</button>
             {simulate && (
               <span className="clock mono">t = <span ref={clockEl}>0.0</span> s · {SCENE_TIME_SCALE}× speed</span>
+            )}
+            {viewing !== null && (
+              <span className="clock mono" role="status">Replay of session {viewing} · read-only</span>
             )}
             {previewing && (
               <span className="clock mono" role="status">Preview of new settings · Ignite again to record</span>

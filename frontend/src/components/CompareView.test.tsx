@@ -5,7 +5,7 @@ import type { ScenarioStore } from "../store/useScenario";
 import { CompareView } from "./CompareView";
 
 const view = vi.hoisted(() => ({
-  state: {} as Pick<ScenarioStore, "inputs" | "simulate" | "detect" | "ignitions" | "ignitedAt" | "alarmId">,
+  state: {} as Pick<ScenarioStore, "inputs" | "simulate" | "detect" | "ignitions" | "ignitedAt" | "alarmId" | "viewing">,
 }));
 vi.mock("../store/useScenario", () => ({
   useScenario: (select: (state: typeof view.state) => unknown) => select(view.state),
@@ -23,7 +23,7 @@ const render = () => renderToStaticMarkup(<CompareView onClose={() => {}} />);
 beforeEach(() => {
   view.state = {
     simulate: recorded, inputs: { ...recorded.inputs, o2_pct: 40 },
-    detect: null, ignitions: 1, ignitedAt: 0, alarmId: "synthetic-vent",
+    detect: null, ignitions: 1, ignitedAt: 0, alarmId: "synthetic-vent", viewing: null,
   };
 });
 
@@ -43,5 +43,11 @@ it("clears the preview notice when Apply or Ignite makes the controls match the 
 it("clears the preview notice after Reset removes the scenario", () => {
   expect(render()).toContain("Preview of new settings");
   view.state.simulate = null;
+  expect(render()).not.toContain("Preview of new settings");
+});
+
+it("shows no preview notice while a saved session is replaying (FE-09)", () => {
+  // A replay's steps differ from the controls on purpose; that isn't an edit to preview.
+  view.state.viewing = 1;
   expect(render()).not.toContain("Preview of new settings");
 });

@@ -14,7 +14,9 @@ export function CompareView({ onClose }: { onClose: () => void }) {
   const ignitedAt = useScenario(s => s.ignitedAt);
   const alarmId = useScenario(s => s.alarmId);
   const inputs = useScenario(s => s.inputs);
-  const { scene, previewing } = useLiveScene(simulate, inputs);
+  const viewing = useScenario(s => s.viewing);
+  // The same live preview as the main view, off while a saved session is replaying.
+  const { scene, previewing } = useLiveScene(simulate, inputs, viewing === null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
