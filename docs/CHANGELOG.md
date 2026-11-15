@@ -4,6 +4,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-02**: narrow read-only backend data mounts to processed metadata/table and cited
+  text corpus, retaining model artifacts. Document real/mock/automatic startup commands,
+  precedence and missing-file/directory behavior; add real Compose rendering checks.
 - **BE-05**: announce the captured effective API mode on startup for native and Docker
   runs, with lifecycle tests confirming default/explicit modes and no key disclosure.
 

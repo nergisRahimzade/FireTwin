@@ -536,3 +536,30 @@ from that checkout. A fresh clone retains the processed demo artifacts and text 
   launcher concurrently with Claude's Windows task.
 - `backend/tests/test_startup_mode.py` covers default/explicit modes, per-app capture
   despite subsequent environment changes, health shape and key non-disclosure.
+
+
+## OPS-02: runtime mounts and mode visibility (2026-11-15, Ryan)
+
+- Compose now mounts only `data/processed`, `data/docs` and `ml/artifacts`, read-only,
+  with host-path creation disabled. Runtime readers use the unified table/investigation
+  metadata, cited text corpus and model files; raw uploads, clean CSVs and pipeline source
+  are not needed in the backend. Narrowing the data mount intentionally departs from the
+  plan's broad `data/` mount. Downloads/training remain host-side tasks.
+- Missing/empty required files still select mocks in automatic Docker mode; explicit real
+  mode still fails. Missing mount directories remain a Compose error before startup.
+  No vector store or embedding cache is provisioned here; that is a separate ML-08 task.
+- Native defaults remain strict 0/1 with `1` as the default. Docker blank/unset remains
+  automatic. Shell overrides beat optional `.env` values; `.env.example` explicitly
+  selects mocks. Startup mode visibility is described under BE-05 below.
+- `tests/test_compose_runtime.py` renders the real Compose configuration with synthetic
+  env settings and checks mount boundaries, default/explicit modes, precedence, loopback
+  ports, browser URL/CORS and backend-only keys. It uses the Compose CLI without an engine
+  and explicitly skips if the CLI is absent.
+
+**Validation:** `make lint` passed (101 files); `make test` passed (597 passed, 3 skipped).
+Both images built and both services were healthy in a separate test project on temporary
+ports. The real E2E loop passed all 8 steps through PDF export with no keys. Container
+checks passed hidden raw/intermediate/pipeline inputs, readable runtime files, read-only
+mounts, non-root execution, adjusted CORS, frontend HTTP and cited offline chat. Disposable
+containers with networking disabled passed automatic missing-file fallback, explicit
+mock selection, explicit real startup and explicit real failure on missing files.

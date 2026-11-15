@@ -16,8 +16,14 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:${FRONTEND_PORT:-5173},http://127.0.0.1:${FRONTEND_PORT:-5173}}
     volumes:
       - type: bind
-        source: ./data
-        target: /app/data
+        source: ./data/processed
+        target: /app/data/processed
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./data/docs
+        target: /app/data/docs
         read_only: true
         bind:
           create_host_path: false
