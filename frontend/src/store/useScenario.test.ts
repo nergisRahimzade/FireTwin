@@ -305,3 +305,21 @@ describe("late replies after Reset are ignored (third review)", () => {
     expect(store().error).toBeNull();
   });
 });
+
+describe("auto-ranking sends one /suppress per alarm", () => {
+  it("the ranking is saved before loading clears, so the auto-rank rule can't fire twice", async () => {
+    // SuppressionPanel auto-ranks while there's an alarm, no ranking yet and nothing loading.
+    // React re-renders on every store change, so run that rule on every change here.
+    const { shouldAutoRank } = await import("../components/suppression.logic");
+    fake.suppress.mockImplementation(() => new Promise(r => setTimeout(() => r(ranked), 5)));
+    useScenario.setState({ simulate: sim("burning"), alarmId: null, suppress: null });
+    const unsubscribe = useScenario.subscribe(s => {
+      if (shouldAutoRank(s.alarmId, s.suppress != null, s.loading.suppress)) void s.runSuppress();
+    });
+    useScenario.setState({ alarmId: "vent_1" });
+    await new Promise(r => setTimeout(r, 50));
+    unsubscribe();
+    expect(fake.suppress).toHaveBeenCalledTimes(1);
+    expect(store().suppress).toEqual(ranked);
+  });
+});
