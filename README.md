@@ -28,7 +28,7 @@ it rests on.
 5. **Review.** A dashboard shows every session, a burn-probability-versus-O2 chart with the
    nearest tests, a PDF export, and a chat that answers from the NASA reports with citations.
 
-Example: a PMMA rod at 21% O2 and 10 cm/s airflow is predicted to burn at 96% with strong trust.
+Example: a PMMA rod at 21% O2 and 10 cm/s airflow is predicted to burn at 96% with medium trust.
 The alarm trips at the forward vent after about 40 s, and turning the fans off is recommended.
 After fans off the prediction drops to 13% (extinguished). The catch is that with no airflow,
 smoke no longer reaches the detectors.
@@ -70,7 +70,9 @@ The design principle is that **tools compute and the LLM only writes words**:
   the majority outcome: AUC ≥ 0.65 and at least 2% lower log loss.
 - **Trust.** Weak if an input is outside the tested range or the fuel model shows no skill.
   Otherwise, trust depends on how many same-fuel tests with known outcomes lie within
-  distances measured by `ml/calibrate_trust.py`.
+  distances measured by `ml/calibrate_trust.py`. "Strong" is given only if, at some distance,
+  a vote of 3 nearby tests predicted the outcome correctly at least 90% of the time. With the
+  current data no distance qualifies, so trust is at most "medium".
 - **Labels.** Every outcome label cites the table cell it came from
   (`data/pipeline/label_outcomes.csv`).
   - Labels read from gas sensors are marked **INFERRED**.
