@@ -1,9 +1,10 @@
 /* FireTwin on one page (team whiteboard, 2026-11-14), replacing the plan's three tabs:
    desktop: 3D view (left/centre) | variables panel (right); under the 3D view, the suppression
-   recommendations and the dashboard. Mobile stacks 3D, variables (collapsible), recommendations,
+   recommendations, the dashboard and the chat (FE-10). Mobile stacks 3D, variables (collapsible), recommendations,
    dashboard. Compare is a full-screen mode on the same page, not a route. */
 import { useCallback, useState } from "react";
 import { ApiStatus } from "./components/ApiStatus";
+import { ChatPanel } from "./components/ChatPanel";
 import { CompareView } from "./components/CompareView";
 import { Dashboard } from "./components/Dashboard";
 import { SceneView } from "./components/SceneView";
@@ -29,6 +30,7 @@ export default function FireTwinApp() {
           <VariablesPanel />
           <SuppressionPanel />
           <Dashboard />
+          <ChatPanel />
         </div>
       )}
       <footer className="foot-note">Flame is illustrative. Verdicts come from NASA PSI data.</footer>
