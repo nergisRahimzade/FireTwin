@@ -7,7 +7,7 @@ Add an entry each time an OPS task makes a decision like this.
 
 ## Current implementation snapshot (2026-11-15)
 
-Audited against `fd5ec94` (PR #27 merged). The dated sections below retain earlier
+Audited against `cc13051` (through PR #49). The dated sections below retain earlier
 implementation history; this snapshot and later follow-ups describe the current behavior.
 
 - All nine planned endpoints are mounted in mock and real mode; `/health` stays liveness
@@ -15,9 +15,10 @@ implementation history; this snapshot and later follow-ups describe the current 
 - Native startup accepts only `MOCK_MODE=0/1`, defaults to synthetic mocks (`1`), and the
   launcher passes optional `.env` only to the backend. Docker blank/unset mode automatically
   selects based on required artifact files. Shell settings override optional `.env` values.
-- Compose mounts only `data/processed`, `data/docs` and `ml/artifacts`, read-only. See
+- Default Compose mounts only `data/processed`, `data/docs` and `ml/artifacts`, read-only. See
   `docker/README.md` for commands. Raw uploads/private plans are untracked/ignored after
   PR #26; historical copies remain in Git history. PR #27 narrowed the mounts.
+  The backend image also contains these committed inputs for standalone hosting (PR #41).
 - `services/store.py` and the prediction cache are process-local and lost on restart.
   Run one API worker for a consistent demo; reloads also lose scenarios. Durable/multi-worker
   storage is additional scope, not the planned BE-01 implementation.
@@ -26,10 +27,15 @@ implementation history; this snapshot and later follow-ups describe the current 
   labeled accordingly. It may differ from a recommendation displayed before Apply.
 - Retrieval tries Chroma when a local store exists, and uses keyword search if the store
   is absent or errors. A successful vector search with no qualifying hits returns no evidence,
-  rather than retrying keywords. Docker currently mounts no vector store or embedding cache.
-  Local embeddings can download on first use; OpenAI embeddings need network. Offline vector
-  provisioning remains package 6. Without an available LLM, explanation uses a template and
+  rather than retrying keywords. Default Docker mounts no vector store/cache; PR #34 adds an
+  optional verified bundle override with a writable runtime index copy and read-only model.
+  Local queries never download weights; explicit preparation may download them. OpenAI
+  embeddings need network/key. PR #36 tests vectors with keyword fallback forbidden, and
+  PR #37 prevents empty-folder index creation and protects generated bundle outputs.
+  Without an available LLM, explanation uses a template and
   chat returns the top cited snippet (or the no-evidence message), as ML-10 specifies.
+  PR #49 limits completion requests to one attempt, with a 10-second SDK timeout and
+  a process-local 120-second pause following a completion-request failure.
 - The current frontend is the one-page/Compare layout from the team-whiteboard change
   `dc43ec6`, replacing the plan's three tabs. FE-06 is merged in PR #24. This records the
   implemented layout, not proof that every later frontend feature is complete.
@@ -37,8 +43,8 @@ implementation history; this snapshot and later follow-ups describe the current 
   container entrypoint stop early with the supported routes (Docker Desktop's Linux engine or
   WSL), and the Windows CI job passed. See the Windows support section below.
 
-Open decisions and the proposed validation matrix are in `docs/DECISIONS.md`. Runtime
-schemas, generated frontend types and services are unchanged by this documentation update.
+Open decisions and the proposed validation matrix are in `docs/DECISIONS.md`. Updating
+this snapshot changes no runtime schemas, generated frontend types or services.
 
 ## OPS-01: repo structure, Makefile, .env.example, .gitignore (2026-11-14, Ryan)
 
@@ -735,6 +741,18 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   loop through PDF export on the updated model, with no LLM keys.
 
 
+## ML-09: evaluate vector retrieval without keyword fallback (2026-11-15, Ryan)
+
+- PR #36 keeps keyword and vector scores separate. Vector evals exercise `rag.retrieve`
+  and its distance filter, but make a keyword fallback fail the test. A missing optional
+  store skips with a reason; a configured broken/stale store fails. The bundle-free guard
+  runs in CI, where no prepared store is provided.
+- To check a prepared bundle, run:
+  `FIRETWIN_RAG_BUNDLE=.local/rag-bundle uv run pytest ml/tests/test_evals.py`.
+  The fixture verifies the sealed bundle and queries a writable copy. A published local
+  `chroma_db/CURRENT.json` is the alternative. Re-prepare from the intended release corpus.
+
+
 ## OPS-01: documentation follow-up (2026-11-15, Ryan)
 
 - `demo-v1` was created on `8f281d9` before the package 8 text was written; the status table,
@@ -761,6 +779,18 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - `investigations.json` changed in `20bf3a9`, and it is part of the retrieval corpus, so vector
   bundles prepared before that commit are stale (queries fall back to keywords). Prepare the bundle
   from the release commit.
+
+## ML-10: provider failure latency policy (2026-11-15, Ryan)
+
+- PR #49 adds `max_retries=0` and a 10-second SDK timeout to the shared LLM client.
+  A completion-request failure starts a 120-second process-local pause; callers checking
+  `available()` use their existing offline templates during it. This extends the plan's
+  missing-key fallback to avoid repeated delays from a failing configured provider.
+- This is an SDK request timeout, not a guaranteed total endpoint deadline. It does not
+  cancel requests already in flight. Client-construction errors and response-processing
+  errors outside the completion-request handler do not currently start the pause.
+  The change neither selects a different provider nor modifies the scientific predictions.
+
 
 ## OPS-02: real data and model in the backend image (2026-11-15, Ryan)
 
@@ -789,3 +819,14 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - `docker/README.md` has a "Hosting the backend" section: Render settings, when `CORS_ORIGINS` is
   needed (direct `VITE_API_URL` calls) or not (Vercel `/api` rewrite), the exact value for the
   production and team Vercel domains, and the free-tier sleep and in-memory scenario limits.
+
+
+## OPS-02: fail closed when bundle ignore checks fail (2026-11-15, Ryan)
+
+- Follow-up to PR #37's RAG-005 protection: an unexpected `git check-ignore` error
+  (for example, Git refusing an unsafe-ownership checkout) previously allowed preparation
+  to continue. In a checkout, only an explicit ignored result permits an in-repository
+  output; errors stop before creating directories or launching ingest/downloads.
+- Folders outside this checkout, source archives without `.git`, and hosts without the
+  Git binary keep the existing setup behavior. Linked worktrees are checked too.
+  The separate index guard still rejects committed model/index files.
