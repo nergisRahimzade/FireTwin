@@ -4,11 +4,12 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
-- **ML-08**: start offline retrieval hardening with internal corpus/model/provider metadata,
-  rejection of incompatible/stale indexes and cache-only local query embeddings. Add real
-  Chroma/synthetic-embedding tests and preserve cited keyword fallback on index failure.
-  Provisioning, Compose bundle mounts and prepared-model offline rehearsal remain package 6 work.
-
+- **ML-08**: publish complete immutable index generations with an atomic current pointer;
+  preserve the previous index on failed rebuilds. Validate completion/count/provider/model
+  and default/custom corpus provenance. Use one ONNX identity for build/query, explicit
+  providers (local by default), configurable model caches and cache-only local queries.
+  Expected resource failures return keyword fallback with a bounded warning; add real
+  Chroma failure/custom-corpus/production-EF regressions. Bundle integration follows below.
 - **OPS-01 documentation reconciliation**: distinguish current implementation from dated
   integration records; repair stale results, vent, retrieval and mount descriptions. Add
   `docs/DECISIONS.md` with owners, pending scope/contract choices and a proposed validation

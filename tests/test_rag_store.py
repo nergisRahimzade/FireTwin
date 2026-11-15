@@ -33,7 +33,7 @@ def synthetic_store(monkeypatch, tmp_path):
 
     calls = []
 
-    def embedding(kind, *, allow_download=True):
+    def embedding(kind, *, allow_download=True, cache_dir=None):
         calls.append((kind, allow_download))
         return SyntheticEmbedding()
 
@@ -64,8 +64,7 @@ def test_query_uses_recorded_provider_and_disables_local_downloads(synthetic_sto
 def test_changed_corpus_rejects_stale_vectors(synthetic_store):
     db, chunks, calls = synthetic_store
     chunks[0]["source_url"] = "https://example.test/changed-source"
-    with pytest.raises(ValueError, match="metadata/corpus mismatch"):
-        ingest_rag.search("smoke", 1, db)
+    assert ingest_rag.search("smoke", 1, db) is None
     assert calls == [("minilm", True)]
 
 
@@ -81,12 +80,11 @@ def test_incompatible_metadata_cannot_select_a_silent_embedding_fallback(synthet
     import chromadb
 
     db, _, calls = synthetic_store
-    collection = chromadb.PersistentClient(path=str(db)).get_collection(
-        ingest_rag.config.RAG_COLLECTION
-    )
+    collection = chromadb.PersistentClient(
+        path=str(ingest_rag._active_directory(db))
+    ).get_collection(ingest_rag.config.RAG_COLLECTION)
     collection.modify(metadata=metadata)
-    with pytest.raises(ValueError, match="unsupported embedding|metadata/corpus mismatch"):
-        ingest_rag.search("smoke", 1, db)
+    assert ingest_rag.search("smoke", 1, db) is None
     assert calls == [("minilm", True)]
 
 
@@ -99,9 +97,8 @@ def test_missing_model_cache_never_invokes_a_download(monkeypatch, tmp_path: Pat
         pytest.fail("query attempted a model download")
 
     monkeypatch.setattr(ONNXMiniLM_L6_V2, "_download", forbid_download)
-    embedding = ingest_rag._embedding("minilm", allow_download=False)
-    with pytest.raises(RuntimeError, match="cache is incomplete"):
-        embedding(["synthetic smoke question"])
+    with pytest.raises(ingest_rag.StoreUnavailable, match="cache is incomplete"):
+        ingest_rag._embedding("minilm", allow_download=False)
     assert not (tmp_path / "missing-model").exists()
 
 
@@ -125,3 +122,123 @@ def test_rag_falls_back_to_cited_keywords_when_index_metadata_is_stale(
     assert len(hits) == 1
     assert hits[0]["source_url"] == "https://example.test/fixture"
     assert "changed after ingest" in hits[0]["snippet"]
+
+
+@pytest.mark.parametrize("failure", ["embedding", "add", "publication"])
+def test_failed_rebuild_preserves_previous_complete_snapshot(synthetic_store, monkeypatch, failure):
+    db, chunks, _ = synthetic_store
+    before = (db / "CURRENT.json").read_bytes()
+    original_embedding = ingest_rag._embedding
+    if failure == "embedding":
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("synthetic embedding setup failure")
+
+        monkeypatch.setattr(ingest_rag, "_embedding", fail)
+    elif failure == "add":
+        from chromadb.api.models.Collection import Collection
+
+        def fail_add(*args, **kwargs):
+            raise RuntimeError("synthetic add failure")
+
+        monkeypatch.setattr(Collection, "add", fail_add)
+    else:
+        monkeypatch.setattr(
+            ingest_rag,
+            "_publish",
+            lambda *args: (_ for _ in ()).throw(RuntimeError("synthetic publication failure")),
+        )
+    with pytest.raises(RuntimeError, match="synthetic"):
+        ingest_rag.ingest(db)
+    assert (db / "CURRENT.json").read_bytes() == before
+    monkeypatch.setattr(ingest_rag, "_embedding", original_embedding)
+    assert ingest_rag.search("smoke", 1, db)[0]["id"] == chunks[0]["id"]
+
+
+def test_partial_active_collection_falls_back_instead_of_returning_no_evidence(synthetic_store):
+    import chromadb
+
+    db, chunks, _ = synthetic_store
+    client = chromadb.PersistentClient(path=str(ingest_rag._active_directory(db)))
+    client.get_collection(ingest_rag.config.RAG_COLLECTION).delete(ids=[chunks[0]["id"]])
+    assert ingest_rag.search("smoke", 1, db) is None
+
+
+def test_custom_corpus_queries_without_default_loader_override(synthetic_store, monkeypatch):
+    db, chunks, _ = synthetic_store
+    ingest_rag.ingest(db, chunks=chunks)
+    monkeypatch.setattr(
+        ingest_rag,
+        "load_chunks",
+        lambda: (_ for _ in ()).throw(AssertionError("default corpus loader was used")),
+    )
+    assert ingest_rag.search("smoke", 1, db)[0]["id"] == chunks[0]["id"]
+    assert ingest_rag.search("smoke", 1, db, chunks=[{**chunks[0], "text": "changed"}]) is None
+
+
+def test_successful_rebuild_retains_generation_for_existing_readers(synthetic_store):
+    db, chunks, _ = synthetic_store
+    old = ingest_rag._active_directory(db)
+    ingest_rag.ingest(db)
+    assert old.is_dir()
+    assert ingest_rag._active_directory(db) != old
+    assert ingest_rag.search("smoke", 1, db)[0]["id"] == chunks[0]["id"]
+
+
+def test_expected_index_failure_logs_once_without_traceback(synthetic_store, caplog):
+    db, chunks, _ = synthetic_store
+    chunks[0]["text"] = "Changed synthetic corpus"
+    ingest_rag._warn_unavailable.cache_clear()
+    for _ in range(2):
+        assert ingest_rag.search("smoke", 1, db) is None
+    records = [r for r in caplog.records if "using keyword fallback" in r.message]
+    assert len(records) == 1
+    assert records[0].exc_info is None
+
+
+def test_openai_build_requires_explicit_provider_despite_ambient_key(synthetic_store, monkeypatch):
+    db, _, calls = synthetic_store
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-must-not-select-provider")
+    ingest_rag.ingest(db)
+    assert calls[-1][0] == "minilm"
+    ingest_rag.ingest(db, embedding_kind="openai")
+    assert calls[-1][0] == "openai"
+
+
+def test_production_local_embedding_identity_survives_reopening(monkeypatch, tmp_path, caplog):
+    """Real EF configuration, precomputed build vectors; no fake EF name can mask a conflict."""
+    from chromadb.api.models.Collection import Collection
+    from chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2 import ONNXMiniLM_L6_V2
+
+    cache = tmp_path / "model"
+    monkeypatch.setattr(ONNXMiniLM_L6_V2, "DOWNLOAD_PATH", cache)
+    original_add = Collection.add
+
+    def add_precomputed(self, **kwargs):
+        vectors = [[1.0] + [0.0] * 383 for _ in kwargs["ids"]]
+        return original_add(self, embeddings=vectors, **kwargs)
+
+    monkeypatch.setattr(Collection, "add", add_precomputed)
+    chunks = [
+        {
+            "id": "synthetic-real-ef/0",
+            "text": "synthetic smoke",
+            "title": "fixture",
+            "investigation": "SYNTHETIC",
+            "source_url": "https://example.test/ef",
+        }
+    ]
+    db = tmp_path / "db"
+    ingest_rag.ingest(db, chunks=chunks)
+    assert ingest_rag.search("smoke", 1, db) is None
+    assert "cache is incomplete" in caplog.text
+    assert "Embedding function conflict" not in caplog.text
+    for name in ingest_rag.CACHE_FILES:
+        p = cache / "onnx" / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("synthetic cache; inference is stubbed")
+    monkeypatch.setattr(
+        ONNXMiniLM_L6_V2, "__call__", lambda self, input: [[1.0] + [0.0] * 383 for _ in input]
+    )
+    hits = ingest_rag.search("smoke", 1, db)
+    assert hits is not None and hits[0]["id"] == chunks[0]["id"]

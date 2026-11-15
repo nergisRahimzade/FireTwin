@@ -664,3 +664,28 @@ mock selection, explicit real startup and explicit real failure on missing files
 - Package 6 is still in progress: reproducible index/cache provisioning, writable runtime
   store/cached-model Compose integration and a real prepared-model no-network rehearsal
   remain. These safeguards alone do not establish that an offline vector bundle is shipped.
+
+
+## ML-08: reviewed generation store and cache-only queries (2026-11-15, Ryan)
+
+This supersedes the unpublished first-increment behavior above; no public API changes.
+
+- Rebuilds populate a unique generation and verify row count/completion before atomically
+  replacing `CURRENT.json`. They never delete the prior working collection. Existing readers
+  retain their generation; simultaneous successful publishers are last-publish-wins. Failed
+  candidates and old generations remain for offline cleanup with readers/writers stopped.
+  The pointer operation is atomic; this is not a power-loss/distributed durability guarantee.
+- Search checks metadata, completion and count. Default corpora are compared to current text
+  and metadata; explicit corpora are verified against saved content, or caller-supplied
+  expected `chunks=`. Stale/incomplete/legacy resources return None with a once-per-path/reason
+  warning, allowing the existing cited keyword fallback without per-query tracebacks.
+- Local ingest/query use the same ONNX embedding-function identity; query overrides the
+  download hook. This fixes the Default-vs-ONNX name conflict hidden by synthetic EF tests.
+  A production-EF regression uses precomputed vectors, with no weights download required.
+- `--embedding minilm|openai` is explicit and defaults to local MiniLM. This changes the
+  plan's OpenAI-first ingest choice to make demo provisioning independent of ambient keys.
+  OpenAI remains available explicitly and requires key/network for query embeddings.
+  `--cache-dir` / `FIRETWIN_EMBEDDING_CACHE` select the matching extracted local model cache.
+- Reviewed fixes cover destructive/partial ingest, custom-corpus mismatch, embedding identity,
+  provider selection and expected-error logs. Fingerprint performance caching is deferred:
+  the corpus is small and correct invalidation matters more than speculative optimization.
