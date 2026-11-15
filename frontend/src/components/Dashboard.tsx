@@ -56,6 +56,7 @@ export function Dashboard() {
   const historyLen = useScenario(s => s.history.length);
   const detect = useScenario(s => s.detect);
   const results = useScenario(s => s.results);
+  const loadingResults = useScenario(s => s.loading.results);
   const loadResults = useScenario(s => s.loadResults);
   const stamps = useRef<string[]>([]);
 
@@ -96,7 +97,9 @@ export function Dashboard() {
                 <td className="mono">{r.sources.map(sourceId).join(", ") || "—"}</td>
                 <td className="mono">{stamps.current[i]}</td>
               </tr>
-            )) : (
+            )) : loadingResults ? (
+              <tr><td colSpan={5} className="na">Loading results...</td></tr>
+            ) : (
               <tr><td colSpan={5} className="na">Every result will be recorded here with its date and time.</td></tr>
             )}
           </tbody>

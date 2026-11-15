@@ -75,7 +75,6 @@ export function ControlPanel() {
   const inputs = useScenario(s => s.inputs);
   const meta = useScenario(s => s.meta);
   const phase = useScenario(s => s.phase);
-  const error = useScenario(s => s.error);
   const busy = useScenario(s => s.loading.simulate || s.loading.detect);
   const loadingMeta = useScenario(s => s.loading.meta);
   const { setInputs, loadMeta, ignite, reset } = useScenario.getState();
@@ -139,8 +138,6 @@ export function ControlPanel() {
           The model will extrapolate, so treat the verdict as having no direct NASA data.
         </p>
       )}
-      {error && <p className="error" role="alert">{error}</p>}
-
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" className="btn-primary" disabled={!!blocker}>
           {busy ? "Igniting…" : phase === "idle" ? "Ignite" : "Ignite again"}

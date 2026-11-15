@@ -3,7 +3,8 @@
    probability bar, crew risk, data-support badge, explanation and NASA sources. "Apply" calls
    /apply; the new verdict replaces the old one, and the 3D flame fades out if the fire goes out.
    The recommended action is highlighted. */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { ActionName } from "../api/types";
 import { useScenario } from "../store/useScenario";
 import { Sources } from "./Sources";
 import { canAct, shouldAutoRank } from "./suppression.logic";
@@ -18,6 +19,7 @@ export function SuppressionPanel() {
   const loading = useScenario(s => s.loading);
   const runSuppress = useScenario(s => s.runSuppress);
   const runApply = useScenario(s => s.runApply);
+  const [applyingAction, setApplyingAction] = useState<ActionName | null>(null);
 
   useEffect(() => {
     if (shouldAutoRank(alarmId, suppress != null, loading.suppress)) void runSuppress();
@@ -42,9 +44,13 @@ export function SuppressionPanel() {
                 <strong>{a.label}{a.action === suppress.recommended ? " · recommended" : ""}</strong>
                 <button
                   type="button" className="btn-primary" disabled={!actable || loading.apply}
-                  onClick={() => void runApply(a.action)}
+                  onClick={async () => {
+                    setApplyingAction(a.action);
+                    try { await runApply(a.action); }
+                    finally { setApplyingAction(null); }
+                  }}
                 >
-                  Apply
+                  {loading.apply && applyingAction === a.action ? "Applying..." : "Apply"}
                 </button>
               </div>
               <div className="bar" aria-label={`Extinction probability ${pct(a.extinction_probability)}`}>
