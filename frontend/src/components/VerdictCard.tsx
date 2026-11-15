@@ -1,5 +1,6 @@
 /* FE-07: the model's verdict for the latest /simulate or /apply: state, burn probability, trust,
-   extrapolation warning, explanation and the 3 nearest NASA tests. */
+   extrapolation warning, explanation and the 3 nearest NASA tests. Sticky (desktop): it stays at the
+   top of the screen while the user scrolls the left column down to the suggestions and dashboard. */
 import { useScenario } from "../store/useScenario";
 import { Sources } from "./Sources";
 
@@ -8,7 +9,7 @@ export function VerdictCard() {
   if (!sim) return null;
   const burning = sim.state === "burning";
   return (
-    <section className="glass panel verdict mt-3" aria-label="Verdict">
+    <section className="area-verdict glass panel verdict verdict-sticky" aria-label="Verdict">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className={`panel-title m-0 ${burning ? "state-burning" : "state-out"}`}>
           {burning ? "Keeps burning" : "Extinguished"}

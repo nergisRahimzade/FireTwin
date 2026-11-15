@@ -8,7 +8,6 @@ import { Suspense, lazy, useRef } from "react";
 import { alarmBanner } from "../scene/alarmLogic";
 import { SCENE_TIME_SCALE } from "../scene/clock";
 import { useScenario } from "../store/useScenario";
-import { VerdictCard } from "./VerdictCard";
 
 // three.js loads only when the scene renders.
 export const IssScene = lazy(() => import("../scene/IssScene").then(m => ({ default: m.IssScene })));
@@ -49,7 +48,6 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
           </p>
         </div>
       )}
-      <VerdictCard />
       <p className="note mt-2">
         ISS lab module, 8.5 m × 4.2 m. The model decides what the fire does and when the alarm trips; the 3D view
         only illustrates it.

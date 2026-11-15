@@ -9,6 +9,7 @@ import { CompareView } from "./components/CompareView";
 import { Dashboard } from "./components/Dashboard";
 import { SceneView } from "./components/SceneView";
 import { SuppressionPanel } from "./components/SuppressionPanel";
+import { VerdictCard } from "./components/VerdictCard";
 import { VariablesPanel } from "./components/VariablesPanel";
 
 export default function FireTwinApp() {
@@ -26,11 +27,15 @@ export default function FireTwinApp() {
         <CompareView onClose={closeCompare} />
       ) : (
         <div className="one-page">
-          <SceneView onCompare={() => setComparing(true)} />
+          {/* One left column, so the sticky verdict card has the whole column to stick within. */}
+          <div className="left-col">
+            <SceneView onCompare={() => setComparing(true)} />
+            <VerdictCard />
+            <SuppressionPanel />
+            <Dashboard />
+            <ChatPanel />
+          </div>
           <VariablesPanel />
-          <SuppressionPanel />
-          <Dashboard />
-          <ChatPanel />
         </div>
       )}
       <footer className="foot-note">Flame is illustrative. Verdicts come from NASA PSI data.</footer>
