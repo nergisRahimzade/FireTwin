@@ -1,11 +1,12 @@
 /* FE-03: control panel. Material from /meta, sliders for O2, flow speed and (collapsed) pressure,
-   flow direction, and Ignite (/simulate, then /detect). The tested range from /meta is shaded on
-   each slider, and values outside it are flagged before anyone ignites. */
+   flow direction, and Ignite (/simulate, then /detect). Each slider shades the range NASA tested for
+   the chosen material's fuel type (the same range the model checks), and values outside it are
+   flagged before anyone ignites. */
 import { useEffect, useId, useState } from "react";
 import { useScenario, type Phase } from "../store/useScenario";
 import {
-  FLOW_DIRS, LIMITS, TYPED_STEP, bandPercent, igniteBlocker, isOutside, outsideKeys, parseTyped, sameDir, testedRange,
-  type SliderKey,
+  FLOW_DIRS, LIMITS, TYPED_STEP, bandPercent, igniteBlocker, isOutside, outsideReasons, parseTyped, sameDir,
+  testedRange, testedScope, type SliderKey,
 } from "./controlPanel.logic";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -17,9 +18,14 @@ function Slider({ field, label }: { field: SliderKey; label: string }) {
   const id = useId();
   const value = useScenario(s => s.inputs[field]);
   const meta = useScenario(s => s.meta);
+  const material = useScenario(s => s.inputs.material);
   const setInputs = useScenario(s => s.setInputs);
   const { min, max, step, unit } = LIMITS[field];
-  const tested = testedRange(meta, field);
+  // The material's own fuel type: e.g. solids 14.2-22.2 % O2, not the 12-34 % of every test.
+  const tested = testedRange(meta, field, material);
+  const scope = testedScope(meta, material);
+  // Solids were all tested at one pressure (101.3 kPa), so the "range" can be a single value.
+  const span = tested && (tested.min === tested.max ? `${tested.min} ${unit} only` : `${tested.min}–${tested.max} ${unit}`);
   const band = tested && bandPercent(tested, field);
   const outside = isOutside(value, tested);
   const fill = ((value - min) / (max - min)) * 100;
@@ -63,8 +69,8 @@ function Slider({ field, label }: { field: SliderKey; label: string }) {
       <span className="note">
         {tested
           ? outside
-            ? `Outside tested range (${tested.min}–${tested.max} ${unit}): no direct NASA data.`
-            : `Tested range ${tested.min}–${tested.max} ${unit} (shaded).`
+            ? `Outside the range tested for ${scope} (${span}): no direct NASA data.`
+            : `Tested for ${scope}: ${span} (shaded).`
           : "Tested range appears once the API is connected."}
       </span>
     </div>
@@ -82,7 +88,7 @@ export function ControlPanel() {
   useEffect(() => { if (!useScenario.getState().meta) loadMeta(); }, [loadMeta]);
 
   const blocker = igniteBlocker(inputs, meta, busy);
-  const outside = outsideKeys(inputs, meta);
+  const outside = outsideReasons(inputs, meta);
   const materialId = useId();
 
   return (
@@ -143,8 +149,8 @@ export function ControlPanel() {
 
       {outside.length > 0 && (
         <p className="warn" role="status">
-          Outside the tested range for {outside.map(k => ({ o2_pct: "oxygen", flow_speed_cm_s: "airflow", pressure_kpa: "pressure" })[k]).join(" and ")}.
-          The model will extrapolate, so treat the verdict as having no direct NASA data.
+          Outside the NASA data: {outside.join("; ")}. The model will extrapolate, so treat the verdict as
+          having no direct NASA data.
         </p>
       )}
     </form>

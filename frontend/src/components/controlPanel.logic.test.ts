@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { MetaOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 import {
-  FLOW_DIRS, bandPercent, clampToLimits, igniteBlocker, isOutside, outsideKeys, parseTyped, testedRange,
+  FLOW_DIRS, bandPercent, clampToLimits, igniteBlocker, isOutside, outsideKeys, outsideReasons, parseTyped,
+  testedRange, testedScope,
 } from "./controlPanel.logic";
 
 const meta = (ranges: MetaOut["ranges"]): MetaOut => ({
@@ -22,6 +23,47 @@ describe("testedRange", () => {
   it("returns null with no API data or a malformed range", () => {
     expect(testedRange(null, "o2_pct")).toBeNull();
     expect(testedRange(meta({ o2_pct: { min: 30, max: 20 } }), "o2_pct")).toBeNull();
+  });
+});
+
+// The real numbers from ml/artifacts/feature_ranges.json: droplets stretch the overall O2 range.
+const byFuel: MetaOut = {
+  materials: [
+    { name: "Black rod", fuel_type: "solid", n_tests: 37 },
+    { name: "Heptane", fuel_type: "droplet", n_tests: 40 },
+  ],
+  ranges: { o2_pct: { min: 12, max: 34 }, pressure_kpa: { min: 70.17, max: 309.27 }, flow_cm_s: { min: 0, max: 28 } },
+  ranges_by_fuel_type: {
+    solid: { o2_pct: { min: 14.2, max: 22.2 }, pressure_kpa: { min: 101.3, max: 101.3 }, flow_cm_s: { min: 0, max: 28 } },
+    droplet: { o2_pct: { min: 12, max: 34 }, pressure_kpa: { min: 70.17, max: 309.27 }, flow_cm_s: { min: 0, max: 0 } },
+  },
+  investigations: [],
+};
+const blackRod = { ...DEFAULT_SCENARIO, material: "Black rod", flow_speed_cm_s: 16 };
+
+describe("tested range per fuel type", () => {
+  it("shades the material's own fuel type, the range the model checks", () => {
+    expect(testedRange(byFuel, "o2_pct", "Black rod")).toEqual({ min: 14.2, max: 22.2 });
+    expect(testedRange(byFuel, "o2_pct", "Heptane")).toEqual({ min: 12, max: 34 });
+    expect(testedScope(byFuel, "Black rod")).toBe("solid fuels");
+  });
+  it("falls back to every test when the material or its fuel ranges are unknown", () => {
+    expect(testedRange(byFuel, "o2_pct", "")).toEqual({ min: 12, max: 34 });
+    expect(testedRange({ ...byFuel, ranges_by_fuel_type: {} }, "o2_pct", "Black rod")).toEqual({ min: 12, max: 34 });
+    expect(testedScope(byFuel, "")).toBe("all fuels");
+  });
+  it("flags 26 % O2 for a solid, which the overall 12-34 % band hid", () => {
+    expect(outsideKeys({ ...blackRod, o2_pct: 26 }, byFuel)).toEqual(["o2_pct"]);
+    expect(outsideKeys({ ...blackRod, o2_pct: 22 }, byFuel)).toEqual([]);
+  });
+  it("says which input is outside and by how much", () => {
+    expect(outsideReasons({ ...blackRod, o2_pct: 26 }, byFuel)).toEqual([
+      "oxygen 26 % is above the highest tested for solid fuels (22.2 %)",
+    ]);
+    expect(outsideReasons({ ...blackRod, o2_pct: 21, pressure_kpa: 70 }, byFuel)).toEqual([
+      "cabin pressure 70 kPa is below the lowest tested for solid fuels (101.3 kPa)",
+    ]);
+    expect(outsideReasons(blackRod, byFuel)).toEqual([]);
   });
 });
 

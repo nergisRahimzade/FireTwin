@@ -34,7 +34,7 @@ export function parseTyped(key: SliderKey, text: string): number | null {
 
 export const sameDir = (a: Vec3, b: Vec3) => a.every((v, i) => v === b[i]);
 
-// MetaOut.ranges holds min/max per feature in the training data. The model's flow feature is
+// MetaOut ranges hold min/max per feature in the training data. The model's flow feature is
 // flow_cm_s (ML-01) while ScenarioIn calls it flow_speed_cm_s, so accept either key.
 const RANGE_KEYS: Record<SliderKey, string[]> = {
   o2_pct: ["o2_pct"],
@@ -42,14 +42,45 @@ const RANGE_KEYS: Record<SliderKey, string[]> = {
   pressure_kpa: ["pressure_kpa"],
 };
 export interface Range { min: number; max: number }
+type Ranges = Record<string, { min: number; max: number }>;
 
-export function testedRange(meta: MetaOut | null, key: SliderKey): Range | null {
-  if (!meta?.ranges) return null;
+const SLIDER_LABELS: Record<SliderKey, string> = {
+  o2_pct: "Oxygen", flow_speed_cm_s: "Airflow speed", pressure_kpa: "Cabin pressure",
+};
+
+/** The chosen material's fuel type ("solid", "droplet"), or null if /meta doesn't list it. */
+export function fuelTypeOf(meta: MetaOut | null, material: string): string | null {
+  return meta?.materials.find(m => m.name === material)?.fuel_type ?? null;
+}
+
+// The min/max for one slider in one ranges object; null if missing or malformed.
+function readRange(ranges: Ranges | undefined, key: SliderKey): Range | null {
+  if (!ranges) return null;
   for (const k of RANGE_KEYS[key]) {
-    const r = meta.ranges[k];
+    const r = ranges[k];
     if (r && Number.isFinite(r.min) && Number.isFinite(r.max) && r.max >= r.min) return { min: r.min, max: r.max };
   }
   return null;
+}
+
+// The ranges the model checks this material against: its own fuel type's (the predictor flags
+// `extrapolated` that way: solids were tested at 14.2-22.2 % O2, droplets at 12-34 %).
+// undefined = fall back to the overall ranges (no material chosen yet, or an older API without them).
+function fuelRanges(meta: MetaOut | null, material: string): Ranges | undefined {
+  const fuel = fuelTypeOf(meta, material);
+  return fuel ? meta?.ranges_by_fuel_type?.[fuel] : undefined;
+}
+
+/** The tested range shaded on a slider: the material's fuel type if known, else every test. */
+export function testedRange(meta: MetaOut | null, key: SliderKey, material = ""): Range | null {
+  if (!meta) return null;
+  return readRange(fuelRanges(meta, material), key) ?? readRange(meta.ranges, key);
+}
+
+/** Who the shaded range covers, for the slider note: "solid fuels", or "all fuels" as fallback. */
+export function testedScope(meta: MetaOut | null, material: string): string {
+  const fuel = fuelTypeOf(meta, material);
+  return fuel && readRange(fuelRanges(meta, material), "o2_pct") ? `${fuel} fuels` : "all fuels";
 }
 
 export const isOutside = (value: number, range: Range | null) => !!range && (value < range.min || value > range.max);
@@ -63,7 +94,20 @@ export function bandPercent(range: Range, key: SliderKey) {
 
 // Inputs outside the tested range for the current material's data, by slider.
 export function outsideKeys(inputs: ScenarioIn, meta: MetaOut | null): SliderKey[] {
-  return (Object.keys(LIMITS) as SliderKey[]).filter(k => isOutside(inputs[k], testedRange(meta, k)));
+  return (Object.keys(LIMITS) as SliderKey[]).filter(k => isOutside(inputs[k], testedRange(meta, k, inputs.material)));
+}
+
+/** Why the inputs are outside the NASA data, one phrase per input, e.g. "oxygen 26 % is above
+    the highest tested for solid fuels (22.2 %)". Empty when nothing is outside (or no /meta). */
+export function outsideReasons(inputs: ScenarioIn, meta: MetaOut | null): string[] {
+  const scope = testedScope(meta, inputs.material);
+  return outsideKeys(inputs, meta).map(k => {
+    const range = testedRange(meta, k, inputs.material)!; // outsideKeys only returns keys with a range
+    const { unit } = LIMITS[k];
+    const above = inputs[k] > range.max;
+    const bound = above ? range.max : range.min;
+    return `${SLIDER_LABELS[k].toLowerCase()} ${inputs[k]} ${unit} is ${above ? "above the highest" : "below the lowest"} tested for ${scope} (${bound} ${unit})`;
+  });
 }
 
 export function igniteBlocker(inputs: ScenarioIn, meta: MetaOut | null, busy: boolean): string | null {
