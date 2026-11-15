@@ -4,7 +4,7 @@ Every value is taken from a file in the repo, never typed in from memory:
 - conditions ranges and fuels: the unified table (data/processed/tests.parquet);
 - objective: the "Objectives" section of the PSI description in data/docs/<investigation>/;
 - hardware, sample geometry and the air-flow range of investigations that have no rows in the
-  unified table: their PSI experiment table in data/raw/, when that file is present.
+  unified table: their PSI experiment table in data/psi_tables/, when that file is present.
 A field with no source in the repo is null and is listed under "missing", so the gap is visible.
 
 Not named clean_*.py on purpose: `make data` runs those; run this one by hand after it.
@@ -26,7 +26,7 @@ log = logging.getLogger("build_investigations")
 ROOT = Path(__file__).resolve().parents[2]
 TABLE = ROOT / "data" / "processed" / "tests.parquet"
 DOCS_DIR = ROOT / "data" / "docs"
-RAW_DIR = ROOT / "data" / "raw"
+RAW_DIR = ROOT / "data" / "psi_tables"
 OUT = ROOT / "data" / "processed" / "investigations.json"
 PSI_PAGE = "https://psi.nasa.gov/physci/repo/data/investigations/{id}"
 

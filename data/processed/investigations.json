@@ -133,16 +133,21 @@
     "name": "Saffire-I",
     "pillar": "prevention",
     "objective": null,
-    "fuel": null,
+    "fuel": [
+      "solid"
+    ],
     "materials": [
-      "Pre-test flow visulation data for sample 1",
-      "Pre-test flow visulation data for sample 2",
       "SIBAL Fabric"
     ],
     "sample_geometry": null,
-    "hardware": null,
+    "hardware": [
+      "Cygnus"
+    ],
     "conditions": {
-      "o2_pct": null,
+      "o2_pct": {
+        "min": 21.5,
+        "max": 21.5
+      },
       "pressure_kpa": null,
       "flow_cm_s": {
         "min": 20.0,
@@ -150,7 +155,7 @@
       }
     },
     "sensors": null,
-    "n_tests_in_unified_table": 0,
+    "n_tests_in_unified_table": 2,
     "n_rows_in_psi_table": 4,
     "psi_table_columns": [
       "Sample Number",
@@ -170,8 +175,6 @@
     "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98",
     "is_synthetic": false,
     "missing": [
-      "fuel",
-      "hardware",
       "objective",
       "sample_geometry",
       "sensors"

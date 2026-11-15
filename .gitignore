@@ -23,6 +23,10 @@ dist/
 data/raw/*
 # ...but keep the empty folder itself tracked.
 !data/raw/.gitkeep
+# The PSI experiment tables live in data/psi_tables/ (tracked): small public CSVs that are the
+# pipeline's only input, and PSI's download needs a signed-in session, so tracking them is what
+# lets `make data` run from a fresh clone. Only the download log stays out.
+data/psi_tables/downloads.csv
 
 # Raw investigation uploads are local source inputs, not runtime/demo artifacts.
 /data/BASS/

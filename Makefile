@@ -27,10 +27,10 @@ setup: ## Install Python deps (uv) and frontend deps (npm, once the frontend exi
 		echo "setup: skipping frontend (no frontend/package.json yet, FE-01)"; \
 	fi
 
-data: ## Run the data pipeline: download -> clean_* -> build_table
+data: ## Run the data pipeline: download -> clean_* -> label_outcomes -> build_table
 	@# Runs whichever pipeline scripts exist, in order; stops at the first one that fails.
 	@ran=0; \
-	for script in data/pipeline/download.py data/pipeline/clean_*.py data/pipeline/build_table.py; do \
+	for script in data/pipeline/download.py data/pipeline/clean_*.py data/pipeline/label_outcomes.py data/pipeline/build_table.py; do \
 		if [ -f "$$script" ]; then \
 			echo "data: running $$script"; \
 			uv run $(ENV_FILE) python "$$script" || exit 1; \

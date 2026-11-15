@@ -1,0 +1,122 @@
+test_id,investigation,fuel_type,material,hardware,o2_pct,pressure_kpa,flow_cm_s,outcome,spread_rate_mm_s,source_url,is_synthetic
+BASS-1,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-42,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-18,BASS,solid,PMMA sphere 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-7,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-8,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-43,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-44,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-45,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-19,BASS,solid,PMMA sphere 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-20,BASS,solid,PMMA sphere 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-21,BASS,solid,PMMA sphere 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-4,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-10,BASS,solid,SIBAL 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-12,BASS,solid,Nomex blend 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-54,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-55,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-56,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-57,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-110,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-30,BASS,solid,PMMA 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-31,BASS,solid,PMMA 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-32,BASS,solid,PMMA 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-33,BASS,solid,PMMA 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-12-R,BASS,solid,Nomex blend 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-12-R2,BASS,solid,Nomex blend 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-46,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-47,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-48,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-49,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-22,BASS,solid,1 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-23,BASS,solid,1 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-24,BASS,solid,1 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-25,BASS,solid,1 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-58,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-59,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-60,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-61,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-5,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-14,BASS,solid,Nomex III Natural,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-66,BASS,solid,PMMA slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-67,BASS,solid,PMMA slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-34,BASS,solid,1 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-35,BASS,solid,1 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-16,BASS,solid,ultem sheet,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-5b,BASS,solid,SIBAL 2 cm opposed flow,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-6,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-82,BASS,solid,candle,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-82a,BASS,solid,candle,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-82b,BASS,solid,candle,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-68,BASS,solid,pmma slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-69,BASS,solid,pmma slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-111,BASS,solid,2 cm sphere wake ign,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-112,BASS,solid,2 cm sphere wake ign,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-113,BASS,solid,2 cm sphere wake ign,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-2,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-3,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-15,BASS,solid,nomex natural III,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-13,BASS,solid,Nomex blend 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-17,BASS,solid,ultem sheet,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-114,BASS,solid,pmma sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-62,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-63,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-64,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-65,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-118,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-11,BASS,solid,SIBAL 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-9,BASS,solid,SIBAL 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-102,BASS,solid,PMMA sphere 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-83a,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-83b,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-83c,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-84a,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-84b,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-86a,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-86b,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-86c,BASS,solid,Japan Wax Candle wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-70,BASS,solid,PMMA slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-71,BASS,solid,PMMA slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-74,BASS,solid,paraffin wax slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-75,BASS,solid,parrafin wax slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-98,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-99,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-114,BASS,solid,PMMA 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-115,BASS,solid,pmma 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-116,BASS,solid,pmma 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-117,BASS,solid,pmma 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-117a,BASS,solid,pmma 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-100,BASS,solid,pmma 2 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-85,BASS,solid,candle paraffin wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-93,BASS,solid,candle paraffin wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-26,BASS,solid,pmma 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-27,BASS,solid,pmma 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-28,BASS,solid,pmma 1 cm,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-87,BASS,solid,candle Japan wax,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-103,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-104,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-105,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-38,BASS,solid,1 cm sphere wake,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-39,BASS,solid,1 cm wake sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-40,BASS,solid,1 cm wake sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-72,BASS,solid,pmma slab opposed,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-73,BASS,solid,pmma slab oppsed,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-118,BASS,solid,2 cm pmma sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-119,BASS,solid,2 cm pmma sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-89,BASS,solid,parrafin wax candle,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-95,BASS,solid,paraffin wax candle,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-92,BASS,solid,candle Japan wax,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-78,BASS,solid,paraffin wax slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-50,BASS,solid,2 cm pmma sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-51,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-52,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-53,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-106,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-107,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-108,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-109,BASS,solid,2 cm sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-79,BASS,solid,flat wax slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-80,BASS,solid,flat wax slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-75,BASS,solid,flat wax slab,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-53,BASS,solid,pmma sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False
+BASS-53a,BASS,solid,pmma sphere,MSG,,,,unknown,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-26,False

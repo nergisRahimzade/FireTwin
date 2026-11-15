@@ -7,13 +7,16 @@ Standard library only, so the pipeline runs before any layer adds pandas to pypr
 from __future__ import annotations
 
 import csv
+import io
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-RAW_DIR = ROOT / "data" / "raw"
+# The experiment tables, tracked in Git (see .gitignore). data/raw/ is only for local uploads.
+RAW_DIR = ROOT / "data" / "psi_tables"
 CLEAN_DIR = ROOT / "data" / "clean"
+OTHER_DIR = CLEAN_DIR / "other"  # cleaned tables that are not burn tests (detection, FLEX-2)
 
 PSI_PAGE = "https://psi.nasa.gov/physci/repo/data/investigations/{id}"
 # The study API the PSI site itself calls. It refuses requests without a signed-in session.
@@ -41,18 +44,29 @@ class Source:
 
 
 SOURCES = [
+    Source(
+        "BASS",
+        "PSI-26",
+        "PSI-26_Experimental table_BASS.csv",
+        note="table lists only the fuel samples: no O2, flow or outcome columns",
+    ),
     Source("BASS-II", "PSI-25", "PSI-25_Experimental table_BASS-II.csv"),
+    Source("Saffire-I", "PSI-98", "PSI-98_Experimental table_SAFFIRE-1.csv"),
     Source("Saffire-II", "PSI-99", "PSI-99_Experimental table_SAFFIRE-2.csv"),
     Source(
         "Saffire-III",
-        None,
-        "Saffire-III_Experimental table.csv",
-        note="no PSI study id found for Saffire-III yet",
+        "PSI-100",
+        "PSI-100_Experimental table_SAFFIRE-3.csv",
+        note="two samples, no O2 and no outcome recorded",
     ),
     Source("FLEX", "PSI-69", "PSI-69_Experimental table_FLEX.csv"),
     # FLEX-2's table is a matrix of test conditions per fuel (ranges such as "0.17; 0.21"),
-    # not one row per test, so it is downloaded but not cleaned into test rows.
+    # not one row per test, so it is cleaned into data/clean/other/flex2_conditions.csv.
     Source("FLEX-2", "PSI-68", "PSI-68_Experimental table_Flex2.csv"),
+    # Smoke-detection studies: aging/weight-loss measurements, not fire outcomes. They are cleaned
+    # into data/clean/other/ and stay out of the burn-model table.
+    Source("SAME", "PSI-102", "PSI-102_Experimental table_SAME.csv"),
+    Source("SAME-R", "PSI-101", "PSI-101_Experimental table_SAME-R.csv"),
 ]
 BY_NAME = {s.name: s for s in SOURCES}
 
@@ -117,12 +131,20 @@ def first_number(text: object) -> float | None:
     return found[0] if found else None
 
 
+def read_text(path: Path) -> str:
+    """File text as UTF-8 (BOM removed); tables saved in the Windows code page fall back to it."""
+    data = path.read_bytes()
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="replace")
+
+
 def read_rows(path: Path) -> list[dict[str, str]]:
     """Rows of a PSI CSV with tidy headers (runs of spaces collapsed; PSI's BOM removed)."""
-    with path.open(encoding="utf-8-sig", newline="") as f:
-        reader = csv.reader(f)
-        header = [" ".join(h.split()) for h in next(reader)]
-        return [dict(zip(header, (c.strip() for c in row), strict=False)) for row in reader]
+    reader = csv.reader(io.StringIO(read_text(path), newline=""))
+    header = [" ".join(h.split()) for h in next(reader)]
+    return [dict(zip(header, (c.strip() for c in row), strict=False)) for row in reader]
 
 
 def write_clean(rows: list[dict], path: Path) -> Path:

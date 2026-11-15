@@ -1,0 +1,9 @@
+sample,material,same_conditions_as_samples_1_4,air_flow_cm_s,weight_loss_rate_mg_min,aging_duration_min,source_url
+1,Teflon,False,5.0,2.0,1.0,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+2,Teflon,False,5.0,1.0,1.0,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+3,Teflon,False,5.0,2.0,20.0,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+4,Teflon,False,10.0,2.0,1.0,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+5,Kapton,True,,,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+6,Silicone Rubber,True,,,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+7,Lampwick,True,,,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
+8,Dibutyl Phthalate,True,,,,https://psi.nasa.gov/physci/repo/data/investigations/PSI-102
