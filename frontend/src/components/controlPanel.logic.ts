@@ -19,6 +19,17 @@ export const FLOW_DIRS: { label: string; hint: string; dir: Vec3 }[] = [
   { label: "+Z", hint: "port", dir: [0, 0, 1] },
   { label: "−Z", hint: "starboard", dir: [0, 0, -1] },
 ];
+// Number inputs next to each slider: what someone types becomes a valid value, or null while the
+// text isn't a number yet (e.g. empty, or "-"). Out-of-range numbers snap to the slider's ends.
+export function clampToLimits(key: SliderKey, value: number): number {
+  const { min, max } = LIMITS[key];
+  return Math.min(max, Math.max(min, value));
+}
+export function parseTyped(key: SliderKey, text: string): number | null {
+  const value = Number(text.trim().replace(",", "."));
+  return text.trim() === "" || !Number.isFinite(value) ? null : clampToLimits(key, value);
+}
+
 export const sameDir = (a: Vec3, b: Vec3) => a.every((v, i) => v === b[i]);
 
 // MetaOut.ranges holds min/max per feature in the training data. The model's flow feature is

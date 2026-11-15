@@ -1,10 +1,11 @@
 /* FE-03: control panel. Material from /meta, sliders for O2, flow speed and (collapsed) pressure,
    flow direction, and Ignite (/simulate, then /detect). The tested range from /meta is shaded on
    each slider, and values outside it are flagged before anyone ignites. */
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { useScenario, type Phase } from "../store/useScenario";
 import {
-  FLOW_DIRS, LIMITS, bandPercent, igniteBlocker, isOutside, outsideKeys, sameDir, testedRange, type SliderKey,
+  FLOW_DIRS, LIMITS, bandPercent, igniteBlocker, isOutside, outsideKeys, parseTyped, sameDir, testedRange,
+  type SliderKey,
 } from "./controlPanel.logic";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -22,12 +23,32 @@ function Slider({ field, label }: { field: SliderKey; label: string }) {
   const band = tested && bandPercent(tested, field);
   const outside = isOutside(value, tested);
   const fill = ((value - min) / (max - min)) * 100;
+  // Number box next to the slider (whiteboard: "sliders & number inputs"). Local text, so typing
+  // "3" on the way to "34" isn't snapped to the minimum; a valid number updates the store at once.
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
   return (
     <div className="field">
-      <label className="label flex justify-between gap-3" htmlFor={id}>
-        <span>{label}</span>
-        <span className="mono" style={{ color: outside ? "var(--risk-2)" : "var(--fg)" }}>{value} {unit}</span>
-      </label>
+      <div className="flex items-center justify-between gap-3">
+        <label className="label" htmlFor={id}>{label}</label>
+        <span className={`num-input${outside ? " outside" : ""}`}>
+          <input
+            type="number" inputMode="decimal" min={min} max={max} step={step} value={text}
+            aria-label={`${label} (${unit})`}
+            onChange={e => {
+              setText(e.target.value);
+              const typed = parseTyped(field, e.target.value);
+              if (typed !== null && typed === Number(e.target.value)) setInputs({ [field]: typed });
+            }}
+            onBlur={() => {
+              const typed = parseTyped(field, text);
+              if (typed === null) setText(String(value));
+              else { setInputs({ [field]: typed }); setText(String(typed)); }
+            }}
+          />
+          <span className="mono">{unit}</span>
+        </span>
+      </div>
       <div className="range single">
         <div className="track">
           {band && <span className="band" style={{ left: `${band.left}%`, right: `${band.right}%` }} />}
