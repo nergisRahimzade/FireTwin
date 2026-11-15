@@ -345,3 +345,10 @@ input, select, textarea { font-size: 16px; }
   .compare-panes { grid-template-columns: minmax(0, 1fr); }
 }
 .alarm-banner { margin: 0; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #FFE3DF; background: rgba(255,90,74,.16); border: 1px solid #FF5A4A; }
+/* FE-09 chart */
+.o2-chart { width: 100%; max-width: 520px; height: auto; }
+.o2-chart .axis { stroke: var(--line); }
+.o2-chart .curve { fill: none; stroke: var(--accent); stroke-width: 2; }
+.o2-chart .pt-burned { fill: var(--risk); }
+.o2-chart .pt-out { fill: #63e6be; }
+.o2-chart .tick { fill: var(--muted); font: 10px var(--f-data); }
