@@ -36,7 +36,7 @@ from app.schemas import (
 DEFAULT_BASE_URL = "http://localhost:8000"
 # The default scenario must BURN, or ranking suppression is meaningless. Since the solid-model fix
 # (main 20bf3a9), PMMA rod (28 NASA tests) at 21 % O2 and 10 cm/s runs the whole demo flow: it burns
-# with strong trust, the airflow carries smoke to vent_fwd (alarm at 40 s) and fans off puts it out.
+# with medium trust, the airflow carries smoke to vent_fwd (alarm at 40 s) and fans off puts it out.
 # Before that fix the default was Heptane at 30 % O2 with fans off, which burns but never trips an
 # alarm. The plan's "cable insulation" isn't in the real table.
 # Override with --material/--o2/--flow.

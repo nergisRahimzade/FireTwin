@@ -9,7 +9,9 @@ using the same normalised distance as nearest_tests(). Then:
   neighbours within d is right at least STRONG_ACCURACY of the time.
 Each needs at least MIN_SUPPORT tests to count, and both targets are raised to the majority rate
 (always guessing the more common outcome): a neighbour that is no better than that guess carries
-no information. If no candidate qualifies, the config default stays and the file says so.
+no information. If no medium candidate qualifies, the config default stays and the file says so.
+If no strong candidate qualifies, strong_distance is null: "strong" trust has not been earned at
+any distance, so trust_level() never gives it (falling back to a default would claim it anyway).
 Run after `make train`: `python ml/calibrate_trust.py`.
 """
 
@@ -93,9 +95,9 @@ def calibrate() -> dict:
     medium = largest("nearest_neighbour_accuracy", "nearest_neighbour_support", medium_target)
     strong = largest("majority_vote_accuracy", "majority_vote_support", strong_target)
     medium_d = medium if medium is not None else config.TRUST_MEDIUM_DIST
-    strong_d = strong if strong is not None else config.TRUST_STRONG_DIST
     return {
-        "strong_distance": min(strong_d, medium_d),  # strong can never be looser than medium
+        # Strong can never be looser than medium; null = no distance earned it.
+        "strong_distance": None if strong is None else min(strong, medium_d),
         "medium_distance": medium_d,
         "calibrated": {"strong": strong is not None, "medium": medium is not None},
         "majority_rate": round(majority, 3),

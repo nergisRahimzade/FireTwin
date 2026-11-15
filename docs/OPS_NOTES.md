@@ -830,3 +830,16 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - Folders outside this checkout, source archives without `.git`, and hosts without the
   Git binary keep the existing setup behavior. Linked worktrees are checked too.
   The separate index guard still rejects committed model/index files.
+
+
+## ML-04: "strong" trust only when calibration earned it (2026-11-15, Nergis)
+
+- `trust_calibration.json` said `calibrated.strong: false` (no distance where a vote of 3 nearby
+  same-fuel tests was right at least 90% of the time; best was 88.9%), yet `strong_distance` fell
+  back to the config default and then to `min(default, medium) = 0.02`, so "strong" was still shown.
+- Now `ml/calibrate_trust.py` writes `strong_distance: null` when strong is not calibrated, and
+  `model.trust_thresholds()` returns no strong distance for a null value or `calibrated.strong:
+  false` (older files too). `trust_level()` then gives at most "medium". No schema change: trust
+  is still one of strong/medium/weak.
+- Effect with the current data: the demo scenario (PMMA rod, 21% O2, 10 cm/s) shows medium
+  instead of strong; probabilities and rankings are unchanged.
