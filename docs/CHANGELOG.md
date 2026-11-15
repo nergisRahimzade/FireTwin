@@ -4,12 +4,17 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-01 documentation reconciliation**: distinguish current implementation from dated
+  integration records; repair stale results, vent, retrieval and mount descriptions. Add
+  `docs/DECISIONS.md` with owners, pending scope/contract choices and a proposed validation
+  matrix; publish the Ryan handoff plan with merged PR #26/#27 status. No API or runtime
+  behavior changes, contract approval claims or generated-type changes.
+
 - **OPS-02**: narrow read-only backend data mounts to processed metadata/table and cited
   text corpus, retaining model artifacts. Document real/mock/automatic startup commands,
   precedence and missing-file/directory behavior; add real Compose rendering checks.
 - **BE-05**: announce the captured effective API mode on startup for native and Docker
   runs, with lifecycle tests confirming default/explicit modes and no key disclosure.
-
 - **OPS-01**: untrack private root plan PDFs and raw investigation uploads after preserving
   local copies; ignore their paths and staging folders. Add index/ignore/large-blob guards
   while retaining processed demo data, NASA text corpus and committed model artifacts.
@@ -154,7 +159,8 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   ranks: data-backed actions by score, then no-data actions, `water_mist` last; `recommended` is the
   first data-backed action. Replaces "sorted by score", which real NASA data showed was wrong
   (`cut_power` can outscore data-backed actions). Comment-only change in `schemas.py`; no shape
-  change, so no frontend type regeneration. Also removed an empty duplicate BE-07 heading.
+  change, so no frontend type regeneration. The remaining duplicate BE-07 heading is
+  removed by the documentation follow-up above.
 - **OPS-04 follow-up**: `tests/e2e_loop.py` uses a burning real scenario by default (Heptane, 30 % O2,
   fans off; override with `--material/--o2/--flow`), fails if `/simulate` doesn't burn, and checks
   the documented suppress order. Three new tests in `tests/test_e2e_loop.py`. Real-mode `make e2e`

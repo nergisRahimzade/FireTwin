@@ -5,6 +5,41 @@ This file lists every place where OPS work added to the plan, chose something th
 or differs from it, so a new owner (person or coding agent) knows about it.
 Add an entry each time an OPS task makes a decision like this.
 
+## Current implementation snapshot (2026-11-15)
+
+Audited against `fd5ec94` (PR #27 merged). The dated sections below retain earlier
+implementation history; this snapshot and later follow-ups describe the current behavior.
+
+- All nine planned endpoints are mounted in mock and real mode; `/health` stays liveness
+  only. `backend/app/main.py` selects the routing mode once per app and announces it at startup.
+- Native startup accepts only `MOCK_MODE=0/1`, defaults to synthetic mocks (`1`), and the
+  launcher passes optional `.env` only to the backend. Docker blank/unset mode automatically
+  selects based on required artifact files. Shell settings override optional `.env` values.
+- Compose mounts only `data/processed`, `data/docs` and `ml/artifacts`, read-only. See
+  `docker/README.md` for commands. Raw uploads/private plans are untracked/ignored after
+  PR #26; historical copies remain in Git history. PR #27 narrowed the mounts.
+- `services/store.py` and the prediction cache are process-local and lost on restart.
+  Run one API worker for a consistent demo; reloads also lose scenarios. Durable/multi-worker
+  storage is additional scope, not the planned BE-01 implementation.
+- Results rows use named steps and source-ID strings. PDF history comes from the same saved
+  rows; its separate recommendation is calculated for current inputs at export time and
+  labeled accordingly. It may differ from a recommendation displayed before Apply.
+- Retrieval tries Chroma when a local store exists, and uses keyword search if the store
+  is absent or errors. A successful vector search with no qualifying hits returns no evidence,
+  rather than retrying keywords. Docker currently mounts no vector store or embedding cache.
+  Local embeddings can download on first use; OpenAI embeddings need network. Offline vector
+  provisioning remains package 6. Without an available LLM, explanation uses a template and
+  chat returns the top cited snippet (or the no-evidence message), as ML-10 specifies.
+- The current frontend is the one-page/Compare layout from the team-whiteboard change
+  `dc43ec6`, replacing the plan's three tabs. FE-06 is merged in PR #24. This records the
+  implemented layout, not proof that every later frontend feature is complete.
+- Native Windows startup/test work is assigned to Claude's isolated branch (package 2).
+  It is not part of this baseline. Docker Desktop's Linux engine or WSL is the documented
+  Windows route; do not claim the pending branch's behavior is already on main.
+
+Open decisions and the proposed validation matrix are in `docs/DECISIONS.md`. Runtime
+schemas, generated frontend types and services are unchanged by this documentation update.
+
 ## OPS-01: repo structure, Makefile, .env.example, .gitignore (2026-11-14, Ryan)
 
 **Added (not in the plan)**
@@ -54,9 +89,12 @@ Add an entry each time an OPS task makes a decision like this.
 - OPS-01 created `docker-compose.yml` as a comments-only placeholder; OPS-02 below now implements
   the two-service stack.
 - `ml/artifacts/` is deliberately **not** ignored, because OPS-05 commits prebuilt artifacts there.
-- OPS-05 says the demo should need no network except the LLM. If that means the vector store must
-  ship prebuilt, OPS-05 has to stop ignoring `chroma_db/` (or rebuild it offline at startup).
-- The plan PDFs are kept out of the repo (it's public). `docs/plan/SUMMARY.md` is committed instead.
+- OPS-05 requires no runtime network except the optional LLM. Package 6 must prepare both
+  the vector store and compatible embedding cache before offline startup, or explicitly
+  document the keyword-only fallback. A database alone does not prevent model downloads.
+  Any committed bundle also needs a provenance, size and repository-policy decision.
+- The policy is to keep plan PDFs out of the public repo and commit SUMMARY instead.
+  Root copies were later found tracked; PR #26 removed them from the current tree, not history.
 - `frontend/src/*` already holds `.gitkeep` files, so Vite's scaffolder (FE-01) warns that the folder
   isn't empty. Choose "Ignore files and continue".
 - `ml/prompts/` (ML-06/07) appears in the tasks but not in the repo tree, so OPS-01 didn't create it.
@@ -65,8 +103,9 @@ Add an entry each time an OPS task makes a decision like this.
 ## BE-05: root-config changes and follow-ups (2026-11-14, Ryan)
 
 **Changed in root files**
-- `pyproject.toml`: runtime deps `fastapi` and `uvicorn`. Plain `uvicorn`, not `uvicorn[standard]`,
-  so it reloads with StatReload. pytest `pythonpath = [".", "backend"]`, so tests import `app...`
+- Initially `pyproject.toml` added runtime deps `fastapi` and plain `uvicorn`, so that
+  initial environment used StatReload. Later transitive dependencies include watchfiles;
+  do not infer the current reloader from that original dependency choice. pytest `pythonpath = [".", "backend"]`, so tests import `app...`
   the same way uvicorn does and can import `data.pipeline` and `ml` from the repo root. The root
   entry was added on review: importlib mode does not add it automatically when `uv run pytest`
   runs the console entry point. `tests/test_python_imports.py` guards all three layer imports.
@@ -114,7 +153,8 @@ Add an entry each time an OPS task makes a decision like this.
   flag fails app construction. Each app captures the setting once.
 - Mock routes live in `backend/app/mocks/router.py`, including `/simulate` and `/apply`, so no real
   router or service ever contains mock code. `/health` is defined once in `main.py` and exists in
-  both modes. With the flag off, only `/health` is mounted until the real feature tasks land.
+  both modes. With the flag off, only `/health` was mounted in Phase 0; current main
+  mounts all real routers (see the current snapshot).
 - Every valid request returns a fixed fixture from `mocks/responses.py`. Request bodies are still
   validated against the existing contract, but valid inputs, action choices, chat text and IDs
   are ignored. Unknown scenario IDs return the same fixture, and no scenario history is stored.
@@ -132,11 +172,10 @@ Add an entry each time an OPS task makes a decision like this.
   and the same sample outcomes. It was authored once using the Python standard library, so
   BE-06 adds no dependency and does not implement the later ReportLab renderer (BE-09).
   `backend/app/mocks/README.md` documents the frontend handoff and fixed-response limitations.
-- Review follow-up: the mocks' free-form dictionaries are now the de facto contract, so their keys
-  are written down in `docs/contract.md`. `/results` rows use exactly the BE-01 store's shape:
-  the plan's 8 keys, `step` as a number, `None` where a step made no value, and no row-level
-  `is_synthetic` (a row is badged when any of its sources is synthetic). **Ask Nathan** whether
-  FE-09 wants `step` as a number; switching to names would change BE-01 and these mocks together.
+- The mocks' free-form dictionaries are documented in `docs/contract.md`. The initial
+  numbered-step/full-source proposal was superseded during BE integration: current mocks
+  match BE-01's named steps and source-ID strings. Results rows have no synthetic flag;
+  source IDs alone cannot prove synthetic status. That remains an open team decision.
 
 **Follow-ups**
 - Native `MOCK_MODE` still defaults to `1`. OPS-02 adds automatic missing-file fallback at the
@@ -150,7 +189,6 @@ Add an entry each time an OPS task makes a decision like this.
   Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.
 
 ## OPS-03: CI (2026-11-14, Ryan)
-## BE-07: /meta choices and integration follow-ups (2026-11-14, Ryan)
 
 **Chosen (the plan left it open)**
 - Python runs `make lint` and `make test`, the same commands as rule 7, so CI and laptops can't
@@ -187,14 +225,14 @@ Add an entry each time an OPS task makes a decision like this.
 - `investigations` is `[]` until DAT-06 writes `investigations.json`; nothing is made up.
 - Missing or broken data files -> 503 with a "run `make data` / `make train`" message.
 
-**Integration follow-ups (not done here)**
+**Integration history (subsequently merged)**
 - Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
   `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
   starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
   branch, BE-09 adds `/export`, and BE-10 adds `/chat`. Merging current `main` also brings
   the `/detect` and `/suppress` routers; all planned endpoints now exist in both modes.
-- BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
-  Nergis's stack merges (her branches contain it).
+- At the initial BE-07 checkpoint, BE-05 was only in the branch stack (PR #3 had targeted
+  `feature/OPS-01`). That stack has since merged; BE-05 is on current main.
 
 ## Integration follow-ups (2026-11-14, Ryan, `feature/BE-integration`)
 
@@ -214,11 +252,12 @@ Add an entry each time an OPS task makes a decision like this.
 - **Gap closed for `/detect` and `/suppress`** (`feature/BE-03-04-routers`): thin routers over
   Nergis's services, mounted in real mode. `/detect` appends the "detect" row (with the current
   verdict's source ids); `/suppress` appends nothing. Combined with BE-08 and BE-09 on
-  `feature/BE-real-mode`, the real-mode e2e loop (`make e2e`, OPS-04) **passes all 8 steps**:
+  `feature/BE-real-mode`, the then-current seed-data e2e loop **passed all 8 steps**
+  (historical synthetic-data rehearsal, not the current NASA-data demo):
   cable insulation -> burning (p 0.93) -> alarm at 40 s -> `fans_off_co2` -> extinguished ->
   3 history rows -> a 2-page PDF with the honesty line and synthetic labels.
-  Seen in that run: with flow `+x` (fore) the backend reports `vent_aft` tripping, because
-  `ml/pipeline/config.py` still uses the old vent names (see "3D coordinate system", BE-03 follow-up).
+  That run used old swapped vent names. Current `ml/pipeline/config.py` and frontend config
+  now agree on the positions in `docs/contract.md` (integrated in `b000eca`).
 
 ## BE-08: read-only scenario results (2026-11-14, Ryan)
 
@@ -287,11 +326,13 @@ Add an entry each time an OPS task makes a decision like this.
   with `test_`, so pytest never collects it. `tests/test_e2e_loop.py` runs the same loop
   in-process against the BE-06 mock app (no server, no network), so CI tests the checks themselves.
 - Beyond "PDF is non-empty", each step is checked against `schemas.py`, and the steps against each
-  other: same `scenario_id` throughout; `/suppress` sorted by score with `recommended` on top;
+  other: same `scenario_id` throughout; originally a plain suppression-score ordering check
+  (subsequently replaced by data-support-first ordering in the OPS-04 follow-up below);
   `/apply` inputs equal the recommended action's `new_inputs` (plan BE-02); `/results` contains the
   apply step; `/export` is `application/pdf` starting with `%PDF`.
-- It ignites "cable insulation" (the demo script's material) when `/meta` offers it, else the first
-  material, at 21 % O2 and 10 cm/s.
+- Initially it tried cable insulation, then the first offered material at 21 % O2 and
+  10 cm/s. The current script defaults to Heptane, 30 % O2 and zero flow; see the real-data
+  follow-up below. A successful no-detection run does not demonstrate a detector alarm.
 - A mock-mode API fails the run (the plan says "hits the real API"); `--allow-mock` checks wiring only.
 - `make help` now lists targets with digits in their names (`e2e`).
 
@@ -311,23 +352,30 @@ creates the `/detect` and `/suppress` *routers*. Under the plan's ownership tabl
 - The prebuilt artifacts are committed on `main`: `data/processed/tests.parquet` and
   `ml/artifacts/{model.joblib,feature_ranges.json,metrics.json,physics_params.json}`.
   `tests/test_demo_build.py` fails if any is untracked, empty or unloadable, or if a real
-  prediction needs an API key. RAG retrieval is keyword search over `data/docs` (no Chroma), and
-  `rag.py` falls back to a template without `GEMINI_API_KEY`/`OPENAI_API_KEY`, so the only network
-  use is the optional LLM.
+  prediction needs an API key. At this checkpoint retrieval used keywords only. Current
+  retrieval can use Chroma (see the snapshot); the default Docker stack still uses keywords.
+  A prepared dependency environment is required, and vector embedding first-use/network
+  behavior must be verified separately before claiming an entirely offline demo.
 
-**Tag `demo-v1` on a green `main` (#14 OPS-04 and #16 real mode are both merged):**
+**Release procedure (package 8, after team demo approval and all agreed gates):**
+
+These commands are instructions, not evidence that the tag exists. Check remote tags
+first and record the exact tested SHA; never move an existing release tag. A green
+endpoint suite alone does not establish scientific validity or frontend readiness.
+
 ```bash
 git switch main && git pull                 # or: git fetch origin main:main
 make lint && make test                      # rule 7
-MOCK_MODE=0 make dev                        # in one terminal (or docker compose up, once OPS-02 lands)
+MOCK_MODE=0 make dev                        # POSIX/WSL; Docker is also available
 make e2e                                    # in another: must print "e2e: PASS (real API ...)"
 git tag -a demo-v1 -m "Demo build: real mode passes make e2e"
 git push origin demo-v1                     # tags are pushed separately from branches
 ```
 - A tag is a fixed name for one commit: the demo runs from `git checkout demo-v1`, whatever lands
   on `main` afterwards. If a fix is needed later, tag `demo-v2` instead of moving `demo-v1`.
-- Rehearse on a fresh clone with no `.env`: `make setup` needs the network once (packages), then
-  the demo runs offline apart from the optional LLM.
+- Rehearse on a fresh clone with no `.env`: setup/build needs network for dependencies.
+  Verify keyword fallback or provision the vector index AND embedding cache before an
+  offline rehearsal. Do not assume dependency installation includes embedding weights.
 
 ## BE-10: scenario-aware chat endpoint (2026-11-14, Ryan)
 
@@ -407,10 +455,12 @@ git push origin demo-v1                     # tags are pushed separately from br
   per-app mode isolation uses mock acceptance versus real 404 for an unknown scenario ID.
 - Both sides' changelog and operational notes are retained. The backend ownership exception
   remains limited to BE-11's approved predict/explain call-site change.
-- Validation of the resolved integration: `make test` 492 passed, `make lint` passed (83 files),
+- Historical intermediate integration record (SHA not recorded here): `make test` 492 passed,
+  `make lint` passed (83 files),
   and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
   removed. An additional real-mode chat request returned the expected no-evidence response.
-- Validation of the resolved integration: `make test` 504 passed, `make lint` passed (84 files),
+- Historical final integration record after OPS-05 (SHA not recorded here): `make test`
+  504 passed, `make lint` passed (84 files),
   and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
   removed. An additional real-mode chat request returned the expected no-evidence response.
 - Main advanced during validation with OPS-05 (#17); its demo-artifact checks and notes were
@@ -431,7 +481,8 @@ git push origin demo-v1                     # tags are pushed separately from br
 - Both services run as non-root users with `init: true` and a shutdown grace period. Frontend
   startup waits for backend `/health`, and both services have health checks using their existing
   Python/Node standard libraries. Host ports bind to loopback; source changes require rebuilding.
-- `data/` and `ml/artifacts/` are read-only bind mounts, with host-path creation disabled so typos
+- Initially `data/` and `ml/artifacts/` were read-only bind mounts; PR #27 narrowed data
+  to `data/processed` and `data/docs` (follow-up below). Host-path creation is disabled so typos
   cannot create empty directories as root. `.dockerignore` allowlists source/locks/container tooling
   and excludes private docs, `.env` files, caches, host dependencies, data and model contents.
 - The standalone `docker/backend_entrypoint.py` resolves unset/blank `MOCK_MODE` before backend
@@ -455,7 +506,7 @@ git push origin demo-v1                     # tags are pushed separately from br
 - `npm ci` reports existing advisories in the frontend lockfile. OPS-02 preserves Nathan's
   dependency versions; updating them is separate work. No host packages are installed by this task.
 
-**Publication validation (current main)**
+**Historical OPS-02 publication validation (`dd149fe`, before PR #27)**
 - `make test`: 523 passed in 20.04s. `make lint`: passed, 87 files formatted.
 - Built both images from the current lockfiles. A separate Compose project with temporary ports
   passed both health checks, automatic real mode without `.env` or keys, browser API URL/CORS,
@@ -525,7 +576,10 @@ local backup before untracking. An audit of all locally fetched reachable object
 no blobs above 100 MiB. This does not certify refs that have not been fetched.
 Before updating another existing checkout to this fix, preserve any needed raw uploads
 and plan copies outside their tracked paths: merging their deletion removes clean copies
-from that checkout. A fresh clone retains the processed demo artifacts and text corpus.
+from that checkout. Ignored local plan copies under `docs/plan/` are untouched.
+The removed files remain recoverable from historical commit `b01b110`; preserving a
+separate local copy first avoids relying on that history. A fresh clone retains the
+processed demo artifacts and text corpus.
 
 
 ## BE-05: effective API mode at startup (2026-11-15, Ryan)
@@ -550,7 +604,7 @@ from that checkout. A fresh clone retains the processed demo artifacts and text 
   No vector store or embedding cache is provisioned here; that is a separate ML-08 task.
 - Native defaults remain strict 0/1 with `1` as the default. Docker blank/unset remains
   automatic. Shell overrides beat optional `.env` values; `.env.example` explicitly
-  selects mocks. Startup mode visibility is described under BE-05 below.
+  selects mocks. Startup mode visibility is described under BE-05 above.
 - `tests/test_compose_runtime.py` renders the real Compose configuration with synthetic
   env settings and checks mount boundaries, default/explicit modes, precedence, loopback
   ports, browser URL/CORS and backend-only keys. It uses the Compose CLI without an engine
@@ -563,3 +617,13 @@ checks passed hidden raw/intermediate/pipeline inputs, readable runtime files, r
 mounts, non-root execution, adjusted CORS, frontend HTTP and cited offline chat. Disposable
 containers with networking disabled passed automatic missing-file fallback, explicit
 mock selection, explicit real startup and explicit real failure on missing files.
+
+
+## OPS-01: documentation reconciliation (2026-11-15, Ryan)
+
+- Added a current-state snapshot, dated historical validation records and decision register.
+  Corrected numbered-result, unmounted-router, swapped-vent, keyword-only and broad-mount
+  statements that had become stale after integration. The plan summary now distinguishes
+  the original three-tab architecture from the implemented one-page UI.
+- This is documentation reconciliation only: no schema/type regeneration, service changes,
+  new approval records or claims that pending Windows/retrieval/export work has shipped.
