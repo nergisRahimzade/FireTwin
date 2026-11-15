@@ -1,5 +1,7 @@
 # OPS handoff: Windows startup and tests (package 2)
 
+Original pre-integration handoff; see the Codex integration review at the end for current status.
+
 For the integrator (Codex) and the next OPS owner. Package 2 of Ryan's fixes plan: native Windows
 behaviour of `make dev` (`scripts/dev.py`) and the container entrypoint
 (`docker/backend_entrypoint.py`), plus Windows CI coverage. Not pushed; no PR opened.
@@ -182,3 +184,17 @@ read-only, `make e2e` PASS). Small items for `feature/OPS-01-docs-reconciliation
    recorded review before merge, per "don't merge into main until the team says so".
 6. Environment: `/tmp` on this machine is a 7.7 GB tmpfs (92 % full) and is wiped on WSL
    restart. Worktrees there lose uncommitted work; commit early or use a disk-backed path.
+
+
+## Codex integration review
+
+Original Claude branch remains untouched. Integration uses a separate branch based on
+main `3ce0587`, retaining the task-separated implementation commits. Shared-doc entries
+are integrated in OPS_NOTES and CHANGELOG; small doc review corrections were pushed to
+PR #29. Optional conversion of startup print to logging was not necessary for behavior.
+The real exec regression now uses a bounded readiness wait instead of blocking readline.
+Native Windows evidence above is Claude's Python 3.12 report; Codex verification is Linux
+Python 3.11, with the new Windows Python 3.11 CI job providing the remaining platform check.
+
+Codex checks: `make lint` passed (104 files); `make test`: 604 passed, 5 skipped in
+24.69s. The two extra skips are native-Windows checks on this Linux host.

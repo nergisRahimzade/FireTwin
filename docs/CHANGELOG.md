@@ -159,3 +159,13 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   fans off; override with `--material/--o2/--flow`), fails if `/simulate` doesn't burn, and checks
   the documented suppress order. Three new tests in `tests/test_e2e_loop.py`. Real-mode `make e2e`
   passes on the real NASA data with 0 synthetic sources.
+
+
+## 2026-11-15: Windows support follow-up
+
+- **OPS-01**: refuse native Windows dev startup before launching partial stacks;
+  retain POSIX supervision and document Docker Desktop/WSL as supported Windows routes.
+- **OPS-02**: refuse native Windows entrypoint execution; test exact dispatch, PID,
+  signal and exit-status preservation on POSIX. Bound readiness waiting in the signal test.
+- **OPS-03**: add Windows Python 3.11 startup checks without Make, retaining current
+  required check names. Native Windows execution of the locked environment awaits CI.
