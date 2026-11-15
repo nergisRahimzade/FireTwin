@@ -92,6 +92,15 @@ export function ControlPanel() {
         <span className={`phase phase-${phase}`}>{PHASE_LABEL[phase]}</span>
       </div>
 
+      {/* Ignite / Reset at the top, so they're reachable without scrolling on short laptop screens. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" className="btn-primary" disabled={!!blocker}>
+          {busy ? "Igniting…" : phase === "idle" ? "Ignite" : "Ignite again"}
+        </button>
+        {phase !== "idle" && <button type="button" className="btn-ghost" onClick={reset}>Reset</button>}
+        {blocker && !busy && <span className="note">{blocker}</span>}
+      </div>
+
       <div className="field">
         <label className="label" htmlFor={materialId}>Material</label>
         <select
@@ -138,13 +147,6 @@ export function ControlPanel() {
           The model will extrapolate, so treat the verdict as having no direct NASA data.
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" className="btn-primary" disabled={!!blocker}>
-          {busy ? "Igniting…" : phase === "idle" ? "Ignite" : "Ignite again"}
-        </button>
-        {phase !== "idle" && <button type="button" className="btn-ghost" onClick={reset}>Reset</button>}
-        {blocker && !busy && <span className="note">{blocker}</span>}
-      </div>
     </form>
   );
 }
