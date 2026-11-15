@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Any
@@ -17,7 +16,8 @@ from typing import Any
 from app.schemas import ChatOut
 from app.services import fallback
 from ml import ingest_rag
-from ml.pipeline import config
+from ml.agents import llm
+from ml.pipeline import config, grounding
 
 log = logging.getLogger(__name__)
 
@@ -26,23 +26,7 @@ EXPLAIN_PROMPT = PROMPTS_DIR / "explain_v1.txt"
 # LLM providers, in order of preference: the first one whose key is set is used.
 # Gemini is reached through its OpenAI-compatible endpoint, so the same SDK and (in Phase B)
 # the same tool-calling format work for both.
-PROVIDERS = (
-    {
-        "name": "gemini",
-        "key_env": "GEMINI_API_KEY",
-        "model_env": "GEMINI_MODEL",
-        "default_model": "gemini-3.8-flash",
-        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-    },
-    {
-        "name": "openai",
-        "key_env": "OPENAI_API_KEY",
-        "model_env": "OPENAI_MODEL",
-        "default_model": "gpt-4o-mini",
-        "base_url": None,  # the SDK's default
-    },
-)
-LLM_TIMEOUT_S = 20.0
+PROVIDERS = llm.PROVIDERS  # Gemini first, then OpenAI: see ml/agents/llm.py
 EXPLAIN_TOP_K = 3
 DOCS_DIR = config.DOCS_DIR  # data/docs/<investigation>/*.txt (DAT-07)
 CHAT_PROMPT = PROMPTS_DIR / "chat_v1.txt"
@@ -72,43 +56,18 @@ def _load_prompt(path: Path) -> str:
 
 
 def llm_provider() -> dict | None:
-    """The provider to call: {name, api_key, model, base_url}; None when no key is set.
-
-    GEMINI_API_KEY wins over OPENAI_API_KEY. An empty value counts as missing.
-    """
-    for provider in PROVIDERS:
-        key = os.getenv(provider["key_env"], "").strip()
-        if key:
-            model = os.getenv(provider["model_env"], "").strip() or provider["default_model"]
-            return {
-                "name": provider["name"],
-                "api_key": key,
-                "model": model,
-                "base_url": provider["base_url"],
-            }
-    return None
+    """The provider to call: {name, api_key, model, base_url}; None when no key is set."""
+    return llm.provider()
 
 
 def llm_available() -> bool:
     """True when a Gemini or OpenAI key is set."""
-    return llm_provider() is not None
+    return llm.available()
 
 
 def _chat(system: str, user: str) -> str:
     """One chat call to the configured provider. Raises on any failure; callers fall back."""
-    from openai import OpenAI  # imported here so the offline path never needs the SDK
-
-    provider = llm_provider()
-    if provider is None:
-        raise RuntimeError("rag._chat: no GEMINI_API_KEY or OPENAI_API_KEY is set")
-    client = OpenAI(
-        api_key=provider["api_key"], base_url=provider["base_url"], timeout=LLM_TIMEOUT_S
-    )
-    response = client.chat.completions.create(
-        model=provider["model"],
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-    )
-    return (response.choices[0].message.content or "").strip()
+    return llm.chat(system, user)
 
 
 def _ask_llm(system: str, user: str, context: str) -> str | None:
@@ -199,16 +158,13 @@ def _plain(obj: Any) -> Any:
 # ---------- ML-06: explain ----------
 
 
-def _cites_a_given_test(text: str, tests: list[dict]) -> bool:
-    return any(str(t["test_id"]) in text for t in tests)
-
-
 def explain(result: Any) -> str:
     """One grounded sentence for a prediction.
 
     `result` is a SimulateOut or a dict with: inputs, state, burn_probability, trust,
     extrapolated, nearest_tests. The LLM gets only those tests and the top retrieved chunks;
-    an answer that cites none of the given tests is discarded for the template.
+    an answer with any number, test or investigation not in that input, or that names none
+    of the given tests, is discarded for the template (see ml/pipeline/grounding.py).
     """
     try:
         data = _plain(result)
@@ -233,8 +189,10 @@ def explain(result: Any) -> str:
         return template
     if not answer:
         return template
-    if tests and not _cites_a_given_test(answer, tests):
-        log.warning("rag.explain: LLM answer cited none of the given tests; using the template")
+    ids = [str(t["test_id"]) for t in tests]
+    problems = grounding.check_explanation(answer, payload, ids)
+    if problems:
+        log.warning("rag.explain: LLM answer not grounded (%s); using the template", problems)
         return template
     return " ".join(answer.split())
 
@@ -273,5 +231,9 @@ def answer(message: str, scenario: Any = None) -> ChatOut:
         log.exception("rag.answer: could not build the LLM request for message=%r", message)
         text = None
     if not text:
+        return ChatOut(answer=offline_text, citations=offline_citations)
+    problems = grounding.check(text, payload) + grounding.check_citations(text, len(chunks))
+    if problems:
+        log.warning("rag.answer: LLM answer not grounded (%s); using the top passage", problems)
         return ChatOut(answer=offline_text, citations=offline_citations)
     return ChatOut(answer=_limit_words(" ".join(text.split())), citations=chunks)

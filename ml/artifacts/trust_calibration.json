@@ -1,0 +1,84 @@
+{
+  "strong_distance": 0.15,
+  "medium_distance": 0.3,
+  "calibrated": {
+    "strong": false,
+    "medium": false
+  },
+  "majority_rate": 0.88,
+  "finding": "no distance makes a neighbour's outcome beat the majority guess: the config defaults are kept, and trust mainly reflects whether the fuel model has skill",
+  "rule": "medium: nearest neighbour right >= 75%; strong: vote of >= 3 right >= 90%; >= 20 tests",
+  "n_known_tests": 316,
+  "by_distance": [
+    {
+      "distance": 0.02,
+      "nearest_neighbour_accuracy": 0.842,
+      "nearest_neighbour_support": 298,
+      "majority_vote_accuracy": 0.882,
+      "majority_vote_support": 263
+    },
+    {
+      "distance": 0.05,
+      "nearest_neighbour_accuracy": 0.838,
+      "nearest_neighbour_support": 309,
+      "majority_vote_accuracy": 0.887,
+      "majority_vote_support": 293
+    },
+    {
+      "distance": 0.08,
+      "nearest_neighbour_accuracy": 0.831,
+      "nearest_neighbour_support": 313,
+      "majority_vote_accuracy": 0.889,
+      "majority_vote_support": 305
+    },
+    {
+      "distance": 0.1,
+      "nearest_neighbour_accuracy": 0.831,
+      "nearest_neighbour_support": 313,
+      "majority_vote_accuracy": 0.889,
+      "majority_vote_support": 305
+    },
+    {
+      "distance": 0.15,
+      "nearest_neighbour_accuracy": 0.831,
+      "nearest_neighbour_support": 314,
+      "majority_vote_accuracy": 0.888,
+      "majority_vote_support": 312
+    },
+    {
+      "distance": 0.2,
+      "nearest_neighbour_accuracy": 0.832,
+      "nearest_neighbour_support": 315,
+      "majority_vote_accuracy": 0.888,
+      "majority_vote_support": 312
+    },
+    {
+      "distance": 0.25,
+      "nearest_neighbour_accuracy": 0.832,
+      "nearest_neighbour_support": 315,
+      "majority_vote_accuracy": 0.888,
+      "majority_vote_support": 313
+    },
+    {
+      "distance": 0.3,
+      "nearest_neighbour_accuracy": 0.832,
+      "nearest_neighbour_support": 316,
+      "majority_vote_accuracy": 0.885,
+      "majority_vote_support": 314
+    },
+    {
+      "distance": 0.4,
+      "nearest_neighbour_accuracy": 0.832,
+      "nearest_neighbour_support": 316,
+      "majority_vote_accuracy": 0.883,
+      "majority_vote_support": 316
+    },
+    {
+      "distance": 0.5,
+      "nearest_neighbour_accuracy": 0.832,
+      "nearest_neighbour_support": 316,
+      "majority_vote_accuracy": 0.88,
+      "majority_vote_support": 316
+    }
+  ]
+}

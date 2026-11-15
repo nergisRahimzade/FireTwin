@@ -10,7 +10,7 @@
     },
     "flow_cm_s": {
       "min": 0.0,
-      "max": 26.5
+      "max": 28.0
     }
   },
   "by_fuel_type": {
@@ -30,8 +30,8 @@
     },
     "solid": {
       "o2_pct": {
-        "min": 15.0,
-        "max": 18.8
+        "min": 14.2,
+        "max": 22.2
       },
       "pressure_kpa": {
         "min": 101.3,
@@ -39,7 +39,7 @@
       },
       "flow_cm_s": {
         "min": 0.0,
-        "max": 26.5
+        "max": 28.0
       }
     }
   }
