@@ -10,6 +10,7 @@ const fake = vi.hoisted(() => ({
 vi.mock("../api/client", () => ({ api: fake, API_BASE: "http://test" }));
 
 import { inputsDiffer } from "../scene/livePreview";
+import { SAVED_INPUTS_KEY } from "./savedInputs";
 import { initialScenario, nextPhase, useScenario } from "./useScenario";
 
 const sim = (state: SimulateOut["state"], id = "s1"): SimulateOut => ({
@@ -554,3 +555,35 @@ describe("FE-09 review fixes: late replies are archived, replays stay quiet", ()
     expect(store().error).toBeNull();
   });
 });
+
+describe("FE-03: the setup is saved for the next page load", () => {
+  const saved = new Map<string, string>();
+  beforeEach(() => {
+    saved.clear();
+    vi.stubGlobal("localStorage", { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, v: string) => saved.set(k, v) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const savedO2 = () => JSON.parse(saved.get(SAVED_INPUTS_KEY) ?? "null")?.o2_pct;
+
+  it("saves a control the user moves", () => {
+    store().setInputs({ o2_pct: 26 });
+    expect(savedO2()).toBe(26);
+  });
+  it("a replay or an applied action doesn't overwrite the saved setup", async () => {
+    store().setInputs({ material: "Cotton", o2_pct: 26 });
+    fake.simulate.mockResolvedValueOnce(sim("burning"));
+    fake.detect.mockResolvedValueOnce(det(false));
+    await store().ignite();
+    fake.apply.mockResolvedValueOnce({ ...sim("extinguished"), inputs: { ...DEFAULT_SCENARIO, o2_pct: 15 } });
+    await store().runApply("co2");
+    expect(store().inputs.o2_pct).toBe(15); // the controls show the applied action...
+    expect(savedO2()).toBe(26); // ...but the saved setup is still the user's
+  });
+  it("a saved material that /meta no longer lists is replaced by the first one", async () => {
+    useScenario.setState({ inputs: { ...DEFAULT_SCENARIO, material: "Renamed rod" } });
+    fake.meta.mockResolvedValue({ materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges: {}, ranges_by_fuel_type: {}, investigations: [] });
+    await store().loadMeta();
+    expect(store().inputs.material).toBe("Nomex");
+  });
+});
+

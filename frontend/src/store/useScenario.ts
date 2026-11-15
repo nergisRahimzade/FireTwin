@@ -8,6 +8,7 @@ import type {
 } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 import { alarmAfterS } from "../scene/alarmLogic";
+import { loadSavedInputs, saveInputs } from "./savedInputs";
 
 export type Phase = "idle" | "burning" | "detected" | "suppressing" | "out" | "still_burning";
 
@@ -256,18 +257,22 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
 
   return {
     ...initialScenario,
+    inputs: loadSavedInputs(), // the setup from the last visit, if this browser saved one
 
-    setInputs: patch => set(s => {
-      const inputs = { ...s.inputs, ...patch };
-      const at = Date.now();
-      const changes = TRACKED_INPUTS.filter(key => patch[key] !== undefined && !Object.is(s.inputs[key], inputs[key]));
-      const timeline = changes.map(key => ({
-        at, variable: INPUT_LABELS[key], action: inputs[key] == null || inputs[key] === "" ? "removed" as const : "modified" as const,
-        from: inputValue(key, s.inputs[key]), value: inputs[key] == null || inputs[key] === "" ? null : inputValue(key, inputs[key]),
-        context: "Control panel",
-      }));
-      return { inputs, timeline: [...s.timeline, ...timeline] };
-    }),
+    setInputs: patch => {
+      set(s => {
+        const inputs = { ...s.inputs, ...patch };
+        const at = Date.now();
+        const changes = TRACKED_INPUTS.filter(key => patch[key] !== undefined && !Object.is(s.inputs[key], inputs[key]));
+        const timeline = changes.map(key => ({
+          at, variable: INPUT_LABELS[key], action: inputs[key] == null || inputs[key] === "" ? "removed" as const : "modified" as const,
+          from: inputValue(key, s.inputs[key]), value: inputs[key] == null || inputs[key] === "" ? null : inputValue(key, inputs[key]),
+          context: "Control panel",
+        }));
+        return { inputs, timeline: [...s.timeline, ...timeline] };
+      });
+      saveInputs(get().inputs); // the user's own setup: kept for the next page load
+    },
     clearError: () => set({ error: null }),
 
     loadMeta: async () => {
@@ -275,8 +280,10 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       if (!meta) return;
       set(s => ({
         meta,
-        // Pick the first material when none is chosen yet, so Ignite works straight away.
-        inputs: s.inputs.material || !meta.materials.length ? s.inputs : { ...s.inputs, material: meta.materials[0].name },
+        // Pick the first material when none is chosen yet, or when the saved one is no longer listed
+        // (e.g. renamed in the data), so Ignite works straight away.
+        inputs: meta.materials.some(m => m.name === s.inputs.material) || !meta.materials.length
+          ? s.inputs : { ...s.inputs, material: meta.materials[0].name },
       }));
     },
 
@@ -287,6 +294,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const usedAt = Date.now();
       const res = await run("simulate", () => api.simulate(inputs), () => resets === resetsAtSend);
       if (!res || resets !== resetsAtSend) return null; // Reset while in flight: drop the late reply
+      saveInputs(inputs); // Ignite on a replayed session's values makes them the setup to keep
       // A new scenario: earlier detection, actions and results no longer apply.
       epoch++;
       clearAlarm();
