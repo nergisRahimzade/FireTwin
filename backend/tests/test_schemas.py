@@ -64,7 +64,13 @@ CONTRACT_TYPES = {
     "SuppressOut": {"scenario_id": str, "recommended": str, "actions": list[schemas.ActionResult]},
     "ResultsOut": {"scenario_id": str, "rows": list[dict]},
     "ChatOut": {"answer": str, "citations": list[dict]},
-    "MetaOut": {"materials": list[dict], "ranges": dict, "investigations": list[dict]},
+    # ranges_by_fuel_type: added after the plan (FE-09 fixes, see docs/contract.md "GET /meta").
+    "MetaOut": {
+        "materials": list[dict],
+        "ranges": dict,
+        "ranges_by_fuel_type": dict[str, dict],
+        "investigations": list[dict],
+    },
     # Named versions of the endpoint table's inline bodies.
     "ScenarioRef": {"scenario_id": str},
     "ApplyIn": {

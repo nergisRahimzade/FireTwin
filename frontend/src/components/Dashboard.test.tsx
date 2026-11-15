@@ -39,23 +39,32 @@ const circles = (html: string, cls: string) =>
   [...html.matchAll(new RegExp(`<circle cx="([\\d.]+)" cy="([\\d.]+)" r="[\\d.]+" class="${cls}"`, "g"))]
     .map(m => ({ cx: Number(m[1]), cy: Number(m[2]) }));
 
-it("keeps every NASA test at its measured O2 and stacks repeats vertically", () => {
+// Chart frame from Dashboard: x(o2) = 60 + (o2 - 10) / 30 * 408, y(p) = 150 - p * 126; the NASA
+// strip's rows sit under the plot at y 212 (burned) and 230 (went out).
+const x = (o2: number) => 60 + ((o2 - 10) / 30) * 408;
+const y = (p: number) => 150 - p * 126;
+
+it("keeps every NASA test at its measured O2; repeats are one marker with a count", () => {
   const html = renderToStaticMarkup(<Dashboard />);
   const burned = circles(html, "pt-burned");
   const out = circles(html, "pt-out");
-  expect(burned).toHaveLength(3);
-  expect(new Set(burned.map(c => c.cx)).size).toBe(1); // all at exactly 30 % O2
-  expect(new Set(burned.map(c => c.cy)).size).toBe(3); // stacked, not overlapping
-  expect(out[0].cx).toBe(burned[0].cx); // the extinguished test at 30 % lines up too
+  expect(burned).toEqual([{ cx: x(30), cy: 212 }]); // A, B and C: one marker at exactly 30 % O2...
+  expect(html).toContain("×3"); // ...that says how many tests it stands for
+  expect(out).toEqual([{ cx: x(30), cy: 230 }]); // D went out at 30 %: same x, its own row
 });
 
 it("plots this session at its recorded ignition probability, not an interpolated one", () => {
   const html = renderToStaticMarkup(<Dashboard />);
   const [point] = circles(html, "pt-session");
-  const [testAt30] = circles(html, "pt-out");
-  // Chart frame from Dashboard: y(p) = 156 - p * 142, x(o2) = 34 + (o2 - 10) / 30 * 290.
-  expect(point.cy).toBeCloseTo(156 - 0.24108 * 142, 1);
-  expect(point.cx).toBeCloseTo(34 + ((27.5 - 10) / 30) * 290, 1);
-  expect(point.cx).toBeLessThan(testAt30.cx);
-  expect(html).toContain("24% burn probability (recorded at ignition)");
+  expect(point.cy).toBeCloseTo(y(0.24108), 1);
+  expect(point.cx).toBeCloseTo(x(27.5), 1);
+  expect(html).toContain("this session: 27.5% → 24%");
+});
+
+it("says where the fire goes out, and draws untested O2 as model only", () => {
+  // No /meta in this view, so no tested range is known: the whole line is drawn as model only.
+  const html = renderToStaticMarkup(<Dashboard />);
+  expect(html).toMatch(/Methanol at 0 cm\/s: the model says it goes out below about 3\d\.\d% O₂ \(outside the NASA-tested range, so model only\)/);
+  expect(html).not.toContain('class="curve"');
+  expect(html).toContain('class="curve curve-model-only"');
 });

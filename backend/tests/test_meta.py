@@ -84,6 +84,34 @@ def test_ranges_are_synthetic_if_any_table_row_is(fake_data) -> None:
     assert all(entry["is_synthetic"] for entry in meta.build_meta().ranges.values())
 
 
+def test_ranges_by_fuel_type_copy_each_fuel_section(fake_data) -> None:
+    solid = {
+        "o2_pct": {"min": 14.2, "max": 22.2},
+        "pressure_kpa": {"min": 101.3, "max": 101.3},
+        "flow_cm_s": {"min": 0.0, "max": 28.0},
+    }
+    fake_data(_table(("PMMA", "solid", False)), ranges={**RANGES, "by_fuel_type": {"solid": solid}})
+    assert meta.build_meta().ranges_by_fuel_type == {
+        "solid": {feature: {**entry, "is_synthetic": False} for feature, entry in solid.items()}
+    }
+
+
+def test_fuel_ranges_are_synthetic_only_if_that_fuels_rows_are(fake_data) -> None:
+    section = RANGES["overall"]
+    ranges = {**RANGES, "by_fuel_type": {"solid": section, "droplet": section}}
+    fake_data(_table(("PMMA", "solid", False), ("heptane", "droplet", True)), ranges=ranges)
+    by_fuel = meta.build_meta().ranges_by_fuel_type
+    assert not by_fuel["solid"]["o2_pct"]["is_synthetic"]
+    assert by_fuel["droplet"]["o2_pct"]["is_synthetic"]
+
+
+def test_broken_fuel_range_raises(fake_data) -> None:
+    broken = {**RANGES, "by_fuel_type": {"solid": {"o2_pct": {"min": 14.2}}}}
+    fake_data(_table(("PMMA", "solid", False)), ranges=broken)
+    with pytest.raises(meta.MetaUnavailableError, match="by_fuel_type.solid"):
+        meta.build_meta()
+
+
 def test_missing_overall_ranges_raise(fake_data) -> None:
     fake_data(_table(("PMMA", "solid", False)), ranges={"by_fuel_type": {}})
     with pytest.raises(meta.MetaUnavailableError, match="overall"):
@@ -170,6 +198,15 @@ def test_real_ranges_match_the_predictors_ranges_file() -> None:
     overall = model.load_ranges()["overall"]
     for feature, entry in meta.build_meta().ranges.items():
         assert (entry["min"], entry["max"]) == (overall[feature]["min"], overall[feature]["max"])
+
+
+def test_real_fuel_ranges_match_what_the_predictor_flags() -> None:
+    # The slider band and the predictor's `extrapolated` flag must use the same numbers.
+    by_fuel = model.load_ranges()["by_fuel_type"]
+    for fuel, ranges in meta.build_meta().ranges_by_fuel_type.items():
+        for feature, entry in ranges.items():
+            expected = by_fuel[fuel][feature]
+            assert (entry["min"], entry["max"]) == (expected["min"], expected["max"])
 
 
 def test_real_materials_are_accepted_by_the_predictor() -> None:

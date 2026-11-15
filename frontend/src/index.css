@@ -281,7 +281,8 @@ input, select, textarea { font-size: 16px; }
 .control-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .control-panel details summary { cursor: pointer; }
 .control-panel details[open] summary { margin-bottom: 10px; }
-.track .band { position: absolute; top: -5px; bottom: -5px; border-radius: 4px; background: rgba(99,230,190,.22); border: 1px dashed rgba(99,230,190,.55); }
+/* min-width: a range that is one value (solids: 101.3 kPa only) still shows as a thin mark. */
+.track .band { position: absolute; top: -5px; bottom: -5px; min-width: 4px; border-radius: 4px; background: rgba(99,230,190,.22); border: 1px dashed rgba(99,230,190,.55); }
 .dir-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .dir-grid button { border: 1px solid var(--line); background: rgba(0,0,0,.25); border-radius: 12px; padding: 8px 6px; min-height: 44px; cursor: pointer; display: grid; gap: 1px; justify-items: center; font-size: 12px; color: var(--muted); }
 .dir-grid button b { font-family: var(--f-data); font-size: 14px; color: var(--fg); }
@@ -372,13 +373,6 @@ input, select, textarea { font-size: 16px; }
   .collapsible-body.open { display: block; margin-top: 10px; }
 }
 .alarm-banner { margin: 0; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #FFE3DF; background: rgba(255,90,74,.16); border: 1px solid #FF5A4A; }
-/* FE-09 chart */
-.o2-chart { width: 100%; max-width: 520px; height: auto; }
-.o2-chart .axis { stroke: var(--line); }
-.o2-chart .curve { fill: none; stroke: var(--accent); stroke-width: 2; }
-.o2-chart .pt-burned { fill: var(--risk); }
-.o2-chart .pt-out { fill: #63e6be; }
-.o2-chart .tick { fill: var(--muted); font: 10px var(--f-data); }
 .error-toast { position: fixed; z-index: 100; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: min(520px, calc(100vw - 32px)); padding: 12px 14px; border-radius: 12px; color: #FFD9D4; background: #2a1114; border: 1px solid rgba(255,90,74,.7); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
 
 /* FE-09 sessions: past sessions are clickable; the shown one is highlighted. */
@@ -386,11 +380,37 @@ input, select, textarea { font-size: 16px; }
 .session-row:hover td { background: rgba(255, 255, 255, 0.03); }
 .session-row.selected td { background: rgba(120, 170, 255, 0.10); }
 
-/* FE-09 chart: zones split by the 50% burn threshold, the boundary O2, this session's point. */
-.o2-chart .zone-burn { fill: rgba(255, 140, 60, 0.07); }
-.o2-chart .zone-out { fill: rgba(80, 220, 160, 0.06); }
-.o2-chart .threshold { stroke: rgba(255, 255, 255, 0.45); stroke-dasharray: 5 4; }
-.o2-chart .boundary { stroke: rgba(255, 255, 255, 0.35); stroke-dasharray: 2 3; }
-.o2-chart .pt-session { fill: #fff; stroke: #0b1020; stroke-width: 1.5; }
-.pt-burned-text { color: var(--risk); }
-.pt-out-text { color: #63e6be; }
+/* FE-09 O2 chart: a one-line answer, then the model's line (solid where NASA tested this fuel's
+   O2, dashed where it extrapolates), the 50% burn threshold, and a strip for the nearest NASA tests.
+   Burned = filled orange, went out = teal ring: shape and colour, so it isn't colour alone. */
+.o2-figure { display: grid; gap: 6px; margin-top: 12px; }
+.chart-takeaway { margin: 0; font-size: 14px; color: var(--fg); }
+.o2-chart { width: 100%; max-width: 560px; height: auto; touch-action: pan-y; }
+.o2-chart:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.o2-chart .grid { stroke: var(--line); stroke-width: 1; }
+.o2-chart .threshold { stroke: rgba(255, 255, 255, 0.4); stroke-dasharray: 5 4; }
+.o2-chart .tested-band { fill: rgba(255, 255, 255, 0.045); }
+.o2-chart .band-label { fill: var(--faint); font: 10px var(--f-data); }
+.o2-chart .tick { fill: var(--muted); font: 10px var(--f-data); }
+.o2-chart .axis-title { fill: var(--muted); font: 600 10px var(--f-body); letter-spacing: .06em; }
+.o2-chart .zone-label { fill: var(--faint); font: 10px var(--f-body); }
+.o2-chart .mark-label { fill: var(--fg); font: 10.5px var(--f-body); }
+.o2-chart .curve { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.o2-chart .curve-model-only { stroke-dasharray: 4 4; opacity: .6; }
+.o2-chart .pt-session { fill: #fff; stroke: var(--bg-2); stroke-width: 2; }
+.o2-chart .pt-boundary { fill: var(--bg-2); stroke: var(--fg); stroke-width: 1.5; }
+.o2-chart .pt-burned { fill: var(--risk); stroke: var(--bg-2); stroke-width: 2; }
+.o2-chart .pt-out { fill: var(--bg-2); stroke: #63e6be; stroke-width: 2; }
+.o2-chart .test-group { cursor: help; }
+.o2-chart .crosshair line { stroke: var(--line-strong); }
+.o2-chart .crosshair circle { fill: var(--accent); stroke: var(--bg-2); stroke-width: 2; }
+.o2-chart .readout { fill: var(--fg); font: 10.5px var(--f-data); paint-order: stroke; stroke: var(--bg-2); stroke-width: 3px; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; font-size: 12px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend .key { display: inline-block; flex: none; }
+.key-line, .key-line-dashed { width: 18px; height: 0; border-top: 2px solid var(--accent); }
+.key-line-dashed { border-top-style: dashed; opacity: .6; }
+.key-session, .key-burned, .key-out { width: 9px; height: 9px; border-radius: 50%; }
+.key-session { background: #fff; }
+.key-burned { background: var(--risk); }
+.key-out { border: 2px solid #63e6be; }

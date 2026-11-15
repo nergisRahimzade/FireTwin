@@ -3,99 +3,151 @@
    past session shows it read-only: its saved results, its values in the controls and a 3D replay;
    Ignite then runs those values again as a new session. "Clear history" drops past sessions.
    Steps: the shown session's rows from GET /results (live) or its saved copy (past), with the
-   whiteboard's columns. The chart shows burn probability across O2 for the shown session, fetched
-   once per session with /preview (no scenario or history row is created on the server).
+   whiteboard's columns. The chart shows the model's burn probability across O2 for the shown
+   session, fetched once per session with /preview (no scenario or history row is created on the
+   server): solid where NASA tested that fuel's O2 range, dashed where the model extrapolates, and
+   the nearest NASA tests in their own strip under the O2 axis.
    Export PDF downloads the dashboard. */
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { TestRef } from "../api/types";
 import { type Session, useScenario } from "../store/useScenario";
 import { downloadDashboardPdf } from "./dashboardPdf";
 import {
-  BURN_THRESHOLD, changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stackIndex,
-  stampRows, testDotLabel, thresholdCrossing, withSample,
+  BURN_THRESHOLD, type Point, changeText, chartSweep, chartTakeaway, chartTested, groupTests, nearestPoint, pointLabel,
+  resultText, sessionInputs, sessionOutcome, sourceId, splitCurve, stampRows, testGroupLabel, thresholdCrossing, withSample,
 } from "./dashboard.logic";
 
 function O2Chart({ session }: { session: Session }) {
   const setSessionCurve = useScenario(s => s.setSessionCurve);
+  const meta = useScenario(s => s.meta);
+  const [hover, setHover] = useState<number | null>(null); // index into the curve; null = no crosshair
+  const { inputs } = session;
+  const { range: tested, scope } = chartTested(meta, inputs);
 
   useEffect(() => {
     if (session.curve) return; // fetched once per session, then kept with it
     let live = true;
     Promise.all(
-      o2Sweep().map(o2 => api.preview({ ...session.inputs, o2_pct: o2 }).then(r => [o2, r.burn_probability] as [number, number])),
+      chartSweep(tested).map(o2 => api.preview({ ...inputs, o2_pct: o2 }).then(r => [o2, r.burn_probability] as Point)),
     )
       .then(points => { if (live) setSessionCurve(session.id, points); })
       .catch(() => { /* no curve this time; the next render of this session tries again */ });
     return () => { live = false; };
-  }, [session.id, session.curve, session.inputs, setSessionCurve]);
+  }, [session.id, session.curve, inputs, tested?.min, tested?.max, setSessionCurve]); // tested?.min/max: the range object is rebuilt every render, its numbers aren't
 
   const sweep = session.curve ?? [];
   if (!sweep.length) return null;
-  const { inputs } = session;
-  // This session's own point is its recorded ignition probability (not read off the coarse sweep),
-  // and the drawn curve includes that exact sample so the line passes through it.
+  // This session's own point is its recorded ignition probability (not read off the sweep), and
+  // the drawn line includes that exact sample so it passes through the dot.
   const recorded = session.history[0].burn_probability;
   const curve = withSample(sweep, [inputs.o2_pct, recorded]);
-  // Plot area: 10-40 % O2 across, probability 0-1 up. Room on the right for the zone labels.
-  const W = 420, H = 190, L = 34, R = W - 96, T = 14, B = H - 34;
+  const boundary = thresholdCrossing(curve);
+  const groups = groupTests(session.history[0].nearest_tests);
+
+  // Plot: 10-40 % O2 across, burn probability 0-100 % up. Below it: the O2 ticks, then a strip for
+  // the nearest NASA tests, one row per outcome (their height on the plot would mean nothing).
+  const W = 480, L = 60, R = W - 12, T = 24, B = 150, TICKS_Y = B + 16;
+  const ROWS = { burned: B + 62, extinguished: B + 80 }, H = B + 92;
   const x = (o2: number) => L + ((o2 - 10) / 30) * (R - L);
   const y = (p: number) => B - p * (B - T);
-  const boundary = thresholdCrossing(curve);
-  // NASA tests nearest to this session's settings, drawn at their own O2 in two labelled rows.
-  const tested: TestRef[] = session.history[0].nearest_tests.filter(t => t.o2_pct != null && t.outcome !== "unknown");
-  const rows = { burned: y(0.93), extinguished: y(0.07) };
-  // Every dot stays at its measured O2. Tests sharing an O2 in the same row stack vertically
-  // towards the middle of the chart (burned row downwards, extinguished row upwards).
-  const STACK_PX = 10;
-  const dotY = new Map<string, number>();
-  for (const outcome of ["burned", "extinguished"] as const) {
-    const row = tested.filter(t => t.outcome === outcome);
-    const step = outcome === "burned" ? STACK_PX : -STACK_PX;
-    stackIndex(row.map(t => t.o2_pct!)).forEach((n, i) => dotY.set(row[i].test_id, rows[outcome] + n * step));
-  }
+  const shown = hover != null ? curve[hover] : null;
+  // Pointer -> nearest curve point. The SVG scales with the page, so convert to viewBox units.
+  const track = (e: React.PointerEvent<SVGRectElement>) => {
+    const box = e.currentTarget.ownerSVGElement!.getBoundingClientRect();
+    const vx = ((e.clientX - box.left) / box.width) * W;
+    setHover(nearestPoint(curve, 10 + ((vx - L) / (R - L)) * 30));
+  };
+  // Arrow keys move the crosshair too, so keyboard users get the same readout.
+  const key = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const from = hover ?? curve.findIndex(([o2]) => o2 === inputs.o2_pct);
+    setHover(Math.max(0, Math.min(curve.length - 1, from + (e.key === "ArrowRight" ? 1 : -1))));
+  };
+  const youRight = x(inputs.o2_pct) > R - 110; // keep the "this session" label inside the plot
+
   return (
-    <figure className="m-0">
-      <svg viewBox={`0 0 ${W} ${H}`} className="o2-chart" role="img" aria-label={`Burn probability across oxygen, session ${session.id}`}>
-        {/* Zones split by the model's threshold: above keeps burning, below goes out. */}
-        <rect x={L} y={T} width={R - L} height={y(BURN_THRESHOLD) - T} className="zone-burn" />
-        <rect x={L} y={y(BURN_THRESHOLD)} width={R - L} height={B - y(BURN_THRESHOLD)} className="zone-out" />
-        <line x1={L} y1={y(BURN_THRESHOLD)} x2={R} y2={y(BURN_THRESHOLD)} className="threshold" />
-        <text x={R + 6} y={y(0.75)} className="tick">keeps burning</text>
-        <text x={R + 6} y={y(0.25)} className="tick">goes out</text>
-        <text x={R + 6} y={y(BURN_THRESHOLD) + 4} className="tick">50%</text>
-        <line x1={L} y1={B} x2={R} y2={B} className="axis" />
-        <line x1={L} y1={T} x2={L} y2={B} className="axis" />
-        <polyline points={curve.map(([o, p]) => `${x(o)},${y(p)}`).join(" ")} className="curve" />
-        {boundary != null && (
+    <figure className="m-0 o2-figure">
+      <p className="chart-takeaway">{chartTakeaway(curve, boundary, inputs, tested)}</p>
+      <svg
+        viewBox={`0 0 ${W} ${H}`} className="o2-chart" role="img" tabIndex={0} onKeyDown={key} onBlur={() => setHover(null)}
+        aria-label={`Session ${session.id}: model burn probability across oxygen. ${chartTakeaway(curve, boundary, inputs, tested)} Use the arrow keys to read values.`}
+      >
+        <text x={L} y={12} className="axis-title">Burn probability</text>
+        {/* The O2 range NASA tested for this fuel type: inside it the line has data behind it. */}
+        {tested && (
           <g>
-            <line x1={x(boundary)} y1={T} x2={x(boundary)} y2={B} className="boundary" />
-            <title>{`About ${boundary.toFixed(1)}% O₂: below this the model says the fire goes out at ${inputs.flow_speed_cm_s} cm/s`}</title>
+            <rect x={x(Math.max(10, tested.min))} y={T} width={Math.max(2, x(Math.min(40, tested.max)) - x(Math.max(10, tested.min)))} height={B - T} className="tested-band" />
+            <text x={x(Math.max(10, tested.min)) + 4} y={T + 11} className="band-label">NASA-tested</text>
           </g>
         )}
-        {tested.map(t => (
-          <circle key={t.test_id} cx={x(t.o2_pct!)} cy={dotY.get(t.test_id)!} r={4}
-            className={t.outcome === "burned" ? "pt-burned" : "pt-out"}>
-            <title>{testDotLabel(t, inputs.flow_speed_cm_s)}</title>
-          </circle>
+        {[0, 0.5, 1].map(p => (
+          <g key={p}>
+            <line x1={L} y1={y(p)} x2={R} y2={y(p)} className={p === BURN_THRESHOLD ? "threshold" : "grid"} />
+            <text x={L - 6} y={y(p) + 3} className="tick" textAnchor="end">{p * 100}%</text>
+          </g>
         ))}
-        <circle cx={x(inputs.o2_pct)} cy={y(recorded)} r={5} className="pt-session">
-          <title>{`This session: ${inputs.o2_pct}% O₂ → ${Math.round(recorded * 100)}% burn probability (recorded at ignition)`}</title>
-        </circle>
-        <text x={L} y={H - 18} className="tick">10% O₂</text>
-        <text x={R - 34} y={H - 18} className="tick">40% O₂</text>
-        <text x={2} y={T + 4} className="tick">100%</text>
-        <text x={8} y={B} className="tick">0%</text>
+        <text x={R - 4} y={y(BURN_THRESHOLD) - 6} className="zone-label" textAnchor="end">↑ keeps burning</text>
+        <text x={R - 4} y={y(BURN_THRESHOLD) + 14} className="zone-label" textAnchor="end">↓ goes out</text>
+        {[10, 15, 20, 25, 30, 35, 40].map(o2 => (
+          <text key={o2} x={x(o2)} y={TICKS_Y} className="tick" textAnchor="middle">{o2}</text>
+        ))}
+        <text x={R} y={TICKS_Y + 16} className="axis-title" textAnchor="end">O₂ (%)</text>
+        {/* The model's line: solid where NASA tested this fuel, dashed where it extrapolates. */}
+        {splitCurve(curve, tested).map((run, i) => (
+          <polyline key={i} points={run.points.map(([o, p]) => `${x(o)},${y(p)}`).join(" ")} className={run.tested ? "curve" : "curve curve-model-only"} />
+        ))}
+        {boundary != null && (
+          <g>
+            <circle cx={x(boundary)} cy={y(BURN_THRESHOLD)} r={4} className="pt-boundary" />
+            <text x={x(boundary) + (x(boundary) > R - 90 ? -6 : 6)} y={y(BURN_THRESHOLD) + 14} className="mark-label" textAnchor={x(boundary) > R - 90 ? "end" : "start"}>
+              goes out below ≈{boundary.toFixed(1)}%
+            </text>
+          </g>
+        )}
+        <circle cx={x(inputs.o2_pct)} cy={y(recorded)} r={5} className="pt-session" />
+        {/* Label below-right of the dot: the line rises with O2, so that side is clear of it
+            (above it near the bottom of the plot, so the label stays inside). */}
+        <text x={x(inputs.o2_pct) + (youRight ? -9 : 9)} y={y(recorded) + (recorded < 0.15 ? -9 : 17)} className="mark-label" textAnchor={youRight ? "end" : "start"}>
+          this session: {inputs.o2_pct}% → {Math.round(recorded * 100)}%
+        </text>
+        {/* Nearest NASA tests at their measured O2: one row per outcome, filled = burned, ring =
+            went out, and tests at the same O2 are one marker with a count. */}
+        <text x={L} y={B + 46} className="axis-title">Nearest NASA tests</text>
+        {(["burned", "extinguished"] as const).map(outcome => (
+          <g key={outcome}>
+            <text x={L - 6} y={ROWS[outcome] + 3} className="tick" textAnchor="end">{outcome === "burned" ? "burned" : "went out"}</text>
+            <line x1={L} y1={ROWS[outcome]} x2={R} y2={ROWS[outcome]} className="grid" />
+          </g>
+        ))}
+        {groups.map(g => (
+          <g key={`${g.o2}-${g.outcome}`} className="test-group">
+            <title>{testGroupLabel(g, inputs.flow_speed_cm_s)}</title>
+            <circle cx={x(g.o2)} cy={ROWS[g.outcome]} r={4.5} className={g.outcome === "burned" ? "pt-burned" : "pt-out"} />
+            {g.tests.length > 1 && <text x={x(g.o2) + 8} y={ROWS[g.outcome] + 3} className="tick">×{g.tests.length}</text>}
+          </g>
+        ))}
+        {!groups.length && <text x={x(25)} y={ROWS.burned + 10} className="band-label" textAnchor="middle">no nearby test with a recorded outcome</text>}
+        {/* Hover layer: crosshair + readout at the nearest point of the line. */}
+        {shown && (
+          <g className="crosshair" pointerEvents="none">
+            <line x1={x(shown[0])} y1={T} x2={x(shown[0])} y2={B} />
+            <circle cx={x(shown[0])} cy={y(shown[1])} r={4} />
+            {/* Readout pinned top-right, clear of the "Burn probability" title on the left. */}
+            <text x={R} y={T - 8} textAnchor="end" className="readout">
+              {pointLabel(shown, tested)}
+            </text>
+          </g>
+        )}
+        <rect x={L} y={T} width={R - L} height={B - T} fill="transparent" onPointerMove={track} onPointerLeave={() => setHover(null)} />
       </svg>
-      <figcaption className="note">
-        Session {session.id}: the model's burn probability across O₂ at {inputs.flow_speed_cm_s} cm/s ({inputs.material}).
-        Above the dashed 50% line the model says the fire keeps burning; below it, the fire goes out.
-        {boundary != null
-          ? ` At this airflow the line is crossed near ${boundary.toFixed(1)}% O₂ (dotted marker).`
-          : ` At this airflow the curve stays on one side of the line between 10% and 40% O₂.`}
-        {" "}The white dot is this session: {inputs.o2_pct}% O₂, {Math.round(recorded * 100)}% burn probability (recorded at ignition).
-        Coloured dots are the NASA tests closest to these settings, each at its measured O₂ (tests at the same O₂ are stacked): <span className="pt-burned-text">top row = the test fire kept burning</span>,{" "}
-        <span className="pt-out-text">bottom row = it went out</span>. They can come from other airflows or fuels; hover a dot for its details.
+      <figcaption className="chart-legend note">
+        <span><i className="key key-line" /> model, NASA-tested O₂ ({tested ? `${tested.min}–${tested.max}% for ${scope}` : `none at ${inputs.flow_speed_cm_s} cm/s`})</span>
+        <span><i className="key key-line-dashed" /> model only, no NASA data</span>
+        <span><i className="key key-session" /> this session (recorded at ignition)</span>
+        <span><i className="key key-burned" /> NASA test burned</span>
+        <span><i className="key key-out" /> NASA test went out</span>
+        <span className="muted">NASA markers are the 3 tests nearest this session; they may use another airflow or material (hover for details).</span>
       </figcaption>
     </figure>
   );

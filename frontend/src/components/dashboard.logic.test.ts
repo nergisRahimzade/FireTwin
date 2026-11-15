@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ResultsRow } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
+import type { MetaOut, TestRef } from "../api/types";
 import {
-  changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stackIndex, stampRows, testDotLabel,
-  thresholdCrossing, withSample,
+  changeText, chartSweep, chartTakeaway, chartTested, groupTests, nearestPoint, o2Sweep, pointLabel, resultText,
+  sessionInputs, sessionOutcome, sourceId, splitCurve, stampRows, testDotLabel, thresholdCrossing, withSample,
 } from "./dashboard.logic";
 
 const row = (patch: Partial<ResultsRow>): ResultsRow => ({
@@ -76,7 +77,78 @@ describe("chart helpers", () => {
     expect(testDotLabel({ ...t, flow_cm_s: 26, outcome: "extinguished" }, 26)).toBe("FLEX-29 (FLEX, droplet): went out at 30% O₂, 26 cm/s");
   });
 
-  it("stacks dots that share an O2 value instead of moving them", () => {
-    expect(stackIndex([30, 30, 30, 21, 30])).toEqual([0, 1, 2, 0, 3]);
+});
+
+// The real solid-fuel numbers: Black rod at 26 % O2 is outside the 14.2-22.2 % solid tests.
+const meta: MetaOut = {
+  materials: [{ name: "Black rod", fuel_type: "solid", n_tests: 37 }],
+  ranges: { o2_pct: { min: 12, max: 34 }, pressure_kpa: { min: 70.17, max: 309.27 }, flow_cm_s: { min: 0, max: 28 } },
+  ranges_by_fuel_type: {
+    solid: { o2_pct: { min: 14.2, max: 22.2 }, pressure_kpa: { min: 101.3, max: 101.3 }, flow_cm_s: { min: 0, max: 28 } },
+  },
+  investigations: [],
+};
+const blackRod = { ...DEFAULT_SCENARIO, material: "Black rod", o2_pct: 26, flow_speed_cm_s: 16 };
+const test = (id: string, o2: number, outcome: TestRef["outcome"]): TestRef => ({
+  test_id: id, investigation: "BASS-II", fuel_type: "solid", o2_pct: o2, pressure_kpa: null, flow_cm_s: 20,
+  outcome, source_url: "", is_synthetic: false,
+});
+
+describe("O2 chart: what has NASA data behind it", () => {
+  it("uses the material's own tested O2 range", () => {
+    expect(chartTested(meta, blackRod)).toEqual({ range: { min: 14.2, max: 22.2 }, scope: "solid fuels" });
+  });
+  it("has no tested range when the airflow itself is outside the tests", () => {
+    expect(chartTested(meta, { ...blackRod, flow_speed_cm_s: 35 }).range).toBeNull();
+  });
+  it("samples the tested range's edges so the solid part starts and ends on them", () => {
+    const sweep = chartSweep({ min: 14.2, max: 22.2 });
+    expect(sweep).toContain(14.2);
+    expect(sweep).toContain(22.2);
+    expect(sweep[0]).toBe(10);
+    expect(sweep[sweep.length - 1]).toBe(40);
+    expect(chartSweep(null)).toEqual(o2Sweep(2.5));
+  });
+  it("splits the line into tested and model-only runs that share their edge points", () => {
+    const runs = splitCurve([[10, 0.3], [14.2, 0.5], [20, 0.8], [22.2, 0.85], [30, 0.95]], { min: 14.2, max: 22.2 });
+    expect(runs.map(r => r.tested)).toEqual([false, true, false]);
+    expect(runs[0].points).toEqual([[10, 0.3], [14.2, 0.5]]); // 10 -> 14.2 is mostly untested: dashed
+    expect(runs[1].points).toEqual([[14.2, 0.5], [20, 0.8], [22.2, 0.85]]);
+    expect(runs[2].points).toEqual([[22.2, 0.85], [30, 0.95]]);
+  });
+  it("draws everything as model-only when nothing is tested", () => {
+    expect(splitCurve([[10, 0.3], [40, 0.9]], null)).toEqual([{ points: [[10, 0.3], [40, 0.9]], tested: false }]);
+  });
+});
+
+describe("O2 chart: NASA test markers", () => {
+  it("groups tests at the same O2 and outcome into one marker with a count", () => {
+    const groups = groupTests([test("M2", 22.2, "burned"), test("M5", 22.2, "burned"), test("01", 22.2, "burned")]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ o2: 22.2, outcome: "burned" });
+    expect(groups[0].tests.map(t => t.test_id)).toEqual(["M2", "M5", "01"]);
+  });
+  it("keeps burned and went-out tests apart and skips tests with no outcome or no O2", () => {
+    const groups = groupTests([test("a", 18, "extinguished"), test("b", 18, "burned"), test("c", 19, "unknown"), { ...test("d", 0, "burned"), o2_pct: null }]);
+    expect(groups.map(g => [g.o2, g.outcome])).toEqual([[18, "extinguished"], [18, "burned"]]);
+  });
+});
+
+describe("O2 chart: words", () => {
+  it("says where the fire goes out and whether NASA tests back that point", () => {
+    expect(chartTakeaway([[10, 0.3], [20, 0.8]], 13.3, blackRod, { min: 14.2, max: 22.2 })).toBe(
+      "Black rod at 16 cm/s: the model says it goes out below about 13.3% O₂ (outside the NASA-tested range, so model only).",
+    );
+    expect(chartTakeaway([[10, 0.3], [20, 0.8]], 16, blackRod, { min: 14.2, max: 22.2 })).toMatch(/inside the NASA-tested range\)\.$/);
+  });
+  it("says so when the line never crosses 50%", () => {
+    expect(chartTakeaway([[10, 0.6], [40, 0.99]], null, blackRod, null)).toMatch(/keeps burning at every O₂ from 10% to 40%/);
+  });
+  it("labels each hovered point as tested or model only", () => {
+    expect(pointLabel([20, 0.754], { min: 14.2, max: 22.2 })).toBe("20% O₂ → 75% burn · NASA-tested");
+    expect(pointLabel([30, 0.95], { min: 14.2, max: 22.2 })).toBe("30% O₂ → 95% burn · model only");
+  });
+  it("finds the curve point nearest the pointer", () => {
+    expect(nearestPoint([[10, 0], [12.5, 0], [15, 0]], 13.4)).toBe(1);
   });
 });

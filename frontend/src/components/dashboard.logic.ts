@@ -1,6 +1,7 @@
 /* FE-09: pure helpers for the results dashboard. */
-import type { ResultsRow, TestRef } from "../api/types";
+import type { MetaOut, ResultsRow, ScenarioIn, TestRef } from "../api/types";
 import type { Session } from "../store/useScenario";
+import { type Range, outsideKeys, testedRange, testedScope } from "./controlPanel.logic";
 
 export const sourceId = (s: TestRef | string) => (typeof s === "string" ? s : s.test_id);
 
@@ -74,13 +75,83 @@ export function withSample(curve: [number, number][], sample: [number, number]):
   return [...curve.filter(([o2]) => o2 !== sample[0]), sample].sort((a, b) => a[0] - b[0]);
 }
 
-/** For dots in one row: how many earlier dots share the same O2 (0, 1, 2...). The chart stacks
-    them vertically by this index, so every dot stays at its measured O2. */
-export function stackIndex(o2s: number[]): number[] {
-  const seen = new Map<number, number>();
-  return o2s.map(o2 => {
-    const n = seen.get(o2) ?? 0;
-    seen.set(o2, n + 1);
-    return n;
-  });
+export type Point = [number, number]; // [O2 %, burn probability]
+
+/** Where the chart's line has NASA data behind it: the O2 range tested for this material's fuel
+    type, or null when none of the line has (its airflow or pressure is already outside the tests,
+    so every O2 on it is extrapolated). `scope` says whose tests, e.g. "solid fuels". */
+export function chartTested(meta: MetaOut | null, inputs: ScenarioIn): { range: Range | null; scope: string } {
+  const scope = testedScope(meta, inputs.material);
+  const otherOutside = outsideKeys(inputs, meta).some(k => k !== "o2_pct");
+  return { range: otherOutside ? null : testedRange(meta, "o2_pct", inputs.material), scope };
+}
+
+/** O2 values the chart asks the model about: every 2.5 % from 10 to 40, plus the edges of the
+    tested range, so the solid (tested) part of the line starts and ends exactly on them. */
+export function chartSweep(tested: Range | null): number[] {
+  const edges = tested ? [tested.min, tested.max].filter(v => v > 10 && v < 40) : [];
+  return [...new Set([...o2Sweep(2.5), ...edges])].sort((a, b) => a - b);
+}
+
+/** The line cut into runs: inside the tested O2 range (NASA data) or outside it (model only).
+    A piece between two samples counts as tested only if both ends are inside the range, and
+    neighbouring runs share their edge point so the drawn line has no gaps. */
+export function splitCurve(curve: Point[], tested: Range | null): { points: Point[]; tested: boolean }[] {
+  const inside = ([o2]: Point) => !!tested && o2 >= tested.min && o2 <= tested.max;
+  if (curve.length === 1) return [{ points: curve, tested: inside(curve[0]) }];
+  const runs: { points: Point[]; tested: boolean }[] = [];
+  for (let i = 1; i < curve.length; i++) {
+    const [a, b] = [curve[i - 1], curve[i]];
+    const both = inside(a) && inside(b);
+    const last = runs[runs.length - 1];
+    if (last && last.tested === both) last.points.push(b);
+    else runs.push({ points: [a, b], tested: both });
+  }
+  return runs;
+}
+
+/** NASA tests with a known outcome, one group per (O2, outcome): tests at the same O2 are one
+    marker with a count instead of a stack of dots whose height would mean nothing. */
+export function groupTests(tests: TestRef[]): { o2: number; outcome: "burned" | "extinguished"; tests: TestRef[] }[] {
+  const groups = new Map<string, { o2: number; outcome: "burned" | "extinguished"; tests: TestRef[] }>();
+  for (const t of tests) {
+    if (t.o2_pct == null || (t.outcome !== "burned" && t.outcome !== "extinguished")) continue;
+    const key = `${t.o2_pct}|${t.outcome}`;
+    const group = groups.get(key) ?? { o2: t.o2_pct, outcome: t.outcome, tests: [] };
+    group.tests.push(t);
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) => a.o2 - b.o2);
+}
+
+const pct = (p: number) => `${Math.round(p * 100)}%`;
+const inRange = (o2: number, tested: Range | null) => !!tested && o2 >= tested.min && o2 <= tested.max;
+
+/** The chart's one-line answer: where the model says this fire goes out, and whether NASA tests
+    back that point. `boundary` is the threshold crossing (null = the line never crosses it). */
+export function chartTakeaway(curve: Point[], boundary: number | null, inputs: ScenarioIn, tested: Range | null): string {
+  const at = `${inputs.material} at ${inputs.flow_speed_cm_s} cm/s`;
+  if (boundary == null) {
+    const burns = curve.length > 0 && curve[0][1] >= BURN_THRESHOLD;
+    return `${at}: the model says it ${burns ? "keeps burning" : "goes out"} at every O₂ from 10% to 40%.`;
+  }
+  const backed = inRange(boundary, tested) ? "inside the NASA-tested range" : "outside the NASA-tested range, so model only";
+  return `${at}: the model says it goes out below about ${boundary.toFixed(1)}% O₂ (${backed}).`;
+}
+
+/** Hover text for one point of the line. */
+export function pointLabel([o2, p]: Point, tested: Range | null): string {
+  return `${o2}% O₂ → ${pct(p)} burn · ${inRange(o2, tested) ? "NASA-tested" : "model only"}`;
+}
+
+/** Hover text for a NASA test marker: every test in it, with how each differs from this session. */
+export function testGroupLabel(group: { o2: number; outcome: string; tests: TestRef[] }, sessionFlow: number): string {
+  return group.tests.map(t => testDotLabel(t, sessionFlow)).join("\n");
+}
+
+/** The curve point nearest an O2 value (for the hover crosshair). */
+export function nearestPoint(curve: Point[], o2: number): number {
+  let best = 0;
+  curve.forEach(([x], i) => { if (Math.abs(x - o2) < Math.abs(curve[best][0] - o2)) best = i; });
+  return best;
 }

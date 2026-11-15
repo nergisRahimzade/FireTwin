@@ -41,6 +41,14 @@ META = MetaOut(
         "pressure_kpa": {"min": 80, "max": 110, "is_synthetic": True},
         "flow_cm_s": {"min": 0, "max": 40, "is_synthetic": True},
     },
+    # The mock has one solid material, so one fuel type with the same synthetic ranges.
+    ranges_by_fuel_type={
+        "solid": {
+            "o2_pct": {"min": 10, "max": 40, "is_synthetic": True},
+            "pressure_kpa": {"min": 80, "max": 110, "is_synthetic": True},
+            "flow_cm_s": {"min": 0, "max": 40, "is_synthetic": True},
+        }
+    },
     investigations=[
         {
             "name": "Synthetic fixture (not NASA data)",
