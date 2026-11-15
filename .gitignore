@@ -53,3 +53,7 @@ chroma_db/
 
 # --- Editors / OS ---
 .DS_Store
+
+# Prepared optional local retrieval bundle (weights/index stay out of Git).
+/.local/rag-bundle*/
+/.local/.rag-bundle-*/

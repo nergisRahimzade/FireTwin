@@ -4,6 +4,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-01**: ignore prepared local RAG bundles and temporary bundle builds; guard the
+  generated paths while leaving model artifacts and processed demo inputs publishable.
+
 - **ML-08**: publish complete immutable index generations with an atomic current pointer;
   preserve the previous index on failed rebuilds. Validate completion/count/provider/model
   and default/custom corpus provenance. Use one ONNX identity for build/query, explicit

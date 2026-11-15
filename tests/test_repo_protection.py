@@ -62,6 +62,8 @@ def test_local_source_and_secret_paths_are_ignored(ignore_repo: Path) -> None:
         *PRIVATE_PLANS,
         *(f"data/{folder}/nested/source.mp4" for folder in RAW_DIRS),
         "data/raw/download.csv",
+        ".local/rag-bundle/bundle.json",
+        ".local/.rag-bundle-build/model/onnx/model.onnx",
         ".env",
         ".env.local",
     ]

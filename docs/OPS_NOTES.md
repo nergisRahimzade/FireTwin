@@ -689,3 +689,11 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - Reviewed fixes cover destructive/partial ingest, custom-corpus mismatch, embedding identity,
   provider selection and expected-error logs. Fingerprint performance caching is deferred:
   the corpus is small and correct invalidation matters more than speculative optimization.
+
+
+## OPS-01: generated RAG bundles stay local (2026-11-15, Ryan)
+
+- `.local/rag-bundle*/` and temporary `.local/.rag-bundle-*/` outputs are ignored so model
+  weights, generated databases and source copies are not added to the public repository.
+  This does not ignore the planned `ml/artifacts` or processed data. The ignore regression
+  checks generated bundle paths alongside required public artifact exceptions.
