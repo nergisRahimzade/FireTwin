@@ -516,6 +516,24 @@ git push origin demo-v1                     # tags are pushed separately from br
   a fake key without an LLM call. The temporary project was removed cleanly; the existing user
   stack was left running. Host Python/Node dependencies and application files were not modified.
 
+## OPS-01 / OPS-02 / OPS-03: Windows support boundary (2026-11-15, Ryan)
+
+- Supported Windows routes are Docker Desktop's Linux engine or WSL. Native Windows
+  `scripts/dev.py` exits 2 with those routes before starting any servers; the POSIX
+  process-group/signal supervisor is unchanged. The container entrypoint also refuses
+  native Windows; Linux still uses exec for PID, signal and exit-status preservation.
+- Claude reproduced native Windows exec argument/exit-status problems and launcher
+  orphaning on Python 3.12.10. Those results are reported in `OPS_WINDOWS_HANDOFF.md`;
+  native Python 3.11 validation is delegated to the new CI job, not claimed from Linux.
+- Mode selection, bad config and stubbed dispatch/refusal checks run cross-platform;
+  real exec/signal/process-group checks are POSIX-only. Two native Windows checks skip
+  on POSIX. This supersedes the old file-wide non-POSIX skip note under OPS-01.
+- `Windows (startup checks)` installs the locked Python 3.11 environment and invokes
+  pytest directly, without Make. Existing required check names are preserved; requiring
+  the new job in branch protection remains a repository-owner decision.
+- Review fix: the real exec test waits for output with a five-second deadline and
+  checks early process exit, so a missing readiness line cannot block CI indefinitely.
+
 ## BE-12: endpoint tests (2026-11-14, Ryan)
 
 - Most endpoints already had detailed tests in their own files (mocks, meta, detect, suppress,
