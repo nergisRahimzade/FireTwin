@@ -178,6 +178,14 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     }
   }
   // Runs a call for the current ignition; returns null (ignored) if the epoch moved meanwhile.
+  // FE-09: like runCurrent, but a successful reply is always returned with `current` saying whether
+  // the screen may still use it. Its session's saved copy takes it either way (review FE09-001):
+  // a new Ignite or Reset moves the epoch, but session 1's late /results still belongs to session 1.
+  async function runArchived<T>(step: Step, call: () => Promise<T>): Promise<{ res: T | null; current: boolean }> {
+    const sent = epoch;
+    const res = await run(step, call, () => epoch === sent);
+    return { res, current: epoch === sent };
+  }
   async function runCurrent<T>(step: Step, call: () => Promise<T>): Promise<T | null> {
     const sent = epoch;
     const res = await run(step, call, () => epoch === sent);
@@ -298,21 +306,23 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     },
 
     runDetect: async () => {
+      if (!viewingLive()) return null; // a saved session is read-only: nothing to do, no error
       const id = scenarioId();
       if (!id) return needScenario();
       const sid = get().liveSession;
-      const res = await runCurrent("detect", () => api.detect(id));
+      const { res, current } = await runArchived("detect", () => api.detect(id));
       if (res) {
         updateSession(sid, x => ({ detect: res, phase: nextPhase(x.phase, { type: "detected", detected: res.detected }) }));
-        if (viewingLive()) {
+        if (current && viewingLive()) {
           set(s => ({ detect: res, alarmId: null, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
           scheduleAlarm(res);
         }
       }
-      return res;
+      return current ? res : null;
     },
 
     runSuppress: async () => {
+      if (!viewingLive()) return null; // a saved session is read-only: nothing to do, no error
       const id = scenarioId();
       if (!id) return needScenario();
       const sent = epoch;
@@ -320,28 +330,30 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       // Save the ranking inside the call, before run() clears loading.suppress. Saving it after
       // left a moment of "alarm, no ranking, not loading", and SuppressionPanel's auto-rank effect
       // then sent a second /suppress for the same alarm.
-      return runCurrent("suppress", async () => {
-        const res = await api.suppress(id);
-        if (epoch === sent) {
-          updateSession(sid, x => ({ suppress: res, phase: nextPhase(x.phase, { type: "suppress_ranked" }) }));
-          if (viewingLive()) set(s => ({ suppress: res, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
+      const { res, current } = await runArchived("suppress", async () => {
+        const ranking = await api.suppress(id);
+        updateSession(sid, x => ({ suppress: ranking, phase: nextPhase(x.phase, { type: "suppress_ranked" }) }));
+        if (epoch === sent && viewingLive()) {
+          set(s => ({ suppress: ranking, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
         }
-        return res;
+        return ranking;
       });
+      return current ? res : null;
     },
 
     runApply: async action => {
+      if (!viewingLive()) return null; // a saved session is read-only: nothing to do, no error
       const id = scenarioId();
       if (!id) return needScenario();
       const previousInputs = get().simulate?.inputs ?? null;
       const sid = get().liveSession;
-      const res = await runCurrent("apply", () => api.apply(id, action));
+      const { res, current } = await runArchived("apply", () => api.apply(id, action));
       if (res) {
         updateSession(sid, x => ({
           history: [...x.history, res], phase: nextPhase(x.phase, { type: "applied", state: res.state }),
         }));
       }
-      if (res && viewingLive()) {
+      if (res && current && viewingLive()) {
         set(s => ({
           // The controls take the applied settings (e.g. fans off + CO2: flow 0, O2 15 %), so they
           // match the recorded scenario and the live 3D preview doesn't treat the action as an edit.
@@ -357,19 +369,20 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
           phase: nextPhase(s.phase, { type: "applied", state: res.state }),
         }));
       }
-      return res;
+      return current ? res : null;
     },
 
     loadResults: async () => {
+      if (!viewingLive()) return null; // a saved session is read-only: nothing to do, no error
       const id = scenarioId();
       if (!id) return needScenario();
       const sid = get().liveSession;
-      const res = await runCurrent("results", () => api.results(id));
+      const { res, current } = await runArchived("results", () => api.results(id));
       if (res) {
         updateSession(sid, () => ({ results: res }));
-        if (viewingLive()) set({ results: res });
+        if (current && viewingLive()) set({ results: res });
       }
-      return res;
+      return current ? res : null;
     },
 
     ask: async message => {

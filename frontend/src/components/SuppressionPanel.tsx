@@ -21,11 +21,12 @@ export function SuppressionPanel() {
   const runApply = useScenario(s => s.runApply);
   const [applyingAction, setApplyingAction] = useState<ActionName | null>(null);
 
-  useEffect(() => {
-    if (shouldAutoRank(alarmId, suppress != null, loading.suppress)) void runSuppress();
-  }, [alarmId, suppress, loading.suppress, runSuppress]);
-
   const viewingPast = useScenario(s => s.viewing !== null);
+
+  useEffect(() => {
+    if (shouldAutoRank(alarmId, suppress != null, loading.suppress, viewingPast)) void runSuppress();
+  }, [alarmId, suppress, loading.suppress, viewingPast, runSuppress]);
+
   // A saved session is read-only: its ranking is shown, but Rank and Apply act on the live fire only.
   const actable = canAct(phase) && !viewingPast;
   return (

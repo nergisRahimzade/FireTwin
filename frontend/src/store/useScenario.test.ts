@@ -439,3 +439,97 @@ describe("FE-09 saved sessions", () => {
     expect(store().sessions[1].curve).toBeNull();
   });
 });
+
+describe("FE-09 review fixes: late replies are archived, replays stay quiet", () => {
+  const held = <T,>() => {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>(r => { resolve = r; });
+    return { promise, resolve };
+  };
+  const rows = (id: string) => ({ scenario_id: id, rows: [{ step: "simulate" } as never] });
+  const igniteSession = async (id: string, detected = false) => {
+    fake.simulate.mockResolvedValueOnce(sim("burning", id));
+    fake.detect.mockResolvedValueOnce(det(detected));
+    await store().ignite();
+  };
+
+  afterEach(() => vi.useRealTimers());
+
+  it("a late /results for session 1 is saved into session 1 after a new Ignite, without touching the screen", async () => {
+    await igniteSession("s1");
+    const late = held<unknown>();
+    fake.results.mockReturnValueOnce(late.promise);
+    const pending = store().loadResults();
+    await igniteSession("s2");
+    late.resolve(rows("s1"));
+    await pending;
+    expect(store().sessions[0].results?.scenario_id).toBe("s1");
+    expect(store().results?.scenario_id).not.toBe("s1"); // the screen shows session 2
+  });
+
+  it("a late /results after Reset is saved into its session and the empty screen stays empty", async () => {
+    await igniteSession("s1");
+    const late = held<unknown>();
+    fake.results.mockReturnValueOnce(late.promise);
+    const pending = store().loadResults();
+    store().reset();
+    late.resolve(rows("s1"));
+    await pending;
+    expect(store().sessions[0].results?.scenario_id).toBe("s1");
+    expect(store().results).toBeNull();
+    expect(store().error).toBeNull();
+  });
+
+  it("a late reply doesn't bring back a session that Clear history removed", async () => {
+    await igniteSession("s1");
+    const late = held<unknown>();
+    fake.results.mockReturnValueOnce(late.promise);
+    const pending = store().loadResults();
+    store().reset();
+    store().clearHistory();
+    late.resolve(rows("s1"));
+    await pending;
+    expect(store().sessions).toHaveLength(0);
+  });
+
+  it("a late /detect for session 1 is saved into session 1 and doesn't fire an alarm on session 2", async () => {
+    fake.simulate.mockResolvedValueOnce(sim("burning", "s1"));
+    await store().runSimulate();
+    const late = held<DetectOut>();
+    fake.detect.mockReturnValueOnce(late.promise);
+    const pending = store().runDetect();
+    await igniteSession("s2");
+    late.resolve(det(true));
+    await pending;
+    expect(store().sessions[0].detect?.detected).toBe(true);
+    expect(store().detect?.detected).toBe(false); // session 2's own (not detected)
+  });
+
+  it("replaying a saved alarm with no ranking doesn't auto-rank or raise an error", async () => {
+    const { shouldAutoRank } = await import("../components/suppression.logic");
+    await igniteSession("s1", true); // detected, never ranked
+    await igniteSession("s2");
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    store().viewSession(1);
+    const unsubscribe = useScenario.subscribe(s => {
+      if (shouldAutoRank(s.alarmId, s.suppress != null, s.loading.suppress, s.viewing !== null)) void s.runSuppress();
+    });
+    vi.advanceTimersByTime(60_000); // past the replayed alarm
+    unsubscribe();
+    expect(store().alarmId).not.toBeNull(); // the replay's alarm did trip
+    expect(fake.suppress).not.toHaveBeenCalled();
+    expect(store().error).toBeNull();
+  });
+
+  it("scenario actions on a saved session are quiet no-ops, not 'Ignite a scenario first'", async () => {
+    await igniteSession("s1");
+    await igniteSession("s2");
+    store().viewSession(1);
+    expect(await store().runSuppress()).toBeNull();
+    expect(await store().runApply("co2")).toBeNull();
+    expect(await store().runDetect()).toBeNull();
+    expect(await store().loadResults()).toBeNull();
+    expect(store().error).toBeNull();
+  });
+});
