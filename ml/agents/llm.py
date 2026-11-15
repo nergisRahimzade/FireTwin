@@ -4,6 +4,10 @@ Gemini (preferred) or OpenAI, chosen by which key is set, both through the OpenA
 reached through its OpenAI-compatible endpoint, so the same messages and the same tool-calling
 format work for both. Every call raises on failure; callers decide how to fall back, so the demo
 never depends on the network. Check a key with `python -m ml.agents.llm`.
+
+Fail fast: one attempt with a short timeout, and after any failure the LLM is paused for
+COOLDOWN_S (available() is False), so explanations and chat use their offline template at once
+instead of waiting on a provider that just failed. It is tried again after the pause.
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ import json
 import logging
 import os
 import sys
+import time
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -32,7 +37,17 @@ PROVIDERS = (
         "base_url": None,  # the SDK's default
     },
 )
-TIMEOUT_S = 20.0
+# A fast-model explanation takes 1-3 s; much slower is worse for the demo than the template.
+TIMEOUT_S = 10.0
+# The SDK retries twice by default, which tripled the wait on a stalled provider. One attempt only.
+MAX_RETRIES = 0
+# After a failure, skip the LLM for this long. 0.0 = not paused (time.monotonic() is always above).
+COOLDOWN_S = 120.0
+_cooldown_until = 0.0
+
+
+def _paused() -> bool:
+    return time.monotonic() < _cooldown_until
 
 
 def provider() -> dict | None:
@@ -46,7 +61,8 @@ def provider() -> dict | None:
 
 
 def available() -> bool:
-    return provider() is not None
+    """A key is set and the LLM isn't paused after a recent failure."""
+    return provider() is not None and not _paused()
 
 
 def complete(messages: list[dict], tools: list[dict] | None = None) -> dict:
@@ -57,17 +73,28 @@ def complete(messages: list[dict], tools: list[dict] | None = None) -> dict:
     """
     from openai import OpenAI  # imported here so the offline path never needs the SDK
 
+    global _cooldown_until
     p = provider()
     if p is None:
         raise RuntimeError("llm.complete: no GEMINI_API_KEY or OPENAI_API_KEY is set")
-    client = OpenAI(api_key=p["api_key"], base_url=p["base_url"], timeout=TIMEOUT_S)
+    if _paused():
+        raise RuntimeError("llm.complete: paused after a recent failure; using the fallback")
+    client = OpenAI(
+        api_key=p["api_key"], base_url=p["base_url"], timeout=TIMEOUT_S, max_retries=MAX_RETRIES
+    )
     kwargs: dict[str, Any] = {"model": p["model"], "messages": messages}
     if tools:
         kwargs["tools"] = tools
     try:
         message = client.chat.completions.create(**kwargs).choices[0].message
     except Exception:
-        log.exception("llm.complete failed (provider=%s, model=%s)", p["name"], p["model"])
+        _cooldown_until = time.monotonic() + COOLDOWN_S
+        log.exception(
+            "llm.complete failed (provider=%s, model=%s); pausing the LLM for %.0f s",
+            p["name"],
+            p["model"],
+            COOLDOWN_S,
+        )
         raise
     calls = []
     for call in getattr(message, "tool_calls", None) or []:
