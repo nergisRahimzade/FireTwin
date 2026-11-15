@@ -432,6 +432,27 @@ describe("FE-09 saved sessions", () => {
     expect(store().sessions.map(s => s.id)).toEqual([2]);
   });
 
+  it("session numbers count Ignites only: viewing saved sessions doesn't use up a number", async () => {
+    await igniteTwice();
+    store().viewSession(1); // replays bump `ignitions` (the 3D restart counter)...
+    store().viewLive();
+    store().viewSession(1);
+    fake.simulate.mockResolvedValueOnce(sim("burning", "s3"));
+    fake.detect.mockResolvedValueOnce(det(false));
+    await store().ignite(); // ...but the next session is still number 3
+    expect(store().sessions.map(s => s.id)).toEqual([1, 2, 3]);
+    expect(store().liveSession).toBe(3);
+  });
+
+  it("session numbers keep counting after Reset and Clear history", async () => {
+    await igniteTwice();
+    store().reset();
+    store().clearHistory();
+    fake.simulate.mockResolvedValueOnce(sim("extinguished", "s3"));
+    await store().ignite();
+    expect(store().sessions.map(s => s.id)).toEqual([3]);
+  });
+
   it("each session keeps its own O2 curve", async () => {
     await igniteTwice();
     store().setSessionCurve(1, [[10, 0.1], [40, 0.9]]);
