@@ -60,6 +60,21 @@ class SimulateOut(BaseModel):
     inputs: ScenarioIn
 
 
+class PreviewOut(BaseModel):
+    """The model's verdict for some inputs, without starting a scenario (POST /preview).
+
+    For live views (the 3D scene while sliders move, the O2 chart): no scenario_id, no history
+    row and no written explanation, so it is fast and leaves /results untouched.
+    """
+
+    state: Literal["burning", "extinguished"]
+    burn_probability: float  # 0-1, the same model and threshold as /simulate
+    trust: Literal["strong", "medium", "weak"]
+    extrapolated: bool  # outside tested ranges
+    is_synthetic: bool  # true only in mock mode (rule 5: label placeholder numbers)
+    inputs: ScenarioIn
+
+
 class DetectOut(BaseModel):
     """When and where the smoke alarm trips."""
 

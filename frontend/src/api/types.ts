@@ -41,6 +41,17 @@ export interface SimulateOut {
   inputs: ScenarioIn;
 }
 
+// POST /preview: the verdict for some inputs with no scenario, history row or explanation.
+// For live views (3D scene while sliders move, the O2 chart). is_synthetic is true in mock mode.
+export interface PreviewOut {
+  state: "burning" | "extinguished";
+  burn_probability: number; // 0-1, same model and threshold as /simulate
+  trust: Trust;
+  extrapolated: boolean;
+  is_synthetic: boolean;
+  inputs: ScenarioIn;
+}
+
 export interface DetectorReading {
   id: string;
   position: Vec3;

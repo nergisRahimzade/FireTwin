@@ -61,9 +61,10 @@ def create_app() -> FastAPI:
     else:
         # Real routers, imported only here: they load pandas, the model and the data files,
         # which mock mode must not need. All planned feature routes have real routers.
-        from app.routers import chat, detect, export, meta, results, simulate, suppress
+        from app.routers import chat, detect, export, meta, preview, results, simulate, suppress
 
         app.include_router(simulate.router)  # POST /simulate, POST /apply (BE-02)
+        app.include_router(preview.router)  # POST /preview: verdict only, no scenario (BE-05)
         app.include_router(meta.router)  # GET /meta (BE-07)
         app.include_router(detect.router)  # POST /detect (BE-03 service)
         app.include_router(suppress.router)  # POST /suppress (BE-04 service)

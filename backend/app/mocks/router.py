@@ -14,6 +14,7 @@ from app.schemas import (
     ChatOut,
     DetectOut,
     MetaOut,
+    PreviewOut,
     ResultsOut,
     ScenarioIn,
     ScenarioRef,
@@ -33,6 +34,12 @@ def meta() -> MetaOut:
 def simulate(inputs: ScenarioIn) -> SimulateOut:
     """Return a fixed synthetic scenario; request inputs are intentionally ignored."""
     return responses.SIMULATE
+
+
+@router.post("/preview", response_model=PreviewOut)
+def preview(inputs: ScenarioIn) -> PreviewOut:
+    """Return a fixed synthetic verdict (is_synthetic=true); request inputs are ignored."""
+    return responses.PREVIEW
 
 
 @router.post("/detect", response_model=DetectOut)
