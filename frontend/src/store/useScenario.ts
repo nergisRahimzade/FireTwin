@@ -56,6 +56,14 @@ export interface TimelineEvent {
   context: string;
 }
 
+// Browser response timestamps and exact saved payloads for the session research report.
+// They describe when the app recorded a step, not when a NASA experiment took place.
+export type SessionEvent =
+  | { kind: "simulate"; at: number; result: SimulateOut }
+  | { kind: "detect"; at: number; result: DetectOut }
+  | { kind: "suppress"; at: number; inputs: ScenarioIn; result: SuppressOut }
+  | { kind: "apply"; at: number; action: ActionName; result: SimulateOut };
+
 const TRACKED_INPUTS = ["material", "o2_pct", "pressure_kpa", "flow_speed_cm_s", "flow_dir"] as const;
 type TrackedInput = typeof TRACKED_INPUTS[number];
 const INPUT_LABELS: Record<TrackedInput, string> = {
@@ -85,6 +93,7 @@ export interface Session {
   results: ResultsOut | null;
   phase: Phase;
   curve: [number, number][] | null; // burn probability across O2 at its inputs; null = not fetched
+  events?: SessionEvent[]; // older in-memory snapshots may not have response timestamps
 }
 
 interface ScenarioData {
@@ -298,6 +307,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       // A new scenario: earlier detection, actions and results no longer apply.
       epoch++;
       clearAlarm();
+      const recordedAt = Date.now();
       set(s => ({
         simulate: res, detect: null, suppress: null, results: null, history: [res], ignitions: s.ignitions + 1,
         timeline: [
@@ -305,12 +315,13 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
           ...(previousInputs ? recordInputs(previousInputs, "removed", "Previous scenario replaced by Ignite", usedAt) : []),
           ...recordInputs(inputs, "used", "Ignite", usedAt),
         ],
-        ignitedAt: Date.now(), alarmId: null,
+        ignitedAt: recordedAt, alarmId: null,
         phase: nextPhase(s.phase, { type: "simulated", state: res.state }),
         viewing: null, liveSession: s.sessionCount + 1, sessionCount: s.sessionCount + 1,
         sessions: [...s.sessions, {
-          id: s.sessionCount + 1, startedAt: Date.now(), inputs, history: [res], detect: null, suppress: null,
+          id: s.sessionCount + 1, startedAt: recordedAt, inputs, history: [res], detect: null, suppress: null,
           results: null, phase: nextPhase("idle", { type: "simulated", state: res.state }), curve: null,
+          events: [{ kind: "simulate", at: recordedAt, result: res }],
         }],
       }));
       clearReplay();
@@ -324,7 +335,11 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const sid = get().liveSession;
       const { res, current } = await runArchived("detect", () => api.detect(id));
       if (res) {
-        updateSession(sid, x => ({ detect: res, phase: nextPhase(x.phase, { type: "detected", detected: res.detected }) }));
+        const recordedAt = Date.now();
+        updateSession(sid, x => ({
+          detect: res, phase: nextPhase(x.phase, { type: "detected", detected: res.detected }),
+          events: [...(x.events ?? []), { kind: "detect", at: recordedAt, result: res }],
+        }));
         if (current && viewingLive()) {
           set(s => ({ detect: res, alarmId: null, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
           scheduleAlarm(res);
@@ -339,12 +354,17 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       if (!id) return needScenario();
       const sent = epoch;
       const sid = get().liveSession;
+      const rankedInputs = get().simulate!.inputs;
       // Save the ranking inside the call, before run() clears loading.suppress. Saving it after
       // left a moment of "alarm, no ranking, not loading", and SuppressionPanel's auto-rank effect
       // then sent a second /suppress for the same alarm.
       const { res, current } = await runArchived("suppress", async () => {
         const ranking = await api.suppress(id);
-        updateSession(sid, x => ({ suppress: ranking, phase: nextPhase(x.phase, { type: "suppress_ranked" }) }));
+        const recordedAt = Date.now();
+        updateSession(sid, x => ({
+          suppress: ranking, phase: nextPhase(x.phase, { type: "suppress_ranked" }),
+          events: [...(x.events ?? []), { kind: "suppress", at: recordedAt, inputs: rankedInputs, result: ranking }],
+        }));
         if (epoch === sent && viewingLive()) {
           set(s => ({ suppress: ranking, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
         }
@@ -361,8 +381,10 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const sid = get().liveSession;
       const { res, current } = await runArchived("apply", () => api.apply(id, action));
       if (res) {
+        const recordedAt = Date.now();
         updateSession(sid, x => ({
           history: [...x.history, res], phase: nextPhase(x.phase, { type: "applied", state: res.state }),
+          events: [...(x.events ?? []), { kind: "apply", at: recordedAt, action, result: res }],
         }));
       }
       if (res && current && viewingLive()) {

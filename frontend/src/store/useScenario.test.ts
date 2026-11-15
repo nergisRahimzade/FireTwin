@@ -462,6 +462,44 @@ describe("FE-09 saved sessions", () => {
   });
 });
 
+describe("FE-09 response records for research PDF", () => {
+  afterEach(() => { store().reset(); vi.useRealTimers(); });
+
+  it("records each response's time and preserves earlier rankings after Apply and re-ranking", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-15T12:00:00Z"));
+    fake.simulate.mockResolvedValueOnce(sim("burning"));
+    await store().runSimulate();
+    vi.advanceTimersByTime(1000);
+    fake.suppress.mockResolvedValueOnce(ranked);
+    await store().runSuppress();
+    vi.advanceTimersByTime(1000);
+    const applied = { ...sim("extinguished"), inputs: { ...DEFAULT_SCENARIO, flow_speed_cm_s: 0 } };
+    fake.apply.mockResolvedValueOnce(applied);
+    await store().runApply("fans_off");
+    vi.advanceTimersByTime(1000);
+    fake.suppress.mockResolvedValueOnce({ ...ranked, recommended: "co2" });
+    await store().runSuppress();
+    const events = store().sessions[0].events!;
+    expect(events.map(e => e.kind)).toEqual(["simulate", "suppress", "apply", "suppress"]);
+    expect(events.map(e => e.at - events[0].at)).toEqual([0, 1000, 2000, 3000]);
+    const assessments = events.filter(e => e.kind === "suppress");
+    expect(assessments.map(e => e.result.recommended)).toEqual(["fans_off", "co2"]);
+    expect(assessments.map(e => e.inputs.flow_speed_cm_s)).toEqual([10, 0]);
+  });
+
+  it("records late successful steps in their original session after Reset", async () => {
+    fake.simulate.mockResolvedValueOnce(sim("burning"));
+    await store().runSimulate();
+    let resolve!: (v: DetectOut) => void;
+    fake.detect.mockReturnValueOnce(new Promise<DetectOut>(r => { resolve = r; }));
+    const pending = store().runDetect();
+    store().reset(); resolve(det(true)); await pending;
+    expect(store().sessions[0].events?.map(e => e.kind)).toEqual(["simulate", "detect"]);
+    expect(store().simulate).toBeNull();
+  });
+});
+
 describe("FE-09 review fixes: late replies are archived, replays stay quiet", () => {
   const held = <T,>() => {
     let resolve!: (v: T) => void;

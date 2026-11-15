@@ -4,6 +4,20 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **BE-07 (PR #57, contract, rule 3)**: `MetaOut` gains `ranges_by_fuel_type`
+  (`{fuel_type: {feature: {min, max, is_synthetic}}}`) from the artifact's `by_fuel_type`,
+  matching the ranges used for extrapolation. Schemas, frontend types, mocks and contract
+  notes changed together. **FE-03 / FE-09**: shade the material's fuel-type range, persist
+  edited controls across reloads, count sessions independently of replays, and distinguish
+  tested versus model-only conditions in the O2 chart. This records the already merged PR.
+
+- **FE-09**: replace the dashboard screenshot PDF with a portrait session research report:
+  timestamped inputs/materials, initial/final model statistics, saved suppression probabilities
+  and recommendations, step outcomes, and linked NASA evidence rows with synthetic labels.
+  Save per-session response events and ranking input snapshots; export every saved session
+  without API calls or recalculating historical recommendations. Older missing details are
+  explicitly unrecorded. Text and vector layout flow across pages.
+
 - **FE-06** (PR #54 review fixes): use the live preview's trust and extrapolation flags
   so the flame's outside-range warning follows edited settings. Label unrecorded previews
   in Compare and distinguish the recorded alarm; cover both range transitions and notice
