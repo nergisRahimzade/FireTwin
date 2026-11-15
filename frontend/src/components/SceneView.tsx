@@ -7,6 +7,7 @@
 import { Suspense, lazy, useRef } from "react";
 import { alarmBanner } from "../scene/alarmLogic";
 import { SCENE_TIME_SCALE } from "../scene/clock";
+import { useLiveScene } from "../scene/livePreview";
 import { useScenario } from "../store/useScenario";
 
 // three.js loads only when the scene renders.
@@ -18,7 +19,10 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
   const ignition = useScenario(s => s.ignitions);
   const ignitedAt = useScenario(s => s.ignitedAt);
   const alarmId = useScenario(s => s.alarmId);
+  const inputs = useScenario(s => s.inputs);
   const clockEl = useRef<HTMLSpanElement | null>(null);
+  // The scene follows the controls live; the verdict, alarm and dashboard stay on the ignition.
+  const { scene, previewing } = useLiveScene(simulate, inputs);
 
   const banner = alarmBanner(detect, alarmId != null);
   return (
@@ -28,7 +32,7 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
           <div className="lab3d-canvas">
             <Suspense fallback={<div className="lab3d-msg">Loading the ISS module…</div>}>
               <IssScene
-                detect={detect} simulate={simulate} alarmId={alarmId}
+                detect={detect} simulate={scene} alarmId={alarmId}
                 ignition={ignition} ignitedAt={ignitedAt} clockEl={clockEl}
               />
             </Suspense>
@@ -37,6 +41,9 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
             <button type="button" className="btn-ghost" onClick={onCompare}>Compare</button>
             {simulate && (
               <span className="clock mono">t = <span ref={clockEl}>0.0</span> s · {SCENE_TIME_SCALE}× speed</span>
+            )}
+            {previewing && (
+              <span className="clock mono" role="status">Preview of new settings · Ignite again to record</span>
             )}
           </div>
         </div>

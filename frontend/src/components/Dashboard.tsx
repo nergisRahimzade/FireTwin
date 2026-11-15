@@ -1,7 +1,7 @@
 /* FE-09: the results dashboard under the 3D view. Rows come from GET /results (reloaded after every
    simulate, detect and apply), with the whiteboard's columns: variable changed, result, date & time,
    plus detection, sources. The chart shows burn probability across O2 at the current flow (one
-   /simulate per point, outside the store so the live scenario is untouched), with the nearest
+   /preview per point: no scenario or history row is created on the server), with the nearest
    tested NASA points overlaid. Export PDF downloads /export/{id}.pdf. */
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
@@ -22,7 +22,7 @@ function O2Chart() {
       return;
     }
     let live = true;
-    Promise.all(o2Sweep().map(o2 => api.simulate({ ...inputs, o2_pct: o2 }).then(r => [o2, r.burn_probability] as [number, number])))
+    Promise.all(o2Sweep().map(o2 => api.preview({ ...inputs, o2_pct: o2 }).then(r => [o2, r.burn_probability] as [number, number])))
       .then(points => live && setCurve(points))
       .catch(() => live && setCurve([]));
     return () => { live = false; };

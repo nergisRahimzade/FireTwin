@@ -1,5 +1,6 @@
 /* Compare mode: the 3D simulation (left) beside the FLEX-2 reference video (right). */
 import { Suspense, useEffect } from "react";
+import { useLiveScene } from "../scene/livePreview";
 import { useScenario } from "../store/useScenario";
 import { IssScene } from "./SceneView";
 import { ValidationReference } from "./ValidationReference";
@@ -13,6 +14,7 @@ export function CompareView({ onClose }: { onClose: () => void }) {
   const ignitedAt = useScenario(s => s.ignitedAt);
   const alarmId = useScenario(s => s.alarmId);
   const inputs = useScenario(s => s.inputs);
+  const { scene, previewing } = useLiveScene(simulate, inputs);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -31,12 +33,17 @@ export function CompareView({ onClose }: { onClose: () => void }) {
         <h2 className="text-2xl font-bold">Compare</h2>
         <button type="button" className="btn-ghost" onClick={onClose}>Back to simulation</button>
       </header>
+      {previewing && (
+        <p className="note" role="status">
+          Preview of new settings · Ignite again to record. The alarm belongs to the recorded scenario.
+        </p>
+      )}
       <div className="compare-panes">
         <div className="glass lab3d">
           <div className="lab3d-view">
             <div className="lab3d-canvas">
               <Suspense fallback={<div className="lab3d-msg">Loading the ISS module…</div>}>
-                <IssScene detect={detect} simulate={simulate} alarmId={alarmId} ignition={ignition} ignitedAt={ignitedAt} />
+                <IssScene detect={detect} simulate={scene} alarmId={alarmId} ignition={ignition} ignitedAt={ignitedAt} />
               </Suspense>
             </div>
           </div>
