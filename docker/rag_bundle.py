@@ -77,12 +77,38 @@ def verify_bundle(root: Path) -> str:
     return sha256(manifest_path)
 
 
+def check_output_location(output: Path, repo: Path) -> None:
+    """Refuse a bundle folder inside the repository that Git would track.
+
+    The extracted model alone is ~87 MB, under GitHub's 100 MB limit, so nothing else would stop
+    a `git add` from committing it. Outside the repository, or without Git, there is nothing to do.
+    """
+    output = output.resolve()
+    if not output.is_relative_to(repo.resolve()):
+        return
+    # Ask about a file inside the folder: the ignore rules match the folder as a directory,
+    # which a path that doesn't exist yet can't show on its own.
+    probe = output / "bundle.json"
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "check-ignore", "-q", "--", str(probe)], capture_output=True
+        )
+    except FileNotFoundError:
+        return  # no git installed
+    if result.returncode == 1:  # 0 = ignored, 1 = would be tracked, 128 = not a Git checkout
+        raise ValueError(
+            f"{output} is inside the repository but not git-ignored; use "
+            ".local/rag-bundle-<name> or a folder outside the repository"
+        )
+
+
 def prepare(output: Path, cache_source: Path | None = None) -> None:
     """Build in a new sibling directory; never overwrite an existing bundle.
 
     Ingest runs in a child so Chroma/SQLite handles are closed before hashing/copying.
     This is deliberate setup-time network use, not API-query-time provisioning.
     """
+    check_output_location(output, Path(__file__).resolve().parents[1])
     if output.exists():
         raise ValueError("output already exists; choose a new bundle directory")
     output.parent.mkdir(parents=True, exist_ok=True)
