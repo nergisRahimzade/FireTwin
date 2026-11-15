@@ -15,6 +15,10 @@ RUN uv sync --locked --no-dev --no-install-project
 RUN useradd --create-home --uid 10001 app && chown app:app /app
 COPY --chown=app:app backend/ ./backend/
 COPY --chown=app:app ml/ ./ml/
+# Runtime inputs for real mode (tests.parquet, cited corpus); ml/artifacts comes with ml/ above.
+# Compose's read-only bind mounts still sit on top of these, so local edits show without a rebuild.
+COPY --chown=app:app data/processed/ ./data/processed/
+COPY --chown=app:app data/docs/ ./data/docs/
 COPY --chown=app:app docker/backend_entrypoint.py docker/rag_entrypoint.py docker/rag_bundle.py ./docker/
 USER app
 EXPOSE 8000

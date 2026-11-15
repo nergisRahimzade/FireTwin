@@ -10,8 +10,14 @@
 !frontend/**
 !docker/
 !docker/**
+!data/processed/
+!data/processed/**
+!data/docs/
+!data/docs/**
 
-# Never bake local environments, caches, private plans, downloaded data or model artifacts in.
+# The small tracked runtime inputs (data/processed, data/docs, ml/artifacts) ARE copied into the
+# backend image so a hosted container (e.g. Render) can run real mode without bind mounts.
+# Never bake local environments, caches, private plans or raw downloaded data in.
 **/.env
 **/.env.*
 **/.venv
@@ -24,4 +30,3 @@
 **/.ruff_cache
 backend/tests
 ml/tests
-ml/artifacts/**

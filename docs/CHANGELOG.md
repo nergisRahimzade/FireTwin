@@ -4,6 +4,10 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-02**: copy the tracked `data/processed/`, `data/docs/` and `ml/artifacts/` files into the
+  backend image, so it runs real mode on a Docker host (Render) with no bind mounts. Compose
+  mounts are unchanged and still take precedence. No API contract change.
+
 - **OPS-02**: prepare and SHA-256-verify local MiniLM/index bundles, with an optional
   read-only Compose mount and non-root writable index copy. Runtime local queries need
   no weight download; default/missing-bundle keyword fallback remains. Document preparation,

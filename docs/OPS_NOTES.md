@@ -741,3 +741,19 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   at the end of the file was folded into the 2026-11-15 list.
 - `DECISIONS.md` records the verified package 4 findings and the open owner decision about the
   private PDFs inside the public `demo-v1` tag. No decision is claimed.
+
+
+## OPS-02: backend image carries its runtime data (2026-11-15, Nergis)
+
+- Hosting plan: frontend on Vercel, backend as a Docker web service (Render) built from
+  `docker/backend.Dockerfile` with the repo root as build context. Vercel's Python runtime
+  supports only 3.12+, so the 3.11 backend does not go on Vercel.
+- A hosted container has no bind mounts, so the image previously started in synthetic mock
+  mode. `.dockerignore` now lets `data/processed/`, `data/docs/` and `ml/artifacts/` into the
+  build context and the Dockerfile copies the data folders (artifacts arrive with `ml/`).
+  These are small tracked files (under 100 KB), not raw downloads, keys or private plans.
+- Set `MOCK_MODE=0` on the host so a missing file fails startup instead of quietly serving
+  mocks, and `PORT=8000` so Render routes to the container's port. Compose behaviour is
+  unchanged: its read-only bind mounts sit on top of the copied files.
+- The Vercel frontend reaches the backend through an `/api/:path*` rewrite in
+  `frontend/vercel.json` (Nathan's file, not part of this change), so no CORS setting is needed.
