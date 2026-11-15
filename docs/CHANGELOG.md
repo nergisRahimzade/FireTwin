@@ -4,6 +4,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-02**: the backend image includes the committed processed data, text corpus and model
+  artifacts, so it runs in real mode without bind mounts (for hosting). Compose is unchanged.
+
 - **OPS-04**: the e2e loop defaults to the full demo flow on real data (PMMA rod, 21 % O2,
   10 cm/s: alarm at 40 s, fans off puts it out) and prints a one-line demo-flow summary.
   Docs mark the earlier Heptane default and "solids can't be put out" notes as superseded.

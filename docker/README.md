@@ -54,8 +54,11 @@ Only `data/processed/`, `data/docs/` and `ml/artifacts/` are read-only bind moun
 Raw uploads, clean intermediate CSVs and pipeline scripts are not mounted into the backend.
 The processed table/metadata and cited text corpus remain available to the API. Their tracked directories
 must exist; Compose will not silently create missing host paths. Training and downloads happen
-outside these containers. Runtime source and dependencies live in the images; private plan PDFs,
-local env files, host environments, caches, data and artifacts are excluded from the build context.
+outside these containers. Runtime source and dependencies live in the images, and so do the committed
+`data/processed/`, `data/docs/` and `ml/artifacts/`, so the backend image also runs in real mode
+without these mounts (e.g. on a hosting service). Private plan PDFs, local env files, host
+environments, caches, raw uploads and other data are excluded from the build context. The mounts
+sit on top of the copied files, so local edits still show up without rebuilding.
 
 ## Choosing and checking the mode
 

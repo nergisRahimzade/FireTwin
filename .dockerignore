@@ -10,8 +10,15 @@
 !frontend/**
 !docker/
 !docker/**
+# The processed table and cited text corpus the API reads, so the image runs in real mode on its
+# own (e.g. on a host without bind mounts). Raw uploads and clean CSVs stay out.
+!data/processed/
+!data/processed/**
+!data/docs/
+!data/docs/**
 
-# Never bake local environments, caches, private plans, downloaded data or model artifacts in.
+# Never bake local environments, caches, private plans or raw/downloaded data in. The committed
+# model artifacts (ml/artifacts) are included with ml/ above, for the same reason as the data.
 **/.env
 **/.env.*
 **/.venv
@@ -24,4 +31,3 @@
 **/.ruff_cache
 backend/tests
 ml/tests
-ml/artifacts/**
