@@ -6,8 +6,9 @@ import type { SimulateOut, Vec3 } from "../api/types";
 import { FIRE_POS } from "../lab/config.js";
 import { Smoke as CoreSmoke } from "../lab/core.js";
 
-// The demo clock runs 10x real time (plan, FE-06: "time scaled for demo, e.g. 10x").
-export const SCENE_TIME_SCALE = 10;
+import { SCENE_TIME_SCALE } from "./clock";
+
+export { SCENE_TIME_SCALE };
 // Simulated seconds a particle lives: long enough to cross the 8.5 m module at slow airflow.
 export const SMOKE_LIFE_S = 60;
 // Particles per simulated second while burning, scaled by the burn probability.
@@ -43,6 +44,8 @@ export const MAX_SUBSTEP_SIM_S = 0.5;
 // A frame gap longer than this (a hidden tab, a debugger pause) is capped, so returning to the page
 // doesn't run hundreds of catch-up steps at once. Below it, every real second is simulated in full.
 export const MAX_FRAME_GAP_S = 1;
+// Catching up a view that mounts mid-ignition replays at most one particle lifetime (+20 %).
+export const CATCH_UP_MAX_S = (SMOKE_LIFE_S * 1.2) / SCENE_TIME_SCALE;
 
 /* Owns the particle system for Smoke.tsx (and runs headless in tests):
    - sync(ignition): a new ignition (the store's counter changed) clears the old cloud, even when the
@@ -71,6 +74,26 @@ export class SmokeDriver {
     return true;
   }
 
+  /** Clears the cloud (e.g. Reset: there is no scenario any more). */
+  clear(): void {
+    this.smoke.reset();
+    this.simElapsed = 0;
+  }
+
+  /** Fast-forwards a fresh cloud to `realSeconds` after ignition, e.g. when a 3D view mounts while a
+      fire is already burning (back from Compare, or the Compare pane). Only the last particle
+      lifetime matters, so at most that much is replayed. */
+  catchUp(realSeconds: number, s: SmokeSettings): void {
+    const total = Math.max(0, realSeconds);
+    let replay = Math.min(total, CATCH_UP_MAX_S);
+    while (replay > 1e-9) {
+      const chunk = Math.min(replay, MAX_FRAME_GAP_S);
+      this.advance(chunk, s);
+      replay -= chunk;
+    }
+    this.simElapsed = total * SCENE_TIME_SCALE;
+  }
+
   advance(realSeconds: number, s: SmokeSettings): void {
     const p = this.params;
     p.rate = s.rate; // 0 once extinguished: the last smoke drifts on and fades
@@ -91,5 +114,26 @@ export class SmokeDriver {
     let n = 0;
     for (let i = 0; i < this.smoke.n; i++) if (this.smoke.age[i] >= 0) n++;
     return n;
+  }
+}
+
+/* What Smoke.tsx does whenever the scenario or the ignition counter changes:
+   - no scenario (before ignition, or after Reset): clear the cloud, so nothing is left frozen;
+   - a new ignition, or this view mounting mid-ignition: start the cloud at the current point of the
+     ignition (catch up from ignitedAt), so it never restarts after Compare and back;
+   - /apply (same ignition, new prediction): keep the cloud. */
+export function syncSmoke(
+  driver: SmokeDriver,
+  sim: SimulateOut | null,
+  ignition: number,
+  ignitedAt: number | null,
+  now = Date.now(),
+): void {
+  if (!sim) {
+    driver.clear();
+    return;
+  }
+  if (driver.sync(ignition) && ignitedAt != null) {
+    driver.catchUp(Math.max(0, now - ignitedAt) / 1000, smokeSettings(sim));
   }
 }

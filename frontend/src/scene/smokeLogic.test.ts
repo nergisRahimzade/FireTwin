@@ -6,7 +6,7 @@ import type { SimulateOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 import { Smoke as CoreSmoke } from "../lab/core.js";
 import {
-  MAX_FRAME_GAP_S, NO_SMOKE, SCENE_TIME_SCALE, SMOKE_LIFE_S, SmokeDriver, smokeSettings,
+  MAX_FRAME_GAP_S, NO_SMOKE, SCENE_TIME_SCALE, SMOKE_LIFE_S, SmokeDriver, smokeSettings, syncSmoke,
 } from "./smokeLogic";
 
 const sim = (over: Partial<SimulateOut> = {}, inputs: Partial<SimulateOut["inputs"]> = {}): SimulateOut => ({
@@ -132,6 +132,40 @@ describe("SmokeDriver: the 10x clock holds at any frame rate (review fix)", () =
     d.sync(1);
     d.advance(30, smokeSettings(sim()));
     expect(d.simElapsed).toBeCloseTo(MAX_FRAME_GAP_S * SCENE_TIME_SCALE, 6);
+  });
+});
+
+describe("syncSmoke: Reset, remounts and /apply (second review)", () => {
+  const burningSim = sim({ scenario_id: "synthetic-scenario-001" });
+  const burnFor = (d: SmokeDriver, seconds: number) => {
+    for (let t = 0; t < seconds; t += 1 / 60) d.advance(1 / 60, smokeSettings(burningSim));
+  };
+
+  it("Reset (simulate becomes null) clears the cloud instead of leaving it frozen", () => {
+    const d = new SmokeDriver(), ignitedAt = 1_000;
+    syncSmoke(d, burningSim, 1, ignitedAt, ignitedAt);
+    burnFor(d, 2);
+    expect(d.liveCount()).toBeGreaterThan(100);
+    syncSmoke(d, null, 1, null); // reset(): no scenario, same ignition counter
+    expect(d.liveCount()).toBe(0);
+    expect(Array.from(d.smoke.alpha).every(a => a === 0)).toBe(true); // nothing left drawn
+  });
+
+  it("a view mounting mid-ignition (Compare and back) starts at the current moment, not from zero", () => {
+    const d = new SmokeDriver(), ignitedAt = 1_000, now = ignitedAt + 3_000; // 3 s = 30 s simulated
+    syncSmoke(d, burningSim, 1, ignitedAt, now);
+    expect(d.simElapsed).toBeCloseTo(30, 6);
+    expect(d.liveCount()).toBeGreaterThan(100);
+  });
+
+  it("a brand-new ignition starts empty, and /apply keeps the cloud", () => {
+    const d = new SmokeDriver(), ignitedAt = 5_000;
+    syncSmoke(d, burningSim, 2, ignitedAt, ignitedAt);
+    expect(d.liveCount()).toBe(0);
+    burnFor(d, 2);
+    const before = d.liveCount();
+    syncSmoke(d, sim({ scenario_id: "synthetic-scenario-001", state: "extinguished" }), 2, ignitedAt);
+    expect(d.liveCount()).toBe(before);
   });
 });
 

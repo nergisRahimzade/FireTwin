@@ -1,5 +1,5 @@
 // FE-02: the store's state machine and its calls to the API (the API client is faked).
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetectOut, SimulateOut, SuppressOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 
@@ -133,5 +133,76 @@ describe("useScenario store", () => {
     expect(store().phase).toBe("idle");
     expect(store().simulate).toBeNull();
     expect(store().inputs.o2_pct).toBe(34);
+  });
+});
+
+describe("FE-06 alarm in the store (second review)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  async function igniteDetectedAt(seconds: number) {
+    fake.simulate.mockResolvedValue(sim("burning", "synthetic-scenario-001"));
+    fake.detect.mockResolvedValue({ ...det(true), detector_id: "vent_fwd", time_to_detect_s: seconds });
+    await store().ignite();
+  }
+
+  it("fires once at time_to_detect_s on the 10x clock, and not again after Compare and back", async () => {
+    let trips = 0;
+    const unsubscribe = useScenario.subscribe((s, prev) => { if (s.alarmId && !prev.alarmId) trips++; });
+    await igniteDetectedAt(40); // 40 s simulated = 4 s real
+    const ignitedAt = store().ignitedAt;
+    expect(ignitedAt).not.toBeNull();
+    vi.advanceTimersByTime(3_900);
+    expect(store().alarmId).toBeNull();
+    vi.advanceTimersByTime(200);
+    expect(store().alarmId).toBe("vent_fwd");
+    expect(trips).toBe(1);
+    // Compare and back unmounts and remounts the views. They only read the store and schedule
+    // nothing, so the clock and alarm are untouched and nothing fires again.
+    vi.advanceTimersByTime(20_000);
+    expect(trips).toBe(1);
+    expect(store().alarmId).toBe("vent_fwd");
+    expect(store().ignitedAt).toBe(ignitedAt);
+    unsubscribe();
+  });
+
+  it("Reset clears the alarm and the clock, and cancels a pending alarm", async () => {
+    await igniteDetectedAt(40);
+    store().reset();
+    expect(store().ignitedAt).toBeNull();
+    vi.advanceTimersByTime(10_000);
+    expect(store().alarmId).toBeNull();
+  });
+
+  it("Ignite again before the alarm drops the earlier ignition's alarm", async () => {
+    await igniteDetectedAt(40);
+    vi.advanceTimersByTime(2_000);
+    await igniteDetectedAt(40); // same mock scenario_id, new ignition: the clock restarts
+    vi.advanceTimersByTime(2_500); // 4.5 s after the first ignition, 2.5 s after the second
+    expect(store().alarmId).toBeNull();
+    vi.advanceTimersByTime(1_600);
+    expect(store().alarmId).toBe("vent_fwd");
+  });
+
+  it("never alarms when nothing is detected", async () => {
+    fake.simulate.mockResolvedValue(sim("burning"));
+    fake.detect.mockResolvedValue(det(false));
+    await store().ignite();
+    vi.advanceTimersByTime(60_000);
+    expect(store().alarmId).toBeNull();
+  });
+});
+
+describe("views read the alarm from the store", () => {
+  it("SceneView and CompareView keep no timers or alarm state of their own", () => {
+    const files = import.meta.glob(["../components/SceneView.tsx", "../components/CompareView.tsx"], {
+      query: "?raw", import: "default", eager: true,
+    }) as Record<string, string>;
+    expect(Object.keys(files)).toHaveLength(2);
+    for (const source of Object.values(files)) {
+      expect(source).not.toMatch(/setTimeout|useState|performance\.now/);
+      expect(source).toMatch(/useScenario\(s => s\.alarmId\)/);
+      expect(source).toMatch(/useScenario\(s => s\.ignitedAt\)/);
+    }
   });
 });

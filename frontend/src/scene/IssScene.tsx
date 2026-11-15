@@ -13,7 +13,7 @@ import { Flame } from "./Flame";
 import { Smoke } from "./Smoke";
 import { IssLab } from "./IssLab";
 import { detectorMarks } from "./detectors";
-import { SCENE_TIME_SCALE } from "./smokeLogic";
+import { simSecondsSince } from "./clock";
 
 // Falls back to the coded module when the glTF can't load (Suspense only covers "still loading").
 class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
@@ -77,18 +77,12 @@ function DetectorMarkers({ detect, alarmId }: { detect: DetectOut | null; alarmI
   );
 }
 
-export interface SceneClock {
-  el: MutableRefObject<HTMLSpanElement | null>; // the HUD readout
-  startedAt: MutableRefObject<number | null>; // performance.now() at ignition, null before
-}
+
 
 // The demo clock readout: simulated seconds since ignition (10x real time). DOM text only.
-function ClockReadout({ clock }: { clock: SceneClock }) {
+function ClockReadout({ el, ignitedAt }: { el: MutableRefObject<HTMLSpanElement | null>; ignitedAt: number | null }) {
   useFrame(() => {
-    const start = clock.startedAt.current;
-    if (clock.el.current) {
-      clock.el.current.textContent = start == null ? "0.0" : (((performance.now() - start) / 1000) * SCENE_TIME_SCALE).toFixed(1);
-    }
+    if (el.current) el.current.textContent = simSecondsSince(ignitedAt).toFixed(1);
   });
   return null;
 }
@@ -96,12 +90,14 @@ function ClockReadout({ clock }: { clock: SceneClock }) {
 interface IssSceneProps {
   detect: DetectOut | null;
   simulate: SimulateOut | null;
-  alarmId?: string | null; // the detector that tripped, once the demo clock reaches time_to_detect_s
-  ignition?: number; // the store's ignition counter: a new value restarts the smoke
-  clock?: SceneClock;
+  // From the store, so every view (main page or Compare) shows the same moment of the same ignition.
+  alarmId?: string | null; // the detector that tripped, once the demo clock reached time_to_detect_s
+  ignition?: number; // the ignition counter: a new value restarts the smoke
+  ignitedAt?: number | null; // Date.now() at this ignition: drives the clock and smoke catch-up
+  clockEl?: MutableRefObject<HTMLSpanElement | null>; // optional HUD readout of the demo clock
 }
 
-export function IssScene({ detect, simulate, alarmId = null, clock, ignition = 0 }: IssSceneProps) {
+export function IssScene({ detect, simulate, alarmId = null, ignition = 0, ignitedAt = null, clockEl }: IssSceneProps) {
   return (
     <Canvas
       flat
@@ -119,8 +115,8 @@ export function IssScene({ detect, simulate, alarmId = null, clock, ignition = 0
         </Suspense>
       </ModelBoundary>
       <DetectorMarkers detect={detect} alarmId={alarmId} />
-      {clock && <ClockReadout clock={clock} />}
-      <Smoke simulate={simulate} ignition={ignition} />
+      {clockEl && <ClockReadout el={clockEl} ignitedAt={ignitedAt} />}
+      <Smoke simulate={simulate} ignition={ignition} ignitedAt={ignitedAt} />
       <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />

@@ -2,7 +2,7 @@
    The alarm follows DetectOut from the API (time_to_detect_s), never the particles: the smoke only
    illustrates. On the 10x demo clock, a detector that trips at 40 s shows red after 4 real seconds. */
 import type { DetectOut } from "../api/types";
-import { SCENE_TIME_SCALE } from "./smokeLogic";
+import { SCENE_TIME_SCALE } from "./clock";
 
 // Real seconds after ignition when the alarm shows, or null if no detector ever trips.
 export function alarmAfterS(detect: DetectOut | null, scale = SCENE_TIME_SCALE): number | null {

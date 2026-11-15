@@ -7,6 +7,7 @@ import type {
   ActionName, ChatOut, DetectOut, MetaOut, ResultsOut, ScenarioIn, SimulateOut, SuppressOut,
 } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
+import { alarmAfterS } from "../scene/alarmLogic";
 
 export type Phase = "idle" | "burning" | "detected" | "suppressing" | "out" | "still_burning";
 
@@ -50,6 +51,10 @@ interface ScenarioData {
   // Frontend ignition counter: +1 on every successful /simulate (not /apply). The 3D scene restarts its
   // smoke and demo clock when it changes, even if the backend reuses a scenario_id (the BE-06 mock does).
   ignitions: number;
+  // FE-06: set once per ignition and shared by every 3D view, so switching to Compare and back
+  // neither restarts the demo clock nor fires the alarm again.
+  ignitedAt: number | null; // Date.now() when this ignition's /simulate returned
+  alarmId: string | null; // the detector that tripped, once the demo clock reached time_to_detect_s
   loading: Record<Step, boolean>;
   error: string | null;
 }
@@ -85,6 +90,8 @@ export const initialScenario: ScenarioData = {
   chat: [],
   phase: "idle",
   ignitions: 0,
+  ignitedAt: null,
+  alarmId: null,
   loading: IDLE_LOADING,
   error: null,
 };
@@ -103,6 +110,27 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     }
   }
   const scenarioId = () => get().simulate?.scenario_id ?? null;
+
+  // FE-06 alarm: one timer per /detect result, owned by the store (not a component), so it survives
+  // views mounting and unmounting. It fires at time_to_detect_s on the 10x demo clock, counted from
+  // ignitedAt, and only if the same ignition is still current.
+  let alarmTimer: ReturnType<typeof setTimeout> | null = null;
+  const clearAlarm = () => {
+    if (alarmTimer !== null) clearTimeout(alarmTimer);
+    alarmTimer = null;
+  };
+  const scheduleAlarm = (detect: DetectOut) => {
+    clearAlarm();
+    const at = alarmAfterS(detect);
+    const id = detect.detector_id;
+    if (at == null || !id) return;
+    const { ignitions, ignitedAt } = get();
+    const elapsed = ignitedAt == null ? 0 : (Date.now() - ignitedAt) / 1000;
+    alarmTimer = setTimeout(() => {
+      alarmTimer = null;
+      if (get().ignitions === ignitions) set({ alarmId: id });
+    }, Math.max(0, at - elapsed) * 1000);
+  };
   const needScenario = () => {
     set({ error: "Ignite a scenario first." });
     return null;
@@ -128,8 +156,10 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const res = await run("simulate", () => api.simulate(get().inputs));
       if (!res) return null;
       // A new scenario: earlier detection, actions and results no longer apply.
+      clearAlarm();
       set(s => ({
         simulate: res, detect: null, suppress: null, results: null, history: [res], ignitions: s.ignitions + 1,
+        ignitedAt: Date.now(), alarmId: null,
         phase: nextPhase(s.phase, { type: "simulated", state: res.state }),
       }));
       return res;
@@ -139,7 +169,10 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const id = scenarioId();
       if (!id) return needScenario();
       const res = await run("detect", () => api.detect(id));
-      if (res) set(s => ({ detect: res, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
+      if (res) {
+        set(s => ({ detect: res, alarmId: null, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
+        scheduleAlarm(res);
+      }
       return res;
     },
 
@@ -185,6 +218,9 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
 
     // Keeps the chosen inputs and the loaded /meta, so the user can rerun the loop at once.
     // ignitions keeps counting, so the next Ignite after a Reset is always a new ignition.
-    reset: () => set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions })),
+    reset: () => {
+      clearAlarm();
+      set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions }));
+    },
   };
 });
