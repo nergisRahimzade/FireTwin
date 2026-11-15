@@ -125,3 +125,15 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **BE-10 / BE-11 integration**: resolved PR #19 against current main, retaining all real routers,
   Gemini/OpenAI support and upstream work. Chat and the input cache join the existing real-mode
   loop; removed obsolete unbuilt-route checks now that all planned endpoints are implemented.
+- **OPS-02**: two-service Docker Compose stack (backend 8000, Vite frontend 5173) with locked
+  image dependencies, health-based startup, non-root services, init/signal handling and read-only
+  data/artifact mounts. Added root-owned Dockerfiles, a secret/cache-safe build context, automatic
+  synthetic mock fallback when required files are missing, startup regression tests and
+  `docker/README.md`. Optional host-port overrides keep browser API URL/CORS aligned. The native
+  API contract and mode parsing remain unchanged; container settings need no `.env` or API key.
+- **BE-12**: `backend/tests/test_endpoints.py` tests every endpoint over HTTP in mock and real mode
+  (status + `schemas.py` shape, PDF for export), fails if a mode serves a route the matrix doesn't
+  list, checks unknown scenarios give 404 in real mode, and checks `fans_off` ranks above
+  `water_mist` through `/suppress` on the default data. All 9 endpoints, both modes.
+  Fix: `backend/tests/conftest.py` now also clears `OPENAI_API_KEY`, so a key in a developer's
+  shell can no longer make real, billed API calls during tests (a guard test proves it).

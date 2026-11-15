@@ -1,36 +1,36 @@
-import { useState } from "react";
+/* FireTwin on one page (team whiteboard, 2026-11-14), replacing the plan's three tabs:
+   desktop: 3D view (left/centre) | variables panel (right); under the 3D view, the suppression
+   recommendations and the dashboard. Mobile stacks 3D, variables (collapsible), recommendations,
+   dashboard. Compare is a full-screen mode on the same page, not a route. */
+import { useCallback, useState } from "react";
 import { ApiStatus } from "./components/ApiStatus";
-import { ChatTab } from "./tabs/ChatTab";
-import { ResultsTab } from "./tabs/ResultsTab";
-import { SimulationTab } from "./tabs/SimulationTab";
-
-const TABS = [
-  ["simulation", "Simulation"],
-  ["results", "Results"],
-  ["chat", "Chat"],
-] as const;
-type TabId = (typeof TABS)[number][0];
+import { CompareView } from "./components/CompareView";
+import { Dashboard } from "./components/Dashboard";
+import { SceneView } from "./components/SceneView";
+import { SuppressionPanel } from "./components/SuppressionPanel";
+import { VariablesPanel } from "./components/VariablesPanel";
 
 export default function FireTwinApp() {
-  const [tab, setTab] = useState<TabId>("simulation");
+  const [comparing, setComparing] = useState(false);
+  const closeCompare = useCallback(() => setComparing(false), []);
   return (
-    <main className="page">
+    <main className="page page-wide">
       <header className="grid gap-2">
         <span className="label">NASA Space Apps 2026 · Flame in Freefall</span>
         <h1 className="text-4xl font-bold tracking-tight">FireTwin</h1>
         <p className="muted m-0">A fire-safety digital twin of an ISS lab module: set up a fire, detect it, suppress it, and see why.</p>
       </header>
       <ApiStatus />
-      <div className="grid gap-6">
-        <nav className="tabs" role="tablist" aria-label="FireTwin">
-          {TABS.map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
-          ))}
-        </nav>
-        {tab === "simulation" && <SimulationTab />}
-        {tab === "results" && <ResultsTab />}
-        {tab === "chat" && <ChatTab />}
-      </div>
+      {comparing ? (
+        <CompareView onClose={closeCompare} />
+      ) : (
+        <div className="one-page">
+          <SceneView onCompare={() => setComparing(true)} />
+          <VariablesPanel />
+          <SuppressionPanel />
+          <Dashboard />
+        </div>
+      )}
       <footer className="foot-note">Flame is illustrative. Verdicts come from NASA PSI data.</footer>
     </main>
   );

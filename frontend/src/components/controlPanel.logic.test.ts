@@ -2,7 +2,9 @@
 import { describe, expect, it } from "vitest";
 import type { MetaOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
-import { FLOW_DIRS, bandPercent, igniteBlocker, isOutside, outsideKeys, testedRange } from "./controlPanel.logic";
+import {
+  FLOW_DIRS, bandPercent, clampToLimits, igniteBlocker, isOutside, outsideKeys, parseTyped, testedRange,
+} from "./controlPanel.logic";
 
 const meta = (ranges: MetaOut["ranges"]): MetaOut => ({
   materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges, investigations: [],
@@ -41,6 +43,21 @@ describe("bandPercent", () => {
   });
   it("clips a band that runs past the slider", () => {
     expect(bandPercent({ min: 5, max: 50 }, "o2_pct")).toEqual({ left: 0, right: 0 });
+  });
+});
+
+describe("number inputs", () => {
+  it("keep typed values inside each slider's limits", () => {
+    expect(clampToLimits("o2_pct", 90)).toBe(40);
+    expect(clampToLimits("flow_speed_cm_s", -5)).toBe(0);
+    expect(parseTyped("o2_pct", "23.5")).toBe(23.5);
+    expect(parseTyped("o2_pct", "23,5")).toBe(23.5);
+    expect(parseTyped("pressure_kpa", "500")).toBe(110);
+  });
+  it("wait while the text isn't a number yet", () => {
+    expect(parseTyped("o2_pct", "")).toBeNull();
+    expect(parseTyped("o2_pct", "-")).toBeNull();
+    expect(parseTyped("o2_pct", "abc")).toBeNull();
   });
 });
 
