@@ -238,9 +238,15 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     runSuppress: async () => {
       const id = scenarioId();
       if (!id) return needScenario();
-      const res = await runCurrent("suppress", () => api.suppress(id));
-      if (res) set(s => ({ suppress: res, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
-      return res;
+      const sent = epoch;
+      // Save the ranking inside the call, before run() clears loading.suppress. Saving it after
+      // left a moment of "alarm, no ranking, not loading", and SuppressionPanel's auto-rank effect
+      // then sent a second /suppress for the same alarm.
+      return runCurrent("suppress", async () => {
+        const res = await api.suppress(id);
+        if (epoch === sent) set(s => ({ suppress: res, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
+        return res;
+      });
     },
 
     runApply: async action => {
