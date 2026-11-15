@@ -7,7 +7,7 @@
    session, fetched once per session with /preview (no scenario or history row is created on the
    server): solid where NASA tested that fuel's O2 range, dashed where the model extrapolates, and
    the nearest NASA tests in their own strip under the O2 axis.
-   Export PDF downloads the dashboard. */
+   Export PDF generates a research report from every saved session. */
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { type Session, useScenario } from "../store/useScenario";
@@ -154,14 +154,12 @@ function O2Chart({ session }: { session: Session }) {
 }
 
 export function Dashboard() {
-  const dashboardRef = useRef<HTMLElement>(null);
   const scenarioId = useScenario(s => s.simulate?.scenario_id ?? null);
   const historyLen = useScenario(s => s.history.length);
   const detect = useScenario(s => s.detect);
   const results = useScenario(s => s.results);
   const loadingResults = useScenario(s => s.loading.results);
   const loadResults = useScenario(s => s.loadResults);
-  const timeline = useScenario(s => s.timeline);
   const sessions = useScenario(s => s.sessions);
   const viewing = useScenario(s => s.viewing);
   const liveSession = useScenario(s => s.liveSession);
@@ -188,7 +186,7 @@ export function Dashboard() {
   const hasPast = sessions.some(s => s.id !== liveSession);
 
   return (
-    <section ref={dashboardRef} className="area-dash glass panel" aria-label="Results dashboard">
+    <section className="area-dash glass panel" aria-label="Results dashboard">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="panel-title">Dashboard</h2>
         <div className="export-menu" role="group" aria-label="Dashboard actions">
@@ -196,17 +194,16 @@ export function Dashboard() {
             Clear history
           </button>
           <button
-            type="button" className="btn-ghost" disabled={exporting}
+            type="button" className="btn-ghost" disabled={exporting || !sessions.length}
             onClick={async () => {
-              if (!dashboardRef.current) return;
               setExporting(true);
               setExportError(null);
-              try { await downloadDashboardPdf(dashboardRef.current, timeline); }
-              catch { setExportError("Could not export the dashboard PDF."); }
+              try { await downloadDashboardPdf(sessions); }
+              catch { setExportError("Could not export the session research report."); }
               finally { setExporting(false); }
             }}
           >
-            {exporting ? "Creating PDF…" : "Export to PDF"}
+            {exporting ? "Creating report…" : "Export sessions PDF"}
           </button>
         </div>
       </div>

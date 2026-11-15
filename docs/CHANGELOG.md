@@ -4,6 +4,13 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **FE-09**: replace the dashboard screenshot PDF with a portrait session research report:
+  timestamped inputs/materials, initial/final model statistics, saved suppression probabilities
+  and recommendations, step outcomes, and linked NASA evidence rows with synthetic labels.
+  Save per-session response events and ranking input snapshots; export every saved session
+  without API calls or recalculating historical recommendations. Older missing details are
+  explicitly unrecorded. Text and vector layout flow across pages.
+
 - **FE-06** (PR #54 review fixes): use the live preview's trust and extrapolation flags
   so the flame's outside-range warning follows edited settings. Label unrecorded previews
   in Compare and distinguish the recorded alarm; cover both range transitions and notice

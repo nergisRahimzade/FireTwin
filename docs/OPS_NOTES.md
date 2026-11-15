@@ -22,9 +22,11 @@ implementation history; this snapshot and later follow-ups describe the current 
 - `services/store.py` and the prediction cache are process-local and lost on restart.
   Run one API worker for a consistent demo; reloads also lose scenarios. Durable/multi-worker
   storage is additional scope, not the planned BE-01 implementation.
-- Results rows use named steps and source-ID strings. PDF history comes from the same saved
+- Results rows use named steps and source-ID strings. API PDF history comes from the same saved
   rows; its separate recommendation is calculated for current inputs at export time and
   labeled accordingly. It may differ from a recommendation displayed before Apply.
+  The browser's Export sessions PDF instead uses its saved sessions and assessment snapshots;
+  see the session research report section below.
 - Retrieval tries Chroma when a local store exists, and uses keyword search if the store
   is absent or errors. A successful vector search with no qualifying hits returns no evidence,
   rather than retrying keywords. Default Docker mounts no vector store/cache; PR #34 adds an
@@ -830,3 +832,23 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - Folders outside this checkout, source archives without `.git`, and hosts without the
   Git binary keep the existing setup behavior. Linked worktrees are checked too.
   The separate index guard still rejects committed model/index files.
+
+## FE-09: browser session research PDF (2026-11-15, Ryan)
+
+- At the user's request, the browser export is a portrait academic report with cream paper,
+  warm ink, paired summary cards, model probability bars and an evidence register. Every saved
+  session starts a new page; long assessments and source text continue at readable sizes.
+  Text is selectable and HTTP(S) evidence URLs are linked. It replaces the dashboard screenshot.
+- Successful simulate/detect/suppress/apply responses now append an internal `SessionEvent`
+  with its browser receipt time. Rankings preserve the response and the browser's input snapshot
+  at request time, including earlier assessments after Apply/re-ranking. These timestamps are
+  application records, not NASA experiment dates; they are printed in UTC. This does not claim
+  transactional input snapshots for overlapping backend requests.
+- Export freezes every saved session before asynchronous PDF creation. It uses saved predictions,
+  action probabilities and full TestRef rows without API calls, training, or a new recommendation.
+  Synthetic references are marked; probabilities/spread are model estimates and crew risk is an
+  assumption. Missing measurements stay unknown. Sessions recorded before event capture retain
+  their available data, with unknown action times/names or ranking inputs explicitly unrecorded.
+- The in-memory snapshot is limited to this browser tab and to completed responses at export time.
+  This frontend report adds no public API fields or backend/store changes. The separate API
+  `/export/{id}.pdf` still has the historical-recommendation limitation recorded in DECISIONS.
