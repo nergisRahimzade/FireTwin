@@ -1,0 +1,27 @@
+# Send only runtime source, dependency locks and container tooling to the builder.
+**
+!pyproject.toml
+!uv.lock
+!backend/
+!backend/**
+!ml/
+!ml/**
+!frontend/
+!frontend/**
+!docker/
+!docker/**
+
+# Never bake local environments, caches, private plans, downloaded data or model artifacts in.
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/dist
+**/.vite
+**/.pytest_cache
+**/.ruff_cache
+backend/tests
+ml/tests
+ml/artifacts/**

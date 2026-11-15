@@ -51,8 +51,8 @@ Add an entry each time an OPS task makes a decision like this.
   only the original checkout; the shared rule protects teammates who obtain the private plans.
 
 **Differs from the plan, or needs follow-up**
-- `docker-compose.yml` is a comments-only placeholder (it's in the repo tree, but writing it is
-  OPS-02). Until then `docker compose up` stops with an "empty compose file" error.
+- OPS-01 created `docker-compose.yml` as a comments-only placeholder; OPS-02 below now implements
+  the two-service stack.
 - `ml/artifacts/` is deliberately **not** ignored, because OPS-05 commits prebuilt artifacts there.
 - OPS-05 says the demo should need no network except the LLM. If that means the vector store must
   ship prebuilt, OPS-05 has to stop ignoring `chroma_db/` (or rebuild it offline at startup).
@@ -138,9 +138,9 @@ Add an entry each time an OPS task makes a decision like this.
   FE-09 wants `step` as a number; switching to names would change BE-01 and these mocks together.
 
 **Follow-ups**
-- `MOCK_MODE` defaulting to `1` suits Phase 0, but once real routes exist a deployment that
-  forgets to set it would quietly serve fixtures. OPS-02 should flip the default to `0`, or switch
-  to mock mode only when `ml/artifacts/` is missing (the plan's wording for `docker compose up`).
+- Native `MOCK_MODE` still defaults to `1`. OPS-02 adds automatic missing-file fallback at the
+  container entrypoint instead of changing native parsing. An explicit `MOCK_MODE=1` still
+  forces fixtures; blank/unset mode in Docker selects real mode when required files exist.
 - Open with Nergis: how ML-03's per-fuel-type ranges map onto the flat `MetaOut.ranges` shape.
 
 **Checks**
@@ -412,3 +412,51 @@ git push origin demo-v1                     # tags are pushed separately from br
 - Main advanced during validation with OPS-05 (#17); its demo-artifact checks and notes were
   retained and the documentation conflict was resolved before the final 504-test run. Runtime
   code is the same code exercised by the real end-to-end loop above.
+
+## OPS-02: Docker Compose development stack (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- The original BE-06-based stack is synchronized with current `main` before publication, so
+  all real backend routes and ML artifacts are available. Native application files and the
+  frontend dependency versions are preserved.
+- `docker/backend.Dockerfile` uses Python 3.11 on Debian Bookworm plus uv 0.13.5, matching the local
+  uv version. It installs only runtime packages using `uv sync --locked --no-dev`; the container
+  runs uvicorn directly rather than resolving/installing dependencies at startup.
+  `docker/frontend.Dockerfile` uses Node 22 Bookworm, `npm ci`, and Vite on `0.0.0.0:5173`.
+  Dockerfiles stay in root-owned `docker/`, without changing frontend application files.
+- Both services run as non-root users with `init: true` and a shutdown grace period. Frontend
+  startup waits for backend `/health`, and both services have health checks using their existing
+  Python/Node standard libraries. Host ports bind to loopback; source changes require rebuilding.
+- `data/` and `ml/artifacts/` are read-only bind mounts, with host-path creation disabled so typos
+  cannot create empty directories as root. `.dockerignore` allowlists source/locks/container tooling
+  and excludes private docs, `.env` files, caches, host dependencies, data and model contents.
+- The standalone `docker/backend_entrypoint.py` resolves unset/blank `MOCK_MODE` before backend
+  import: missing/empty table, model or feature ranges selects synthetic mocks; otherwise real
+  mode. These paths match the predictor readers. Explicit `1` forces mocks, while explicit `0`
+  fails on missing files. This changes Docker startup only; the backend still receives strict 0/1.
+  File contents are not loaded by the entrypoint. Current main provides all real feature routers.
+- Compose does not require `.env` or load arbitrary env files into either service. It interpolates
+  only named settings, forwarding OpenAI/Gemini keys and optional model selections to the backend
+  only. Gemini forwarding follows the provider support already on main; blank model settings
+  preserve the service defaults. The public frontend API URL
+  points at localhost (the browser's network), never the Compose-only `backend` DNS name.
+  Optional `BACKEND_PORT`/`FRONTEND_PORT` overrides also adjust default API URL/CORS; explicit
+  `VITE_API_URL`/`CORS_ORIGINS` overrides remain possible. Details are in `docker/README.md`.
+
+**Checks and follow-ups**
+- `tests/test_container_startup.py` tests fallback, required files, explicit modes, bad settings,
+  and entrypoint execution without Docker, keys or model loading. Full `make test`/`make lint`
+  remain required. Runtime container checks use a separate project and temporary ports so an
+  existing native dev stack is not stopped or overwritten.
+- `npm ci` reports existing advisories in the frontend lockfile. OPS-02 preserves Nathan's
+  dependency versions; updating them is separate work. No host packages are installed by this task.
+
+**Publication validation (current main)**
+- `make test`: 523 passed in 20.04s. `make lint`: passed, 87 files formatted.
+- Built both images from the current lockfiles. A separate Compose project with temporary ports
+  passed both health checks, automatic real mode without `.env` or keys, browser API URL/CORS,
+  non-root execution, read-only mounts and the real OPS-04 loop through PDF export.
+- Container checks also passed automatic mock fallback without mounted artifacts, explicit real
+  failure on missing artifacts, explicit mocks with artifacts and Gemini model forwarding using
+  a fake key without an LLM call. The temporary project was removed cleanly; the existing user
+  stack was left running. Host Python/Node dependencies and application files were not modified.
