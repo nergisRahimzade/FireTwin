@@ -2,8 +2,11 @@
 import type { Phase } from "../store/useScenario";
 
 /** Rank actions once the alarm trips, if they aren't ranked or being ranked already. */
-export function shouldAutoRank(alarmId: string | null, hasRanking: boolean, loading: boolean): boolean {
-  return alarmId != null && !hasRanking && !loading;
+export function shouldAutoRank(
+  alarmId: string | null, hasRanking: boolean, loading: boolean, readOnly = false,
+): boolean {
+  // readOnly: a saved session is replaying; its alarm is history, not a fire to rank actions for.
+  return !readOnly && alarmId != null && !hasRanking && !loading;
 }
 
 /** A fire is still there to act on (Apply stays available after an action that failed). */

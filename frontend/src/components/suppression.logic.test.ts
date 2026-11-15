@@ -21,3 +21,11 @@ describe("canAct", () => {
     expect(canAct("out")).toBe(false);
   });
 });
+
+describe("shouldAutoRank while a saved session replays (FE09-002)", () => {
+  it("never ranks a read-only replay, but still ranks a live alarm", () => {
+    expect(shouldAutoRank("vent_fwd", false, false, true)).toBe(false);
+    expect(shouldAutoRank("vent_fwd", false, false, false)).toBe(true);
+    expect(shouldAutoRank("vent_fwd", false, false)).toBe(true); // default: live
+  });
+});
