@@ -4,6 +4,10 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-02**: bundle preparation stops before creating files or downloading weights when
+  Git cannot verify the output's ignore status in a checkout. Source archives and hosts
+  without Git retain their documented setup workflow.
+
 - **BE-05**: a malformed `CORS_ORIGINS` entry's startup error now names the fix (add
   `https://`, or remove the trailing slash). `docker/README.md` documents hosting the backend on
   Render, including the exact `CORS_ORIGINS` format.

@@ -84,7 +84,7 @@ def check_output_location(output: Path, repo: Path) -> None:
     a `git add` from committing it. Outside the repository, or without Git, there is nothing to do.
     """
     output = output.resolve()
-    if not output.is_relative_to(repo.resolve()):
+    if not output.is_relative_to(repo.resolve()) or not (repo / ".git").exists():
         return
     # Ask about a file inside the folder: the ignore rules match the folder as a directory,
     # which a path that doesn't exist yet can't show on its own.
@@ -95,10 +95,15 @@ def check_output_location(output: Path, repo: Path) -> None:
         )
     except FileNotFoundError:
         return  # no git installed
-    if result.returncode == 1:  # 0 = ignored, 1 = would be tracked, 128 = not a Git checkout
+    if result.returncode == 1:  # 0 = ignored, 1 = would be tracked; other exits are errors.
         raise ValueError(
             f"{output} is inside the repository but not git-ignored; use "
             ".local/rag-bundle-<name> or a folder outside the repository"
+        )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"cannot verify that {output} is git-ignored (git exit {result.returncode}); "
+            "fix the Git error or choose a folder outside the repository"
         )
 
 
