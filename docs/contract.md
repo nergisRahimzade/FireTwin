@@ -8,6 +8,9 @@ Source of truth: backend/app/schemas.py (BE-05)
 serve and what the frontend builds against, so the real tasks must return the **same keys**.
 Changing them is a contract change (rule 3).
 
+The table records intended inline keys. Known current implementation gaps are listed
+below; documenting a gap does not approve dropping a field or adding a new one.
+
 | Field | Keys | Real values come from |
 |---|---|---|
 | `MetaOut.materials[]` | `name`, `fuel_type`, `n_tests`, `is_synthetic` | BE-07 (unified test table) |
@@ -21,17 +24,25 @@ Changing them is a contract change (rule 3).
 - ML-03 saves min/max per feature **and per fuel_type**; BE-07 serves the `"overall"` section
   (see the BE-07 section below).
 - `is_synthetic` is `true` for placeholder values; real NASA-derived values set `false`.
-- Results rows: `None` means the step didn't produce that value (a detect row has only
-  `detection_s`). Rows have no flag of their own: a row counts as synthetic when any of its
-  `sources` has `is_synthetic=true`, and the frontend shows the badge for it (rule 5).
-  So every row, detect rows included, carries the sources behind the current verdict.
+- Results rows always contain the eight table keys. For detect rows, `state`,
+  `probability`, `trust` and `action` are null; `inputs` is the current snapshot and
+  `sources` carries the latest verdict's IDs. `detection_s` may also be null if nothing
+  is detected. Null does not mean the keys are omitted.
 - Results rows follow the real store (`services/store.py`): `step` is the step's name, `sources`
-  is a list of `test_id` strings, and `None` means the step didn't produce that value (a detect
-  row has only `detection_s`). The BE-06 mocks are checked against the real store, row for row.
+  is a list of `test_id` strings. Nulls indicate values that the step did not produce,
+  as described above. The BE-06 mocks are checked against the real store, row for row.
 - **Open (Nergis + Nathan, rule 5):** an id string carries no `is_synthetic`, so the results
   table can't badge synthetic sources from a row alone. Today the ids show it by convention only
-  (seed ids start with `SYN-`, mock ids with `synthetic-`). Options: store full `TestRef` dicts in
+  (seed ids start with `SYN-`, mock ids with `synthetic-`). This naming convention is
+  not a general provenance guarantee. Options: store full `TestRef` dicts in
   `sources`, or add an `is_synthetic` key to each row. Either is a contract change (rule 3).
+
+- **Known inline provenance gaps:** real `rag._citation()` currently returns title,
+  investigation, URL and snippet without `is_synthetic`; mock citations include it.
+  Real detector dictionaries include `time_s` but do not include `is_synthetic`, while
+  mocks carry the synthetic flag. These free-form outputs need a coordinated team
+  decision; the table above is not proof that every producer supplies every key.
+  See `docs/DECISIONS.md` for owners and affected consumers.
 
 ## 3D coordinate system (frontend and backend)
 
@@ -56,13 +67,12 @@ marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|
 | `vent_aft` | `[-4.0, 1.37, 0.0]` | overhead, aft end |
 | `vent_mid` | `[0.0, 1.37, 0.0]` | overhead, above the fire |
 
-- **Backend follow-up (Nergis, BE-03):** `ml/pipeline/config.py` still has `vent_aft` at
-  `(4.0, 1.5, 0)`, `vent_fwd` at `(-4.0, 1.5, 0)` and `vent_mid` at `(0, 2.0, 0)`. With `+x` = fore,
-  the two end names swap. Updating `DETECTORS` to the table above also changes the
-  `time_to_detect_s` values its tests expect.
+- **Aligned on current main:** `ml/pipeline/config.py` and the frontend's
+  `src/lab/config.js` now use the table above. Earlier swapped end names and different
+  heights are historical (fixed during integration, `b000eca`).
 - The frontend draws detectors only where `DetectOut.detectors` puts them (FE-04). The alarm
-  follows `time_to_detect_s` (FE-06), so particles never decide which vent trips. A wrong position
-  is a visual bug, not a wrong verdict.
+  follows `time_to_detect_s` (FE-06), so particles never decide which vent trips. Detector
+  geometry affects detection times as well as visualization; the burn predictor is separate.
 - Changing an axis, the fire position or a vent is a contract change (rule 3): update this table,
   BE-03's config and the frontend's `src/lab/config.js` together.
 
@@ -72,7 +82,7 @@ marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|
 |---|---|---|
 | `materials[]` | `name`, `fuel_type`, `n_tests`, `is_synthetic` | one entry per (material, fuel_type) in `data/processed/tests.parquet` |
 | `ranges` | `{feature: {min, max, is_synthetic}}` for `o2_pct`, `pressure_kpa`, `flow_cm_s` | the `"overall"` section of `ml/artifacts/feature_ranges.json` |
-| `investigations[]` | passed through from `data/processed/investigations.json` (DAT-06) | `[]` until that file exists |
+| `investigations[]` | passed through from `data/processed/investigations.json` (DAT-06) | committed metadata; `[]` if absent |
 
 - `ranges` uses training feature names (`flow_cm_s`); the request field is `flow_speed_cm_s`.
   The frontend's `testedRange()` already accepts either name.
@@ -168,5 +178,20 @@ added"; `cut_power` changes no input and has no data support):
 
 `recommended` is the first data-backed action (`cut_power` if none is backed). A no-data action can
 therefore score higher yet appear lower; the UI should show the list in the given order and highlight
-`recommended` by name. **Pending confirmation (Nergis, Nathan):** this documents the current BE-04
-behaviour; `frontend/src/api/types.ts` still says "sorted by score".
+`recommended` by name. `frontend/src/api/types.ts` now documents this same ordering
+(merged with FE-06). This is the implemented behavior, not a new approval of the ranking
+assumptions. Any proposed policy change remains a team decision.
+
+
+## Pending contract decisions
+
+Input ranges and material catalog checks are not yet enforced as the proposed semantic
+validation policy. `ScenarioIn` currently specifies types/defaults and the supported
+module literal; it does not yet reject every physically invalid numeric value or unknown
+material. Do not treat slider limits or training-data ranges as API validation.
+
+`docs/DECISIONS.md` records proposed validation/error behavior, source provenance,
+recorded PDF recommendations and optional new report/export APIs. None changes this
+contract until the team agrees and schemas, frontend types, tests and changelog are
+updated together. There is currently no `POST /report`, CSV/DOCX endpoint or agent_trace
+field in the public API. Internal pipeline stages do not add public endpoints.
