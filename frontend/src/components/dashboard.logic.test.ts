@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { ResultsRow } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 import {
-  changeText, curveAt, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, spreadDots, stampRows, testDotLabel,
-  thresholdCrossing,
+  changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stackIndex, stampRows, testDotLabel,
+  thresholdCrossing, withSample,
 } from "./dashboard.logic";
 
 const row = (patch: Partial<ResultsRow>): ResultsRow => ({
@@ -64,10 +64,9 @@ describe("chart helpers", () => {
     expect(thresholdCrossing([[10, 0.9], [40, 0.95]])).toBeNull(); // burns everywhere: no boundary
   });
 
-  it("reads the curve at an O2 value between points", () => {
-    expect(curveAt(curve, 32.5)).toBeCloseTo(0.5);
-    expect(curveAt(curve, 5)).toBe(0.02);
-    expect(curveAt([], 20)).toBeNull();
+  it("adds the recorded session sample to the curve, replacing a sweep point at the same O2", () => {
+    expect(withSample([[25, 0.17], [30, 0.34]], [27.5, 0.241])).toEqual([[25, 0.17], [27.5, 0.241], [30, 0.34]]);
+    expect(withSample([[25, 0.17], [30, 0.34]], [30, 0.33])).toEqual([[25, 0.17], [30, 0.33]]);
   });
 
   it("explains a test dot, including a different airflow", () => {
@@ -77,8 +76,7 @@ describe("chart helpers", () => {
     expect(testDotLabel({ ...t, flow_cm_s: 26, outcome: "extinguished" }, 26)).toBe("FLEX-29 (FLEX, droplet): went out at 30% O₂, 26 cm/s");
   });
 
-  it("spreads dots that share an O2 value", () => {
-    const spread = spreadDots([30, 30, 30, 21]);
-    [30, 28.8, 31.2, 21].forEach((want, i) => expect(spread[i]).toBeCloseTo(want));
+  it("stacks dots that share an O2 value instead of moving them", () => {
+    expect(stackIndex([30, 30, 30, 21, 30])).toEqual([0, 1, 2, 0, 3]);
   });
 });

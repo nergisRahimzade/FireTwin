@@ -60,18 +60,6 @@ export function thresholdCrossing(curve: [number, number][], threshold = BURN_TH
   return null;
 }
 
-/** Burn probability on the curve at an O2 value (linear between points; clamped to the ends). */
-export function curveAt(curve: [number, number][], o2: number): number | null {
-  if (!curve.length) return null;
-  if (o2 <= curve[0][0]) return curve[0][1];
-  for (let i = 1; i < curve.length; i++) {
-    const [o0, p0] = curve[i - 1];
-    const [o1, p1] = curve[i];
-    if (o2 <= o1) return p0 + ((o2 - o0) / (o1 - o0)) * (p1 - p0);
-  }
-  return curve[curve.length - 1][1];
-}
-
 /** Hover text for a NASA test dot: what the test was, and how it differs from this session. */
 export function testDotLabel(t: TestRef, sessionFlow: number): string {
   const outcome = t.outcome === "burned" ? "kept burning" : t.outcome === "extinguished" ? "went out" : "no recorded outcome";
@@ -80,12 +68,19 @@ export function testDotLabel(t: TestRef, sessionFlow: number): string {
   return `${t.test_id} (${t.investigation}, ${t.fuel_type}): ${outcome} at ${t.o2_pct}% O₂, ${flow}${differs}`;
 }
 
-/** Small x offsets so dots at the same O2 in the same row don't hide each other. */
-export function spreadDots(o2s: number[], gap = 1.2): number[] {
+/** The recorded session sample merged into the sweep curve (replacing a point at the same O2),
+    so the drawn line passes through the dot that shows this session's recorded probability. */
+export function withSample(curve: [number, number][], sample: [number, number]): [number, number][] {
+  return [...curve.filter(([o2]) => o2 !== sample[0]), sample].sort((a, b) => a[0] - b[0]);
+}
+
+/** For dots in one row: how many earlier dots share the same O2 (0, 1, 2...). The chart stacks
+    them vertically by this index, so every dot stays at its measured O2. */
+export function stackIndex(o2s: number[]): number[] {
   const seen = new Map<number, number>();
-  return o2s.map(o => {
-    const n = seen.get(o) ?? 0;
-    seen.set(o, n + 1);
-    return o + (n % 2 ? -1 : 1) * Math.ceil(n / 2) * gap;
+  return o2s.map(o2 => {
+    const n = seen.get(o2) ?? 0;
+    seen.set(o2, n + 1);
+    return n;
   });
 }

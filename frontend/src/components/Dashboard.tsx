@@ -12,8 +12,8 @@ import type { TestRef } from "../api/types";
 import { type Session, useScenario } from "../store/useScenario";
 import { downloadDashboardPdf } from "./dashboardPdf";
 import {
-  BURN_THRESHOLD, changeText, curveAt, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, spreadDots,
-  stampRows, testDotLabel, thresholdCrossing,
+  BURN_THRESHOLD, changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stackIndex,
+  stampRows, testDotLabel, thresholdCrossing, withSample,
 } from "./dashboard.logic";
 
 function O2Chart({ session }: { session: Session }) {
@@ -30,23 +30,29 @@ function O2Chart({ session }: { session: Session }) {
     return () => { live = false; };
   }, [session.id, session.curve, session.inputs, setSessionCurve]);
 
-  const curve = session.curve ?? [];
-  if (!curve.length) return null;
+  const sweep = session.curve ?? [];
+  if (!sweep.length) return null;
   const { inputs } = session;
+  // This session's own point is its recorded ignition probability (not read off the coarse sweep),
+  // and the drawn curve includes that exact sample so the line passes through it.
+  const recorded = session.history[0].burn_probability;
+  const curve = withSample(sweep, [inputs.o2_pct, recorded]);
   // Plot area: 10-40 % O2 across, probability 0-1 up. Room on the right for the zone labels.
   const W = 420, H = 190, L = 34, R = W - 96, T = 14, B = H - 34;
   const x = (o2: number) => L + ((o2 - 10) / 30) * (R - L);
   const y = (p: number) => B - p * (B - T);
   const boundary = thresholdCrossing(curve);
-  const here = curveAt(curve, inputs.o2_pct);
   // NASA tests nearest to this session's settings, drawn at their own O2 in two labelled rows.
   const tested: TestRef[] = session.history[0].nearest_tests.filter(t => t.o2_pct != null && t.outcome !== "unknown");
   const rows = { burned: y(0.93), extinguished: y(0.07) };
-  // Spread dots apart only within a row: a burned and an extinguished test at the same O2 don't overlap.
-  const dotX = new Map<string, number>();
+  // Every dot stays at its measured O2. Tests sharing an O2 in the same row stack vertically
+  // towards the middle of the chart (burned row downwards, extinguished row upwards).
+  const STACK_PX = 10;
+  const dotY = new Map<string, number>();
   for (const outcome of ["burned", "extinguished"] as const) {
     const row = tested.filter(t => t.outcome === outcome);
-    spreadDots(row.map(t => t.o2_pct!)).forEach((o2, i) => dotX.set(row[i].test_id, o2));
+    const step = outcome === "burned" ? STACK_PX : -STACK_PX;
+    stackIndex(row.map(t => t.o2_pct!)).forEach((n, i) => dotY.set(row[i].test_id, rows[outcome] + n * step));
   }
   return (
     <figure className="m-0">
@@ -68,16 +74,14 @@ function O2Chart({ session }: { session: Session }) {
           </g>
         )}
         {tested.map(t => (
-          <circle key={t.test_id} cx={x(dotX.get(t.test_id)!)} cy={t.outcome === "burned" ? rows.burned : rows.extinguished} r={4}
+          <circle key={t.test_id} cx={x(t.o2_pct!)} cy={dotY.get(t.test_id)!} r={4}
             className={t.outcome === "burned" ? "pt-burned" : "pt-out"}>
             <title>{testDotLabel(t, inputs.flow_speed_cm_s)}</title>
           </circle>
         ))}
-        {here != null && (
-          <circle cx={x(inputs.o2_pct)} cy={y(here)} r={5} className="pt-session">
-            <title>{`This session: ${inputs.o2_pct}% O₂ → ${Math.round(here * 100)}% burn probability`}</title>
-          </circle>
-        )}
+        <circle cx={x(inputs.o2_pct)} cy={y(recorded)} r={5} className="pt-session">
+          <title>{`This session: ${inputs.o2_pct}% O₂ → ${Math.round(recorded * 100)}% burn probability (recorded at ignition)`}</title>
+        </circle>
         <text x={L} y={H - 18} className="tick">10% O₂</text>
         <text x={R - 34} y={H - 18} className="tick">40% O₂</text>
         <text x={2} y={T + 4} className="tick">100%</text>
@@ -89,8 +93,8 @@ function O2Chart({ session }: { session: Session }) {
         {boundary != null
           ? ` At this airflow the line is crossed near ${boundary.toFixed(1)}% O₂ (dotted marker).`
           : ` At this airflow the curve stays on one side of the line between 10% and 40% O₂.`}
-        {" "}The white dot is this session ({inputs.o2_pct}% O₂). Coloured dots are the NASA tests closest to these settings,
-        drawn at their own O₂: <span className="pt-burned-text">top row = the test fire kept burning</span>,{" "}
+        {" "}The white dot is this session: {inputs.o2_pct}% O₂, {Math.round(recorded * 100)}% burn probability (recorded at ignition).
+        Coloured dots are the NASA tests closest to these settings, each at its measured O₂ (tests at the same O₂ are stacked): <span className="pt-burned-text">top row = the test fire kept burning</span>,{" "}
         <span className="pt-out-text">bottom row = it went out</span>. They can come from other airflows or fuels; hover a dot for its details.
       </figcaption>
     </figure>
