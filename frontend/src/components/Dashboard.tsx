@@ -72,7 +72,6 @@ export function Dashboard() {
 
   const rows = results?.scenario_id === scenarioId ? results?.rows ?? [] : [];
   stamps.current = stampRows(stamps.current, rows.length, new Date().toLocaleString());
-  const pdfUrl = scenarioId ? api.exportUrl(scenarioId) : null;
 
   return (
     <section ref={dashboardRef} className="area-dash glass panel" aria-label="Results dashboard">
@@ -92,13 +91,6 @@ export function Dashboard() {
           >
             {exporting ? "Creating PDF…" : "Export to PDF"}
           </button>
-          {pdfUrl ? (
-            <a className="btn-ghost" href={pdfUrl} target="_blank" rel="noreferrer" download>Export PDF</a>
-          ) : (
-            <button type="button" className="btn-ghost" disabled title="Run a scenario first">Export PDF</button>
-          )}
-          <button type="button" className="btn-ghost" disabled title="Not available yet">DOCX</button>
-          <button type="button" className="btn-ghost" disabled title="Not available yet">CSV</button>
         </div>
       </div>
       {exportError && <p className="error" role="alert">{exportError}</p>}
