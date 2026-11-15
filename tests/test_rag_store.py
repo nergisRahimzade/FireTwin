@@ -1,5 +1,6 @@
 """ML-08: synthetic local Chroma integration and cache-only query behavior; no model download."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -250,3 +251,25 @@ def test_custom_extra_scalar_metadata_is_preserved_for_fingerprint_validation(sy
     ingest_rag.ingest(db, chunks=custom)
     hits = ingest_rag.search("smoke", 1, db)
     assert hits is not None and hits[0]["is_synthetic"] is True
+
+
+def test_folder_without_a_published_index_is_left_untouched(tmp_path: Path) -> None:
+    # RAG-004: an empty store folder means "not built". Searching it must not create a Chroma
+    # database there, which would leave a stray chroma.sqlite3 behind.
+    empty = tmp_path / "chroma_db"
+    empty.mkdir()
+    assert ingest_rag.search("smoke", 1, empty) is None
+    assert list(empty.iterdir()) == []
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="root ignores modes")
+def test_read_only_folder_without_an_index_returns_none_quietly(tmp_path: Path, caplog) -> None:
+    # RAG-004: a read-only empty folder (e.g. a mount) is also "not built", not an error.
+    read_only = tmp_path / "chroma_db"
+    read_only.mkdir()
+    read_only.chmod(0o555)
+    try:
+        assert ingest_rag.search("smoke", 1, read_only) is None
+    finally:
+        read_only.chmod(0o755)
+    assert "RAG search failed" not in caplog.text
