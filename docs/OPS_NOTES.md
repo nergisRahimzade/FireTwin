@@ -697,3 +697,32 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   weights, generated databases and source copies are not added to the public repository.
   This does not ignore the planned `ml/artifacts` or processed data. The ignore regression
   checks generated bundle paths alongside required public artifact exceptions.
+
+
+## OPS-02: optional prepared offline vector bundle (2026-11-15, Ryan)
+
+- `docker/rag_bundle.py prepare` runs explicit local ingest in a child process, closes
+  database handles, removes the duplicate download archive and seals an index/model
+  inventory with SHA-256 hashes. It refuses existing outputs; new corpus versions use
+  new bundle directories. `--cache-source` reuses an extracted MiniLM cache and rejects
+  an incomplete supplied cache before ingest. Preparation may download public weights;
+  runtime queries do not. Generated bundles are ignored, not committed demo artifacts.
+- `docker-compose.rag.yml` is optional: it adds only a read-only bundle mount. Default
+  Compose still uses keyword fallback. The optional entrypoint verifies inventory/hashes,
+  copies the store into `/app/chroma_db` owned by the non-root API user, selects the
+  matching read-only model cache, then delegates to the existing Linux exec entrypoint.
+- Chroma queries can write bookkeeping files. Never query the sealed source directly;
+  use a writable copy. A matching copy can survive restart; switching bundle identity
+  with an existing copy requires container recreation. Corrupt bundles fail startup;
+  an empty mounted bundle uses keywords. Missing host mount directories remain errors.
+- Existing schemas, RAG service, shared config and frontend are unchanged. A successful
+  vector search with no qualifying evidence remains an empty result, not keyword fallback.
+  Missing/stale/incomplete resources use the existing cited fallback; their warnings do
+  not include full queries/keys. Model/provider metadata and file hashes are integrity
+  checks for a trusted prepared bundle, not a signed source-authenticity guarantee.
+- Verification used a real prepared MiniLM bundle and Docker `--network none`, with direct
+  vector queries and keyword fallback disabled: 10/10 expected investigations and cited
+  chat passed. The non-root container read its model/bundle read-only and queried its
+  writable copy; source hashes remained valid. Missing bundle/cache fallback passed with
+  networking disabled. A separate Compose project passed health checks and the real API
+  loop through PDF export on the updated model, with no LLM keys.

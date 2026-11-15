@@ -92,9 +92,8 @@ explicit real mode fails with the missing filenames. Missing mount **directories
 before the entrypoint: restore the tracked directories rather than letting Docker create
 empty paths as root. Downloads and training remain host-side tasks.
 
-The vector database and embedding cache are not mounted by this change. Chat uses the
-existing keyword fallback when no vector store is present; provisioning offline vector
-retrieval is a separate task.
+The default stack mounts no vector database or embedding cache and uses keyword fallback.
+The optional local-vector bundle setup below adds a prepared index and model cache.
 
 ## Ports and frontend connection
 
@@ -130,3 +129,71 @@ frontend dependencies currently emit existing npm advisory warnings during image
 
 The implementation follows [Docker's health-based startup ordering](https://docs.docker.com/compose/how-tos/startup-order/)
 and [uv's Docker integration](https://docs.astral.sh/uv/guides/integration/docker/).
+
+
+## Optional offline vector retrieval
+
+Prepare the bundle once, before an offline demo (Python 3.11 and locked dependencies
+from `uv sync --locked --dev` are needed for this host-side command):
+
+```sh
+uv run python docker/rag_bundle.py prepare --output .local/rag-bundle
+uv run python docker/rag_bundle.py verify --output .local/rag-bundle
+docker compose -f docker-compose.yml -f docker-compose.rag.yml up --build
+```
+
+The prepare step explicitly uses local MiniLM even if an OpenAI key exists. First
+provisioning downloads the public model weights (about 80 MB compressed); an offline
+runtime does not download them. To reuse a previously extracted MiniLM cache:
+
+```sh
+uv run python docker/rag_bundle.py prepare --output .local/rag-bundle-v2 \
+  --cache-source .local/rag-bundle/model
+RAG_BUNDLE_DIR=./.local/rag-bundle-v2 docker compose \
+  -f docker-compose.yml -f docker-compose.rag.yml up --build --force-recreate
+```
+
+PowerShell sets a custom source with `$env:RAG_BUNDLE_DIR='./.local/rag-bundle-v2'`
+before the Compose command. No env setting is required for the default source path.
+
+A bundle contains `store/`, the extracted `model/onnx/` cache, and a SHA-256 file
+manifest. It is local/generated and ignored by Git. Existing output directories are
+refused; rebuild a changed corpus into a new directory. The index builder runs in a
+separate process so database handles close before the manifest is written. Bundles
+contain the cited text metadata too: distribute only corpora the team may share.
+
+The override mounts the bundle read-only at `/app/rag_bundle`. Startup verifies its
+inventory/hashes and copies the index into the non-root user's writable `/app/chroma_db`.
+The model remains read-only in the bundle. Startup logs a verified-vector-bundle line;
+API queries never initialize/download missing local model files. An empty mounted
+bundle directory selects keyword fallback; a missing host directory is a Compose error.
+Corrupt bundles fail startup with a verification error. A different bundle with an
+existing runtime copy requires recreating the container. Default Compose still works
+without any bundle or override. The container copy is disposable on recreation.
+
+**Never open the sealed bundle's index directly with Chroma, even for a query.** It can
+write index files. Use the startup copy or copy `store/` into a separate writable
+location for native use. Native queries can select an extracted model cache with
+`FIRETWIN_EMBEDDING_CACHE=/path/to/bundle/model`.
+
+Standalone ingest now uses local embeddings by default:
+`uv run python ml/ingest_rag.py --embedding minilm --cache-dir /path/to/model-cache`.
+OpenAI embeddings require explicit `--embedding openai` plus a key and query-time
+network; they do not meet the local-vector offline policy. A key appearing later
+never changes an index's recorded provider.
+
+Indexes publish isolated generations with an atomic `CURRENT.json` pointer. Builders
+never change an existing generation, though Chroma queries can write bookkeeping files.
+Failed rebuilds leave the previous generation active. Search checks the
+completion marker, chunk count, model/provider and corpus fingerprint; expected
+unavailability returns keyword fallback with a warning once per path/reason. Old,
+failed and in-use generation directories are retained; clean them up only offline
+with readers/writers stopped. Publication is coherent, not a promise of power-loss
+recovery or cross-machine distributed transactions. Legacy indexes need rebuilding.
+Default-source indexes track current corpus files. Custom-source indexes validate
+saved content; callers can supply expected `chunks=` to check external custom changes.
+
+Verification should call `ml.ingest_rag.search` directly (or disable keyword fallback)
+with a prepared copy and outbound networking blocked. A passing keyword-only result
+does not establish that vector search worked. The normal pytest suite uses synthetic
+embeddings; the prepared real-model rehearsal is a separate recorded runtime check.

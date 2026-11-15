@@ -4,6 +4,11 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **OPS-02**: prepare and SHA-256-verify local MiniLM/index bundles, with an optional
+  read-only Compose mount and non-root writable index copy. Runtime local queries need
+  no weight download; default/missing-bundle keyword fallback remains. Document preparation,
+  cache reuse, integrity errors, recreation, generation cleanup and no-network verification.
+
 - **OPS-01**: ignore prepared local RAG bundles and temporary bundle builds; guard the
   generated paths while leaving model artifacts and processed demo inputs publishable.
 
