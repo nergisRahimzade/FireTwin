@@ -526,3 +526,13 @@ no blobs above 100 MiB. This does not certify refs that have not been fetched.
 Before updating another existing checkout to this fix, preserve any needed raw uploads
 and plan copies outside their tracked paths: merging their deletion removes clean copies
 from that checkout. A fresh clone retains the processed demo artifacts and text corpus.
+
+
+## BE-05: effective API mode at startup (2026-11-15, Ryan)
+
+- The app lifespan prints its captured real or synthetic mock routing mode for native
+  and Docker startup. Only the mode label is printed, never Settings or provider keys.
+  Native parsing/defaults and all API schemas are unchanged. This avoids editing the
+  launcher concurrently with Claude's Windows task.
+- `backend/tests/test_startup_mode.py` covers default/explicit modes, per-app capture
+  despite subsequent environment changes, health shape and key non-disclosure.
