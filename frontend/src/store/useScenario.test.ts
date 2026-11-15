@@ -9,6 +9,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("../api/client", () => ({ api: fake, API_BASE: "http://test" }));
 
+import { inputsDiffer } from "../scene/livePreview";
 import { initialScenario, nextPhase, useScenario } from "./useScenario";
 
 const sim = (state: SimulateOut["state"], id = "s1"): SimulateOut => ({
@@ -85,6 +86,17 @@ describe("useScenario store", () => {
     await store().runApply("fans_off");
     expect(store().phase).toBe("out");
     expect(store().history.map(h => h.state)).toEqual(["burning", "burning", "extinguished"]);
+  });
+
+  it("Apply moves the controls to the applied settings, so the live 3D preview stays off", async () => {
+    fake.simulate.mockResolvedValue(sim("burning"));
+    fake.detect.mockResolvedValue(det(true));
+    await store().ignite();
+    const applied = { ...sim("extinguished"), inputs: { ...DEFAULT_SCENARIO, o2_pct: 15, flow_speed_cm_s: 0 } };
+    fake.apply.mockResolvedValueOnce(applied);
+    await store().runApply("fans_off_co2");
+    expect(store().inputs).toEqual(applied.inputs);
+    expect(inputsDiffer(store().simulate!.inputs, store().inputs)).toBe(false);
   });
 
   it("records API errors without throwing or changing the phase", async () => {

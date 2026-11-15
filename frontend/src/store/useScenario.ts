@@ -343,7 +343,9 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       }
       if (res && viewingLive()) {
         set(s => ({
-          simulate: res, history: [...s.history, res],
+          // The controls take the applied settings (e.g. fans off + CO2: flow 0, O2 15 %), so they
+          // match the recorded scenario and the live 3D preview doesn't treat the action as an edit.
+          simulate: res, history: [...s.history, res], inputs: res.inputs,
           timeline: [
             ...s.timeline,
             ...(previousInputs ? TRACKED_INPUTS.filter(key => !Object.is(previousInputs[key], res.inputs[key])).map(key => ({
