@@ -41,8 +41,18 @@ def _parse_origin(origin: str) -> str:
         # Name the bad entry (origins aren't secret), so a long list is easy to fix.
         raise ValueError(
             f"CORS_ORIGINS entry {origin!r} is not an explicit http(s) origin "
-            "(no credentials, paths, queries, fragments, or wildcards)"
+            "(no credentials, paths, queries, fragments, or wildcards)" + _origin_hint(origin)
         ) from None
+
+
+def _origin_hint(origin: str) -> str:
+    # The two common slips when copying a site address into a host's settings (e.g. Render):
+    # leaving out the scheme, or keeping the browser's trailing slash. Suggest the exact fix.
+    if "://" not in origin:
+        return f"; add the scheme, e.g. 'https://{origin.rstrip('/')}'"
+    if origin.endswith("/") and urlsplit(origin).path == "/":
+        return f"; remove the trailing slash: '{origin.rstrip('/')}'"
+    return ""
 
 
 def _host_labels_ok(host: str) -> bool:

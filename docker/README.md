@@ -200,3 +200,28 @@ Verification should call `ml.ingest_rag.search` directly (or disable keyword fal
 with a prepared copy and outbound networking blocked. A passing keyword-only result
 does not establish that vector search worked. The normal pytest suite uses synthetic
 embeddings; the prepared real-model rehearsal is a separate recorded runtime check.
+
+## Hosting the backend (e.g. Render)
+
+The backend image runs on its own: it includes the processed data, text corpus and model
+artifacts, so a host can build `docker/backend.Dockerfile` from the repo and run it with no mounts.
+Settings used for Render's free tier:
+
+- Language Docker, branch `main`, Dockerfile path `./docker/backend.Dockerfile`, build context `.`.
+- Environment: `MOCK_MODE=0` (a missing file then fails startup instead of serving mocks),
+  `PORT=8000`, and optionally `GEMINI_API_KEY` or `OPENAI_API_KEY` (without one, chat uses the
+  offline fallback). Health check path `/health`.
+- `CORS_ORIGINS` is only needed when the browser calls the backend directly (frontend built with
+  `VITE_API_URL`). Each entry is a full origin: scheme and host, no path and **no trailing
+  slash**, comma-separated:
+
+  ```text
+  CORS_ORIGINS=https://fire-twin.vercel.app,https://fire-twin-nergisrahimzades-projects.vercel.app
+  ```
+
+  A bare host (`fire-twin.vercel.app`) or a trailing `/` stops startup with an error that names
+  the entry and the fix. With a Vercel rewrite (`/api/:path*` to the backend URL) the browser only
+  talks to the Vercel domain, so `CORS_ORIGINS` can be left unset.
+- The free tier sleeps after about 15 minutes without traffic; the next request takes about a
+  minute. Open `/health` before a demo. Scenarios live in memory (BE-01), so a restart or sleep
+  forgets them: start a fresh scenario afterwards.
