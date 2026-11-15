@@ -116,7 +116,7 @@ def test_a_no_data_action_above_a_backed_one_fails(mock_api: TestClient) -> None
 
 
 def test_a_real_api_must_offer_the_scenario_material(mock_api: TestClient) -> None:
-    # Only mock mode may fall back to another material; here the "real" API lacks Heptane.
+    # Only mock mode may fall back to another material; here the "real" API lacks the default one.
     client = _edited(
         mock_api,
         "/openapi.json",

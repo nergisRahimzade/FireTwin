@@ -331,8 +331,9 @@ schemas, generated frontend types and services are unchanged by this documentati
   `/apply` inputs equal the recommended action's `new_inputs` (plan BE-02); `/results` contains the
   apply step; `/export` is `application/pdf` starting with `%PDF`.
 - Initially it tried cable insulation, then the first offered material at 21 % O2 and
-  10 cm/s. The current script defaults to Heptane, 30 % O2 and zero flow; see the real-data
-  follow-up below. A successful no-detection run does not demonstrate a detector alarm.
+  10 cm/s. It then defaulted to Heptane, 30 % O2 and zero flow (see the real-data follow-up
+  below), which never trips an alarm. Since the solid-model fix it defaults to PMMA rod,
+  21 % O2, 10 cm/s, the full demo flow (see "OPS-04: full-flow default scenario" at the end).
 - A mock-mode API fails the run (the plan says "hits the real API"); `--allow-mock` checks wiring only.
 - `make help` now lists targets with digits in their names (`e2e`).
 
@@ -547,6 +548,7 @@ from 16 % to 40 %. The plan's "cable insulation" isn't in the table. So the plan
 ("ignite cable insulation -> alarm -> fans off ...") can't happen honestly on this data.
 
 **What the e2e loop now does (OPS-04):**
+- Superseded 2026-11-15 by "OPS-04: full-flow default scenario" (end of file).
 - Default scenario: **Heptane, 30 % O2, fans off**, the one burning case with strong trust and no
   extrapolation (p = 0.51). The real loop then reads: burning -> "fans off: smoke cannot reach vents"
   (no alarm) -> `co2` recommended -> extinguished -> PDF. `--material/--o2/--flow` override it.
@@ -744,6 +746,21 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - `DECISIONS.md` records the verified package 4 findings and the open owner decision about the
   private PDFs inside the public `demo-v1` tag. No decision is claimed.
 
+
+## OPS-04: full-flow default scenario (2026-11-15, Ryan)
+
+- Nergis's solid-model fix (main `20bf3a9`: BASS-II step-down extinctions kept, solid model with
+  measured skill) makes the planned demo flow happen on real data. `tests/e2e_loop.py` now defaults to
+  **PMMA rod, 21 % O2, 10 cm/s**: burning p = 0.96 (strong trust) -> `vent_fwd` alarm at 40 s ->
+  `fans_off` recommended -> extinguished p = 0.13 -> 3 result rows -> PDF. Verified against the real
+  API in Docker. Override with `--material/--o2/--flow`; Heptane 30 % O2 fans off still runs as a
+  no-alarm example.
+- `make e2e` prints a one-line demo summary (`demo flow: alarm vent_fwd at 40 s, fans_off ->
+  extinguished`) before PASS, so a rehearsal shows at a glance whether the alarm tripped and the
+  recommended action worked. The checks themselves are unchanged.
+- `investigations.json` changed in `20bf3a9`, and it is part of the retrieval corpus, so vector
+  bundles prepared before that commit are stale (queries fall back to keywords). Prepare the bundle
+  from the release commit.
 
 ## OPS-02: real data and model in the backend image (2026-11-15, Ryan)
 
