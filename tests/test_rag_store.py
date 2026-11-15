@@ -98,7 +98,7 @@ def test_missing_model_cache_never_invokes_a_download(monkeypatch, tmp_path: Pat
 
     monkeypatch.setattr(ONNXMiniLM_L6_V2, "_download", forbid_download)
     with pytest.raises(ingest_rag.StoreUnavailable, match="cache is incomplete"):
-        ingest_rag._embedding("minilm", allow_download=False)
+        ingest_rag._embedding("minilm", allow_download=False, cache_dir=tmp_path / "missing-model")
     assert not (tmp_path / "missing-model").exists()
 
 
@@ -229,8 +229,8 @@ def test_production_local_embedding_identity_survives_reopening(monkeypatch, tmp
         }
     ]
     db = tmp_path / "db"
-    ingest_rag.ingest(db, chunks=chunks)
-    assert ingest_rag.search("smoke", 1, db) is None
+    ingest_rag.ingest(db, chunks=chunks, cache_dir=cache)
+    assert ingest_rag.search("smoke", 1, db, cache_dir=cache) is None
     assert "cache is incomplete" in caplog.text
     assert "Embedding function conflict" not in caplog.text
     for name in ingest_rag.CACHE_FILES:
@@ -240,7 +240,7 @@ def test_production_local_embedding_identity_survives_reopening(monkeypatch, tmp
     monkeypatch.setattr(
         ONNXMiniLM_L6_V2, "__call__", lambda self, input: [[1.0] + [0.0] * 383 for _ in input]
     )
-    hits = ingest_rag.search("smoke", 1, db)
+    hits = ingest_rag.search("smoke", 1, db, cache_dir=cache)
     assert hits is not None and hits[0]["id"] == chunks[0]["id"]
 
 
