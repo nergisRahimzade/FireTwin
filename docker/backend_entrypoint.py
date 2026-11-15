@@ -29,7 +29,8 @@ def select_mode(root: Path, requested: str) -> str:
     return "1" if missing else "0"
 
 
-def main() -> None:
+def main(argv: list[str] | None = None, os_name: str = os.name) -> None:
+    """Pick the mode, then become the server. None = the real command line; tests pass their own."""
     root = Path(__file__).resolve().parents[1]
     try:
         mode = select_mode(root, os.environ.get("MOCK_MODE", ""))
@@ -40,9 +41,16 @@ def main() -> None:
         "startup: synthetic mock mode" if mode == "1" else "startup: real mode (artifacts present)",
         flush=True,
     )
-    command = sys.argv[1:]
+    command = sys.argv[1:] if argv is None else argv
     if not command:
         raise SystemExit("startup: no server command supplied")
+    # On native Windows, exec starts a new process instead of replacing this one: the arguments
+    # lose their quoting and the server's exit status is lost (reproduced: exit 7 came back as 0).
+    if os_name != "posix":
+        raise SystemExit(
+            "startup: this entrypoint runs inside the Linux container; on Windows use "
+            "Docker Desktop (Linux containers): docker compose up --build"
+        )
     # Replace Python so Docker signals reach the server directly; no shell wrapper remains.
     os.execvp(command[0], command)
 
