@@ -7,6 +7,7 @@ const IssScene = lazy(() => import("../scene/IssScene").then(m => ({ default: m.
 
 export function SimulationTab() {
   const detect = useScenario(s => s.detect);
+  const simulate = useScenario(s => s.simulate);
   return (
     <section className="sim-layout">
       <ControlPanel />
@@ -15,7 +16,7 @@ export function SimulationTab() {
           <div className="lab3d-view">
             <div className="lab3d-canvas">
               <Suspense fallback={<div className="lab3d-msg">Loading the ISS module…</div>}>
-                <IssScene detect={detect} />
+                <IssScene detect={detect} simulate={simulate} />
               </Suspense>
             </div>
           </div>

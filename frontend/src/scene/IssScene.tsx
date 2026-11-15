@@ -6,9 +6,10 @@ import { Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Component, type ReactNode, Suspense, useMemo } from "react";
 import * as THREE from "three";
-import type { DetectOut } from "../api/types";
+import type { DetectOut, SimulateOut } from "../api/types";
 import { CAMERA_FOV, CAMERA_START, clampCamera } from "../lab/core.js";
 import { FallbackModule } from "./FallbackModule";
+import { Flame } from "./Flame";
 import { IssLab } from "./IssLab";
 import { detectorMarks } from "./detectors";
 
@@ -57,7 +58,7 @@ function DetectorMarkers({ detect }: { detect: DetectOut | null }) {
   );
 }
 
-export function IssScene({ detect }: { detect: DetectOut | null }) {
+export function IssScene({ detect, simulate }: { detect: DetectOut | null; simulate: SimulateOut | null }) {
   return (
     <Canvas
       flat
@@ -75,6 +76,7 @@ export function IssScene({ detect }: { detect: DetectOut | null }) {
         </Suspense>
       </ModelBoundary>
       <DetectorMarkers detect={detect} />
+      <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />
     </Canvas>
