@@ -645,3 +645,22 @@ mock selection, explicit real startup and explicit real failure on missing files
   the original three-tab architecture from the implemented one-page UI.
 - This is documentation reconciliation only: no schema/type regeneration, service changes,
   new approval records or claims that pending Windows/retrieval/export work has shipped.
+
+
+## ML-08: offline query safeguards, package 6 first increment (2026-11-15, Ryan)
+
+- New Chroma collections record an internal format version, exact embedding model/provider
+  and SHA-256 of canonical corpus text/source metadata. Query rejects stale, legacy or
+  incompatible metadata instead of silently using another embedding model. Rebuild legacy
+  stores with `python ml/ingest_rag.py`; the existing RAG service catches errors and falls
+  back to cited keyword search. This changes no public API field or RAG service file.
+- Local query embeddings override Chroma's model-download hook: every inference requires
+  the six nonempty extracted cache files, and never downloads/extracts missing model data.
+  Explicit ingest remains a provisioning step that may download. OpenAI index queries still
+  require network/key; adding a key does not change the provider recorded in a local index.
+- `tests/test_rag_store.py` exercises real Chroma with synthetic embeddings, corpus changes,
+  unknown/legacy/model-mismatch metadata, cache-miss no-download behavior and cited keyword
+  fallback. No model weights or real API keys are needed by those tests.
+- Package 6 is still in progress: reproducible index/cache provisioning, writable runtime
+  store/cached-model Compose integration and a real prepared-model no-network rehearsal
+  remain. These safeguards alone do not establish that an offline vector bundle is shipped.
