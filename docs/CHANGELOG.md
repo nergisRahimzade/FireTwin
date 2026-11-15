@@ -4,6 +4,11 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **FE-06** (PR #54 review fixes): use the live preview's trust and extrapolation flags
+  so the flame's outside-range warning follows edited settings. Label unrecorded previews
+  in Compare and distinguish the recorded alarm; cover both range transitions and notice
+  clearing after controls match the record or Reset.
+
 - **BE-05 (contract, rule 3)**: new `POST /preview` -> `PreviewOut` (verdict only: no scenario,
   history row or explanation) for live views, in real and mock mode. `schemas.py`, `types.ts`,
   `client.ts` (`api.preview`), `docs/contract.md` and the BE-12 endpoint matrix updated together.

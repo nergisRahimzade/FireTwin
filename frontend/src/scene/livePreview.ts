@@ -25,7 +25,10 @@ export function inputsDiffer(a: ScenarioIn, b: ScenarioIn): boolean {
 /** The scene's view of the scenario at new inputs: verdict from the preview when it has one. */
 export function liveScenario(sim: SimulateOut, inputs: ScenarioIn, preview: PreviewOut | null): SimulateOut {
   if (!preview) return { ...sim, inputs }; // until the verdict arrives: new airflow/O2, old verdict
-  return { ...sim, inputs, state: preview.state, burn_probability: preview.burn_probability };
+  return {
+    ...sim, inputs, state: preview.state, burn_probability: preview.burn_probability,
+    trust: preview.trust, extrapolated: preview.extrapolated,
+  };
 }
 
 export interface LiveScene {
