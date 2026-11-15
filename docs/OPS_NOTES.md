@@ -33,9 +33,9 @@ implementation history; this snapshot and later follow-ups describe the current 
 - The current frontend is the one-page/Compare layout from the team-whiteboard change
   `dc43ec6`, replacing the plan's three tabs. FE-06 is merged in PR #24. This records the
   implemented layout, not proof that every later frontend feature is complete.
-- Native Windows startup/test work is assigned to Claude's isolated branch (package 2).
-  It is not part of this baseline. Docker Desktop's Linux engine or WSL is the documented
-  Windows route; do not claim the pending branch's behavior is already on main.
+- Native Windows startup/test work (package 2) merged in PR #31: native `make dev` and the
+  container entrypoint stop early with the supported routes (Docker Desktop's Linux engine or
+  WSL), and the Windows CI job passed. See the Windows support section below.
 
 Open decisions and the proposed validation matrix are in `docs/DECISIONS.md`. Runtime
 schemas, generated frontend types and services are unchanged by this documentation update.
@@ -359,17 +359,20 @@ creates the `/detect` and `/suppress` *routers*. Under the plan's ownership tabl
 
 **Release procedure (package 8, after team demo approval and all agreed gates):**
 
-These commands are instructions, not evidence that the tag exists. Check remote tags
-first and record the exact tested SHA; never move an existing release tag. A green
-endpoint suite alone does not establish scientific validity or frontend readiness.
+`demo-v1` already exists: an annotated tag on `8f281d9` (PR #24 merge), created on
+2026-11-15 after real-mode `make e2e` passed with no `.env`. It predates PR #26, so it
+still contains the two private root plan PDFs (owner decision pending in `DECISIONS.md`).
+The next release is therefore `demo-v2`. Check remote tags first and record the exact
+tested SHA; never move an existing release tag. A green endpoint suite alone does not
+establish scientific validity or frontend readiness.
 
 ```bash
 git switch main && git pull                 # or: git fetch origin main:main
 make lint && make test                      # rule 7
 MOCK_MODE=0 make dev                        # POSIX/WSL; Docker is also available
 make e2e                                    # in another: must print "e2e: PASS (real API ...)"
-git tag -a demo-v1 -m "Demo build: real mode passes make e2e"
-git push origin demo-v1                     # tags are pushed separately from branches
+git tag -a demo-v2 -m "Demo build: real mode passes make e2e"
+git push origin demo-v2                     # tags are pushed separately from branches
 ```
 - A tag is a fixed name for one commit: the demo runs from `git checkout demo-v1`, whatever lands
   on `main` afterwards. If a fix is needed later, tag `demo-v2` instead of moving `demo-v1`.
@@ -516,24 +519,6 @@ git push origin demo-v1                     # tags are pushed separately from br
   a fake key without an LLM call. The temporary project was removed cleanly; the existing user
   stack was left running. Host Python/Node dependencies and application files were not modified.
 
-## OPS-01 / OPS-02 / OPS-03: Windows support boundary (2026-11-15, Ryan)
-
-- Supported Windows routes are Docker Desktop's Linux engine or WSL. Native Windows
-  `scripts/dev.py` exits 2 with those routes before starting any servers; the POSIX
-  process-group/signal supervisor is unchanged. The container entrypoint also refuses
-  native Windows; Linux still uses exec for PID, signal and exit-status preservation.
-- Claude reproduced native Windows exec argument/exit-status problems and launcher
-  orphaning on Python 3.12.10. Those results are reported in `OPS_WINDOWS_HANDOFF.md`;
-  native Python 3.11 validation is delegated to the new CI job, not claimed from Linux.
-- Mode selection, bad config and stubbed dispatch/refusal checks run cross-platform;
-  real exec/signal/process-group checks are POSIX-only. Two native Windows checks skip
-  on POSIX. This supersedes the old file-wide non-POSIX skip note under OPS-01.
-- `Windows (startup checks)` installs the locked Python 3.11 environment and invokes
-  pytest directly, without Make. Existing required check names are preserved; requiring
-  the new job in branch protection remains a repository-owner decision.
-- Review fix: the real exec test waits for output with a five-second deadline and
-  checks early process exit, so a missing readiness line cannot block CI indefinitely.
-
 ## BE-12: endpoint tests (2026-11-14, Ryan)
 
 - Most endpoints already had detailed tests in their own files (mocks, meta, detect, suppress,
@@ -647,6 +632,24 @@ mock selection, explicit real startup and explicit real failure on missing files
   new approval records or claims that pending Windows/retrieval/export work has shipped.
 
 
+## OPS-01 / OPS-02 / OPS-03: Windows support boundary (2026-11-15, Ryan)
+
+- Supported Windows routes are Docker Desktop's Linux engine or WSL. Native Windows
+  `scripts/dev.py` exits 2 with those routes before starting any servers; the POSIX
+  process-group/signal supervisor is unchanged. The container entrypoint also refuses
+  native Windows; Linux still uses exec for PID, signal and exit-status preservation.
+- Claude reproduced native Windows exec argument/exit-status problems and launcher
+  orphaning on Python 3.12.10. Those results are reported in `OPS_WINDOWS_HANDOFF.md`;
+  native Python 3.11 validation is delegated to the new CI job, not claimed from Linux.
+- Mode selection, bad config and stubbed dispatch/refusal checks run cross-platform;
+  real exec/signal/process-group checks are POSIX-only. Two native Windows checks skip
+  on POSIX. This supersedes the old file-wide non-POSIX skip note under OPS-01.
+- `Windows (startup checks)` installs the locked Python 3.11 environment and invokes
+  pytest directly, without Make. Existing required check names are preserved; requiring
+  the new job in branch protection remains a repository-owner decision.
+- Review fix: the real exec test waits for output with a five-second deadline and
+  checks early process exit, so a missing readiness line cannot block CI indefinitely.
+
 ## ML-08: offline query safeguards, package 6 first increment (2026-11-15, Ryan)
 
 - New Chroma collections record an internal format version, exact embedding model/provider
@@ -726,3 +729,15 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   writable copy; source hashes remained valid. Missing bundle/cache fallback passed with
   networking disabled. A separate Compose project passed health checks and the real API
   loop through PDF export on the updated model, with no LLM keys.
+
+
+## OPS-01: documentation follow-up (2026-11-15, Ryan)
+
+- `demo-v1` was created on `8f281d9` before the package 8 text was written; the status table,
+  findings table, release procedure and decision register now say so, and the next tag is
+  `demo-v2`. Earlier findings stay in place, marked superseded.
+- The Windows support section moved into date order (after the documentation reconciliation,
+  matching its merge in PR #31); its text is unchanged. The CHANGELOG's separate Windows heading
+  at the end of the file was folded into the 2026-11-15 list.
+- `DECISIONS.md` records the verified package 4 findings and the open owner decision about the
+  private PDFs inside the public `demo-v1` tag. No decision is claimed.

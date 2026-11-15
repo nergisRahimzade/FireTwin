@@ -34,6 +34,17 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   while retaining processed demo data, NASA text corpus and committed model artifacts.
   Historical commits and remote branches are unchanged; cleanup limits are in OPS_NOTES.
 
+- **OPS-01**: refuse native Windows dev startup before launching partial stacks;
+  retain POSIX supervision and document Docker Desktop/WSL as supported Windows routes.
+- **OPS-02**: refuse native Windows entrypoint execution; test exact dispatch, PID,
+  signal and exit-status preservation on POSIX. Bound readiness waiting in the signal test.
+- **OPS-03**: add Windows Python 3.11 startup checks without Make, retaining current
+  required check names. Native Windows startup tests passed with the locked Python 3.11 CI environment.
+
+- **OPS-01**: documentation follow-up. Record that `demo-v1` exists on `8f281d9` (the next
+  release is `demo-v2`), the open owner decision about private PDFs in that tag, and the
+  verified package 4 findings; put the Windows notes in date order. Docs only.
+
 ## 2026-11-14
 
 - **OPS-01**: repo structure (one folder per layer, `.gitkeep` in empty folders), `Makefile`
@@ -179,13 +190,3 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   fans off; override with `--material/--o2/--flow`), fails if `/simulate` doesn't burn, and checks
   the documented suppress order. Three new tests in `tests/test_e2e_loop.py`. Real-mode `make e2e`
   passes on the real NASA data with 0 synthetic sources.
-
-
-## 2026-11-15: Windows support follow-up
-
-- **OPS-01**: refuse native Windows dev startup before launching partial stacks;
-  retain POSIX supervision and document Docker Desktop/WSL as supported Windows routes.
-- **OPS-02**: refuse native Windows entrypoint execution; test exact dispatch, PID,
-  signal and exit-status preservation on POSIX. Bound readiness waiting in the signal test.
-- **OPS-03**: add Windows Python 3.11 startup checks without Make, retaining current
-  required check names. Native Windows startup tests passed with the locked Python 3.11 CI environment.
