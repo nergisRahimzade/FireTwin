@@ -1,5 +1,5 @@
 {
-  "strong_distance": 0.02,
+  "strong_distance": null,
   "medium_distance": 0.02,
   "calibrated": {
     "strong": false,

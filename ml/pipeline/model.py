@@ -134,13 +134,22 @@ def nearest_tests(scenario: Scenario, k: int = config.NEAREST_K) -> list[TestRef
 
 
 @lru_cache(maxsize=1)
-def trust_thresholds() -> tuple[float, float]:
-    """(strong, medium) distances: measured by ml/calibrate_trust.py when its file exists."""
+def trust_thresholds() -> tuple[float | None, float]:
+    """(strong, medium) distances: measured by ml/calibrate_trust.py when its file exists.
+
+    strong is None when the calibration found no distance where nearby tests are right often
+    enough for "strong": that level is then never given (see trust_level).
+    """
     path = config.TRUST_CALIBRATION_PATH
     try:
         if path.is_file():
             data = json.loads(path.read_text())
-            return float(data["strong_distance"]), float(data["medium_distance"])
+            earned = data.get("calibrated", {}).get("strong", True)
+            strong = data.get("strong_distance")
+            return (
+                float(strong) if earned and strong is not None else None,
+                float(data["medium_distance"]),
+            )
     except Exception:
         log.exception("trust_thresholds: cannot read %s; using the config defaults", path)
     return config.TRUST_STRONG_DIST, config.TRUST_MEDIUM_DIST
@@ -176,13 +185,19 @@ def fuel_model_has_skill(fuel_type: str | None) -> bool:
 
 
 def trust_level(scenario: Scenario) -> str:
-    """strong = >=3 same-fuel tests within 0.15; medium = >=1 within 0.30; else weak."""
+    """strong = >=3 same-fuel tests within the strong distance; medium = >=1 within the medium one.
+
+    Distances come from trust_thresholds(); with no calibrated strong distance, never strong.
+    """
     near = nearest_with_distance(scenario, k=max(config.NEAREST_K, config.TRUST_STRONG_COUNT))
     if not fuel_model_has_skill(fuel_type_of(scenario.material)):
         return "weak"  # the model has not shown it beats guessing the base rate for this fuel
     strong_dist, medium_dist = trust_thresholds()
     dists = [d for ref, d, same in near if same and ref.outcome in config.KNOWN_OUTCOMES]
-    if sum(d <= strong_dist for d in dists) >= config.TRUST_STRONG_COUNT:
+    if (
+        strong_dist is not None
+        and sum(d <= strong_dist for d in dists) >= config.TRUST_STRONG_COUNT
+    ):
         return "strong"
     if any(d <= medium_dist for d in dists):
         return "medium"

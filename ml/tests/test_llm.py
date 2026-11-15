@@ -12,7 +12,9 @@ class _FakeClient:
     """Stands in for openai.OpenAI; `fail` makes every completion raise."""
 
     built: list[dict] = []
+    sent: list[dict] = []  # the arguments of every completion request
     fail = False
+    finish_reason = "stop"
 
     def __init__(self, **kwargs):
         _FakeClient.built.append(kwargs)
@@ -20,19 +22,25 @@ class _FakeClient:
         self.completions = self
 
     def create(self, **kwargs):
+        _FakeClient.sent.append(kwargs)
         if _FakeClient.fail:
             raise TimeoutError("synthetic provider timeout")
         message = type("Message", (), {"content": "ok", "tool_calls": None})()
-        return type("Reply", (), {"choices": [type("Choice", (), {"message": message})()]})()
+        choice = type(
+            "Choice", (), {"message": message, "finish_reason": _FakeClient.finish_reason}
+        )
+        return type("Reply", (), {"choices": [choice()]})()
 
 
 @pytest.fixture(autouse=True)
 def fake_provider(monkeypatch):
     import openai
 
-    _FakeClient.built, _FakeClient.fail = [], False
+    _FakeClient.built, _FakeClient.sent, _FakeClient.fail = [], [], False
+    _FakeClient.finish_reason = "stop"
     monkeypatch.setattr(openai, "OpenAI", _FakeClient)
     monkeypatch.setenv("GEMINI_API_KEY", "synthetic-test-key")
+    monkeypatch.delenv("GEMINI_REASONING_EFFORT", raising=False)
     monkeypatch.setattr(llm, "_cooldown_until", 0.0)
 
 
@@ -66,6 +74,41 @@ def test_the_llm_is_tried_again_after_the_pause(monkeypatch) -> None:
     _FakeClient.fail = False
     assert llm.available() is True
     assert llm.chat("system", "user") == "ok"
+
+
+def test_gemini_asks_for_low_thinking_and_short_replies_are_capped() -> None:
+    llm.chat("system", "user")
+    sent = _FakeClient.sent[-1]
+    assert sent["reasoning_effort"] == "low"  # thinking tokens are billed as output
+    assert sent["max_tokens"] == llm.SHORT_REPLY_MAX_TOKENS
+
+
+def test_agent_calls_get_low_thinking_but_no_output_cap() -> None:
+    llm.complete([{"role": "user", "content": "plan"}], tools=[])
+    sent = _FakeClient.sent[-1]
+    assert sent["reasoning_effort"] == "low" and "max_tokens" not in sent
+
+
+def test_reasoning_effort_can_be_changed_or_left_to_the_model(monkeypatch) -> None:
+    monkeypatch.setenv("GEMINI_REASONING_EFFORT", "high")
+    llm.chat("system", "user")
+    assert _FakeClient.sent[-1]["reasoning_effort"] == "high"
+    monkeypatch.setenv("GEMINI_REASONING_EFFORT", "")
+    llm.chat("system", "user")
+    assert "reasoning_effort" not in _FakeClient.sent[-1]
+
+
+def test_openai_never_gets_reasoning_effort(monkeypatch) -> None:
+    monkeypatch.delenv("GEMINI_API_KEY")
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-test-key")
+    llm.chat("system", "user")
+    assert "reasoning_effort" not in _FakeClient.sent[-1]  # gpt-4o-mini rejects it
+
+
+def test_a_reply_cut_off_by_the_cap_is_empty_so_callers_use_the_template() -> None:
+    _FakeClient.finish_reason = "length"
+    assert llm.chat("system", "user") == ""
+    assert llm.available() is True  # a long reply is not a provider failure: no pause
 
 
 def test_without_a_key_nothing_changes(monkeypatch) -> None:
