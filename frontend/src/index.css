@@ -343,11 +343,13 @@ input, select, textarea { font-size: 16px; }
 .num-input.outside input { border-color: rgba(255,138,61,.6); color: var(--risk-2); }
 .num-input .mono { font-size: 12px; color: var(--muted); }
 .collapsible-toggle { display: none; width: 100%; min-height: 48px; padding: 12px 16px; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid var(--line); color: var(--fg); text-align: left; }
-.compare-view { display: grid; gap: 18px; min-height: calc(100vh - 220px); }
-.compare-panes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.compare-view { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 18px; min-height: calc(100vh - 220px); }
+.compare-panes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 18px; min-width: 0; }
+.compare-panes > * { min-width: 0; }
+.compare-panes > .lab3d { min-height: clamp(320px, 50vh, 560px); }
 .compare-panes .lab3d-view { height: clamp(320px, 50vh, 560px); }
-.compare-reference { display: grid; align-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; border-style: dashed; }
-.validation-video { width: 100%; aspect-ratio: 16 / 9; border: 0; background: #000; }
+.compare-reference { display: grid; align-content: start; justify-items: stretch; min-height: clamp(320px, 50vh, 560px); gap: 8px; padding: 24px; text-align: center; border-style: dashed; }
+.validation-video { display: block; width: 100%; height: clamp(220px, 28vw, 420px); aspect-ratio: 16 / 9; border: 0; background: #000; }
 .validation-placeholder { width: 100%; min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 18px; background: rgba(0,0,0,.35); border: 1px dashed var(--line); text-align: center; }
 @media (max-width: 900px) {
   .one-page { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scene" "verdict" "vars" "recs" "dash" "chat"; }
