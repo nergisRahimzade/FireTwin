@@ -8,9 +8,19 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   history row or explanation) for live views, in real and mock mode. `schemas.py`, `types.ts`,
   `client.ts` (`api.preview`), `docs/contract.md` and the BE-12 endpoint matrix updated together.
 
+- **OPS-02**: bundle preparation stops before creating files or downloading weights when
+  Git cannot verify the output's ignore status in a checkout. Source archives and hosts
+  without Git retain their documented setup workflow.
+
 - **BE-05**: a malformed `CORS_ORIGINS` entry's startup error now names the fix (add
   `https://`, or remove the trailing slash). `docker/README.md` documents hosting the backend on
   Render, including the exact `CORS_ORIGINS` format.
+
+- **FE-02** (PR #48): save a successful suppression ranking before clearing its loading
+  flag, preventing a second automatic request for the same alarm; retain stale-reply checks.
+- **ML-10** (PR #49): completion requests use no automatic SDK retries and a 10-second
+  timeout. A failed completion request pauses LLM use for 120 seconds so callers can
+  immediately use the existing offline templates.
 
 - **OPS-02**: the backend image includes the committed processed data, text corpus and model
   artifacts, so it runs in real mode without bind mounts (for hosting). Compose is unchanged.
@@ -33,6 +43,11 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   providers (local by default), configurable model caches and cache-only local queries.
   Expected resource failures return keyword fallback with a bounded warning; add real
   Chroma failure/custom-corpus/production-EF regressions. Bundle integration follows below.
+- **ML-09** (PR #36): vector retrieval evals fail when vector search is unavailable
+  instead of scoring keyword fallback. Use a prepared `FIRETWIN_RAG_BUNDLE` or a published
+  local index; skip with a reason when neither exists. The fallback guard runs without a bundle.
+- **ML-08 / OPS-02 / OPS-01** (PR #37): leave empty index folders untouched, refuse
+  non-ignored bundle outputs inside a checkout, and reject tracked generated model/index files.
 - **OPS-01 documentation reconciliation**: distinguish current implementation from dated
   integration records; repair stale results, vent, retrieval and mount descriptions. Add
   `docs/DECISIONS.md` with owners, pending scope/contract choices and a proposed validation
@@ -59,6 +74,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **OPS-01**: documentation follow-up. Record that `demo-v1` exists on `8f281d9` (the next
   release is `demo-v2`), the open owner decision about private PDFs in that tag, and the
   verified package 4 findings; put the Windows notes in date order. Docs only.
+- **OPS-01**: reconcile the current snapshot, package status and offline-provisioning
+  register against merged PRs through #49. Add missing eval, retrieval follow-up and
+  runtime release notes; retain historical entries and pending owner decisions.
 
 ## 2026-11-14
 
