@@ -843,3 +843,17 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   is still one of strong/medium/weak.
 - Effect with the current data: the demo scenario (PMMA rod, 21% O2, 10 cm/s) shows medium
   instead of strong; probabilities and rankings are unchanged.
+
+
+## ML-10: lower LLM cost: low thinking and capped short replies (2026-11-15, Nergis)
+
+- Gemini 3 models think before answering, and thinking tokens are billed at the output rate (the
+  expensive side). `ml/agents/llm.py` now sends `reasoning_effort="low"` (mapped to Gemini's
+  `thinking_level`) on every Gemini call; `GEMINI_REASONING_EFFORT` overrides it, empty = the model's
+  default. It is never sent to OpenAI (`gpt-4o-mini` rejects it). "low" was chosen because some
+  Gemini 3 models reject "minimal"/"medium" on the OpenAI-compatible endpoint.
+- `chat()` (explanation and chat) caps replies at `SHORT_REPLY_MAX_TOKENS = 1024`, thinking
+  included. A reply cut off by the cap returns "" and is logged, so callers use their template;
+  it does not start the failure pause. Agent calls (`complete()` with tools) have no cap.
+- Explanations are one grounding-checked sentence, so low thinking costs no visible quality, and
+  any ungrounded answer still falls back to the template. No API or schema change.

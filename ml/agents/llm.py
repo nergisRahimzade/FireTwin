@@ -8,6 +8,11 @@ never depends on the network. Check a key with `python -m ml.agents.llm`.
 Fail fast: one attempt with a short timeout, and after any failure the LLM is paused for
 COOLDOWN_S (available() is False), so explanations and chat use their offline template at once
 instead of waiting on a provider that just failed. It is tried again after the pause.
+
+Cost: Gemini's thinking tokens are billed as output, the expensive side. Every Gemini call asks
+for a low thinking level (`reasoning_effort`, override with GEMINI_REASONING_EFFORT; empty = the
+model's default), and the short-text calls (explanation, chat) are capped at
+SHORT_REPLY_MAX_TOKENS. A reply cut off by that cap comes back empty, so callers use their template.
 """
 
 from __future__ import annotations
@@ -28,6 +33,10 @@ PROVIDERS = (
         "model_env": "GEMINI_MODEL",
         "default_model": "gemini-3.8-flash",
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        # Mapped to Gemini's thinking_level. "low" is accepted by the Gemini 3 models; some
+        # reject "minimal" or "medium" on this endpoint.
+        "effort_env": "GEMINI_REASONING_EFFORT",
+        "default_effort": "low",
     },
     {
         "name": "openai",
@@ -35,8 +44,13 @@ PROVIDERS = (
         "model_env": "OPENAI_MODEL",
         "default_model": "gpt-4o-mini",
         "base_url": None,  # the SDK's default
+        # gpt-4o-mini is not a reasoning model and rejects reasoning_effort: never sent.
+        "effort_env": None,
+        "default_effort": None,
     },
 )
+# Output cap for the explanation (one sentence) and chat (<= 120 words), thinking included.
+SHORT_REPLY_MAX_TOKENS = 1024
 # A fast-model explanation takes 1-3 s; much slower is worse for the demo than the template.
 TIMEOUT_S = 10.0
 # The SDK retries twice by default, which tripled the wait on a stalled provider. One attempt only.
@@ -51,12 +65,24 @@ def _paused() -> bool:
 
 
 def provider() -> dict | None:
-    """{name, api_key, model, base_url} of the first provider whose key is set, else None."""
+    """{name, api_key, model, base_url, effort} of the first provider whose key is set, else None.
+
+    effort is the reasoning_effort to send, or None to send none.
+    """
     for p in PROVIDERS:
         key = os.getenv(p["key_env"], "").strip()
         if key:
             model = os.getenv(p["model_env"], "").strip() or p["default_model"]
-            return {"name": p["name"], "api_key": key, "model": model, "base_url": p["base_url"]}
+            effort = p["default_effort"]
+            if p["effort_env"] is not None and p["effort_env"] in os.environ:
+                effort = os.environ[p["effort_env"]].strip() or None  # empty = model default
+            return {
+                "name": p["name"],
+                "api_key": key,
+                "model": model,
+                "base_url": p["base_url"],
+                "effort": effort,
+            }
     return None
 
 
@@ -65,11 +91,14 @@ def available() -> bool:
     return provider() is not None and not _paused()
 
 
-def complete(messages: list[dict], tools: list[dict] | None = None) -> dict:
-    """One chat completion. Returns {"content": str, "tool_calls": [{id, name, arguments}]}.
+def complete(
+    messages: list[dict], tools: list[dict] | None = None, max_tokens: int | None = None
+) -> dict:
+    """One chat completion: {"content": str, "tool_calls": [{id, name, arguments}], "truncated"}.
 
     `tools` are OpenAI-style function schemas (see ml.pipeline.tools.schemas()). Arguments come
-    back already parsed from JSON. Raises RuntimeError with no key, and any SDK error as is.
+    back already parsed from JSON. `max_tokens` caps the reply; truncated is True when the cap
+    cut it off. Raises RuntimeError with no key, and any SDK error as is.
     """
     from openai import OpenAI  # imported here so the offline path never needs the SDK
 
@@ -85,8 +114,13 @@ def complete(messages: list[dict], tools: list[dict] | None = None) -> dict:
     kwargs: dict[str, Any] = {"model": p["model"], "messages": messages}
     if tools:
         kwargs["tools"] = tools
+    if p["effort"]:
+        kwargs["reasoning_effort"] = p["effort"]
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
     try:
-        message = client.chat.completions.create(**kwargs).choices[0].message
+        choice = client.chat.completions.create(**kwargs).choices[0]
+        message = choice.message
     except Exception:
         _cooldown_until = time.monotonic() + COOLDOWN_S
         log.exception(
@@ -106,13 +140,27 @@ def complete(messages: list[dict], tools: list[dict] | None = None) -> dict:
             )
             arguments = {}
         calls.append({"id": call.id, "name": call.function.name, "arguments": arguments})
-    return {"content": (message.content or "").strip(), "tool_calls": calls}
+    return {
+        "content": (message.content or "").strip(),
+        "tool_calls": calls,
+        "truncated": getattr(choice, "finish_reason", None) == "length",
+    }
 
 
 def chat(system: str, user: str) -> str:
-    """Plain question -> text, for the explainer and the chat."""
+    """Plain question -> short text, for the explainer and the chat.
+
+    Capped at SHORT_REPLY_MAX_TOKENS. A reply the cap cut off returns "" (logged), so the caller
+    uses its template rather than half a sentence. That is not a provider failure: no pause.
+    """
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    return complete(messages)["content"]
+    reply = complete(messages, max_tokens=SHORT_REPLY_MAX_TOKENS)
+    if reply["truncated"]:
+        log.warning(
+            "llm.chat: reply cut off at %d tokens; using the template", SHORT_REPLY_MAX_TOKENS
+        )
+        return ""
+    return reply["content"]
 
 
 def main() -> int:
