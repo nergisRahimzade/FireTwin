@@ -8,6 +8,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 from runpy import run_path
 
@@ -153,16 +154,23 @@ signal.pause()
 @posix_only
 def test_exec_keeps_the_pid_so_termination_reaches_the_server(tmp_path: Path) -> None:
     # docker stop signals the container's main process: after exec that must be the server.
-    process = subprocess.Popen(
-        [sys.executable, ENTRYPOINT, sys.executable, "-c", SERVER],
-        env={**os.environ, "MOCK_MODE": "1"},
-        cwd=tmp_path,
-        stdout=subprocess.PIPE,
-        text=True,
-    )
+    output = tmp_path / "server.stdout"
+    with output.open("w") as stdout:
+        process = subprocess.Popen(
+            [sys.executable, ENTRYPOINT, sys.executable, "-c", SERVER],
+            env={**os.environ, "MOCK_MODE": "1"},
+            cwd=tmp_path,
+            stdout=stdout,
+            text=True,
+        )
     try:
-        assert process.stdout.readline().strip() == "startup: synthetic mock mode"
-        assert int(process.stdout.readline()) == process.pid  # replaced, not a child process
+        deadline = time.monotonic() + 5
+        while len(lines := output.read_text().splitlines()) < 2:
+            assert process.poll() is None, f"entrypoint exited before server readiness: {lines}"
+            assert time.monotonic() < deadline, f"server readiness timed out: {lines}"
+            time.sleep(0.02)
+        assert lines[0] == "startup: synthetic mock mode"
+        assert int(lines[1]) == process.pid  # replaced, not a child process
         process.send_signal(signal.SIGTERM)
         assert process.wait(timeout=5) == 7  # the server's own handler ran; its status came back
     finally:
