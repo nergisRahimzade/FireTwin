@@ -311,6 +311,10 @@ def search(
     root = Path(persist_dir or config.CHROMA_DIR)
     if not root.is_dir():
         return None
+    # No published index and no legacy store means "not built". Return before opening a client:
+    # Chroma would create chroma.sqlite3 here (or fail on a read-only folder, e.g. a mount).
+    if not (root / "CURRENT.json").exists() and not (root / "chroma.sqlite3").exists():
+        return None
     import chromadb
 
     try:

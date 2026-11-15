@@ -111,3 +111,29 @@ def test_incomplete_cache_source_never_starts_downloading(tmp_path, monkeypatch)
     with pytest.raises(ValueError, match="source model cache is incomplete"):
         BUNDLE["prepare"](target, tmp_path / "incomplete-cache")
     assert not target.exists()
+
+
+@pytest.mark.parametrize("name", ["rag-bundle", "rag-bundle-demo"])
+def test_prepare_accepts_git_ignored_bundle_folders(name):
+    # RAG-005: the documented .local/rag-bundle* names are ignored, so prepare allows them.
+    BUNDLE["check_output_location"](ROOT / ".local" / name, ROOT)
+
+
+@pytest.mark.parametrize("folder", [".local/demo-bundle", "bundles/rag"])
+def test_prepare_refuses_tracked_folders_inside_the_repo(folder):
+    # RAG-005: anywhere else in the repo, `git add` would pick up the ~87 MB model.
+    with pytest.raises(ValueError, match="not git-ignored"):
+        BUNDLE["check_output_location"](ROOT / folder, ROOT)
+
+
+def test_prepare_allows_folders_outside_the_repo(tmp_path):
+    BUNDLE["check_output_location"](tmp_path / "rag-bundle", ROOT)
+
+
+def test_prepare_refuses_a_tracked_folder_before_creating_anything():
+    # The check runs first: no bundle folder, temporary build folder or ingest run is created.
+    target = ROOT / ".local/demo-bundle"
+    with pytest.raises(ValueError, match="not git-ignored"):
+        BUNDLE["prepare"](target)
+    assert not target.exists()
+    assert not list(target.parent.glob(".demo-bundle-*")) if target.parent.exists() else True

@@ -129,3 +129,14 @@ def test_index_contains_no_blobs_over_github_limit() -> None:
         if kind == b"blob" and int(size) > 100 * 1024 * 1024:
             oversized.append(blobs[oid])
     assert not oversized, f"blobs exceed GitHub's 100 MiB limit: {oversized}"
+
+
+# Files only a prepared retrieval bundle or a built vector index contains. The model is ~87 MB,
+# under the 100 MiB check above, so it needs its own guard (RAG-005).
+BUNDLE_ARTIFACTS = ("model.onnx", "onnx.tar.gz", "chroma.sqlite3", ".bundle-sha256")
+
+
+def test_index_contains_no_retrieval_bundle_or_vector_index_files() -> None:
+    paths = filter(None, git("ls-files", "-z").decode().split("\0"))
+    tracked = [p for p in paths if PurePosixPath(p).name in BUNDLE_ARTIFACTS]
+    assert not tracked, f"prepared bundle/index files are tracked; untrack them: {tracked}"
