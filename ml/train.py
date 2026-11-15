@@ -18,7 +18,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ml.pipeline import config, physics  # noqa: E402
+from ml.pipeline import config, model, physics  # noqa: E402
 
 log = logging.getLogger("train")
 
@@ -32,7 +32,7 @@ def load_training_rows(path: Path = config.TESTS_PARQUET) -> pd.DataFrame:
     except Exception:
         log.exception("load_training_rows: cannot read %s (run `make data` first)", path)
         raise
-    rows = table[table["outcome"].isin(["burned", "extinguished"])].dropna(subset=RANGE_FEATURES)
+    rows = model.usable_rows(table[table["outcome"].isin(["burned", "extinguished"])])
     rows = rows.assign(burned=(rows["outcome"] == "burned").astype(int))
     if len(rows) < 10 or rows["burned"].nunique() < 2:
         raise ValueError(f"load_training_rows: need >=10 rows with both outcomes, got {len(rows)}")
@@ -105,6 +105,12 @@ def train(table_path: Path = config.TESTS_PARQUET, out_dir: Path = config.ARTIFA
     metrics = {
         "n_rows": int(len(rows)),
         "n_synthetic_rows": int(rows["is_synthetic"].sum()),
+        "n_rows_with_assumed_pressure": int((~rows["pressure_recorded"]).sum()),
+        "assumed_pressure_kpa": config.NOMINAL_PRESSURE_KPA,
+        "rows_per_investigation": {
+            inv: {"burned": int(g["burned"].sum()), "extinguished": int((1 - g["burned"]).sum())}
+            for inv, g in rows.groupby("investigation")
+        },
         "trained_on_synthetic_data": bool(rows["is_synthetic"].any()),
         "evaluation": "leave-one-investigation-out",
         "chosen_variant": variant,

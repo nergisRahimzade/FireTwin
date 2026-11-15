@@ -21,6 +21,10 @@ Changing them is a contract change (rule 3).
 - ML-03 saves min/max per feature **and per fuel_type**; BE-07 serves the `"overall"` section
   (see the BE-07 section below).
 - `is_synthetic` is `true` for placeholder values; real NASA-derived values set `false`.
+- Results rows: `None` means the step didn't produce that value (a detect row has only
+  `detection_s`). Rows have no flag of their own: a row counts as synthetic when any of its
+  `sources` has `is_synthetic=true`, and the frontend shows the badge for it (rule 5).
+  So every row, detect rows included, carries the sources behind the current verdict.
 - Results rows follow the real store (`services/store.py`): `step` is the step's name, `sources`
   is a list of `test_id` strings, and `None` means the step didn't produce that value (a detect
   row has only `detection_s`). The BE-06 mocks are checked against the real store, row for row.
@@ -28,6 +32,8 @@ Changing them is a contract change (rule 3).
   table can't badge synthetic sources from a row alone. Today the ids show it by convention only
   (seed ids start with `SYN-`, mock ids with `synthetic-`). Options: store full `TestRef` dicts in
   `sources`, or add an `is_synthetic` key to each row. Either is a contract change (rule 3).
+
+## GET /meta (BE-07): keys inside the free-form fields
 
 ## 3D coordinate system (frontend and backend)
 

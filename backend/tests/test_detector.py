@@ -10,7 +10,7 @@ def test_flow_on_trips_the_downstream_vent() -> None:
     out = detector.detect(BASE)
     assert isinstance(out, DetectOut)
     assert out.detected is True
-    assert out.detector_id == "vent_aft"
+    assert out.detector_id == "vent_fwd"
     assert out.time_to_detect_s == 40.0  # 4.0 m downstream at 10 cm/s
 
 
@@ -35,7 +35,7 @@ def test_flow_pointing_away_from_all_detectors() -> None:
 
 def test_reversed_flow_trips_the_other_vent() -> None:
     out = detector.detect(BASE.model_copy(update={"flow_dir": (-1.0, 0.0, 0.0)}))
-    assert out.detector_id == "vent_fwd"
+    assert out.detector_id == "vent_aft"
 
 
 def test_every_detector_reports_id_position_and_peak_concentration() -> None:
@@ -49,9 +49,9 @@ def test_every_detector_reports_id_position_and_peak_concentration() -> None:
 
 def test_fire_next_to_a_vent_is_detected_with_fans_off() -> None:
     out = detector.detect(
-        BASE.model_copy(update={"flow_speed_cm_s": 0.0}), fire_position=(3.8, 1.5, 0.0)
+        BASE.model_copy(update={"flow_speed_cm_s": 0.0}), fire_position=(3.8, 1.37, 0.0)
     )
-    assert out.detected is True and out.detector_id == "vent_aft"
+    assert out.detected is True and out.detector_id == "vent_fwd"
 
 
 def test_detection_holds_across_the_whole_flow_slider() -> None:

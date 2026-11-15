@@ -78,6 +78,8 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   `--app-dir backend` exposes only `backend/`, but `/simulate` and `/meta` import `ml.pipeline`
   from the repo root. `scripts/dev.py` now puts the repo root first on the backend's
   `PYTHONPATH` (Docker already sets `/app/backend:/app`). Found by starting the real server.
+- **OPS-01 follow-up**: pytest ignores Starlette's "use httpx2" deprecation warning (that exact
+  message and class only), so `make test` reports no warnings. The plan's httpx stays.
 
 - **BE-08**: `GET /results/{scenario_id}` serves `store.history(scenario_id)` through `ResultsOut`
   and maps Nergis's `ScenarioNotFound` to 404. Rebased onto `origin/feature/BE-integration`

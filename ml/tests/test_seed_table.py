@@ -26,8 +26,9 @@ def test_table_schema() -> None:
     assert list(table.columns) == COLUMNS
     assert len(table) >= 40
     assert not table["test_id"].duplicated().any()
-    assert table["o2_pct"].between(0, 100).all()
-    assert (table["flow_cm_s"] >= 0).all()
+    # A value may be missing (the NASA table did not report it); a present one must be valid.
+    assert table["o2_pct"].dropna().between(0, 100).all()
+    assert (table["flow_cm_s"].dropna() >= 0).all()
     assert set(table["outcome"]) <= {"burned", "extinguished", "unknown"}
     assert table["source_url"].str.len().gt(0).all()
     assert set(table["fuel_type"]) <= {"solid", "droplet", "gas"}
