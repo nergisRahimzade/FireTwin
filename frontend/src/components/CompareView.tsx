@@ -1,9 +1,8 @@
-/* One-page layout: Compare mode, a full-screen view (no route change) with the 3D twin next to a
-   reference example. Layout shell: the reference side is a placeholder until the team picks the
-   footage or example (and how it works offline). Esc or "Back" returns to the simulation. */
+/* Compare mode keeps the current Three.js scene beside the selected NASA reference. */
 import { Suspense, useEffect } from "react";
 import { useScenario } from "../store/useScenario";
 import { IssScene } from "./SceneView";
+import { ValidationReference } from "./ValidationReference";
 
 export function CompareView({ onClose }: { onClose: () => void }) {
   const detect = useScenario(s => s.detect);
@@ -21,10 +20,10 @@ export function CompareView({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const rows: [string, string][] = [
-    ["Material", inputs.material || "—"],
-    ["Oxygen", `${inputs.o2_pct} %`],
-    ["Airflow", `${inputs.flow_speed_cm_s} cm/s`],
-    ["Pressure", `${inputs.pressure_kpa} kPa`],
+    ["Material", inputs?.material || "—"],
+    ["Oxygen", `${inputs?.o2_pct ?? "—"} %`],
+    ["Airflow", `${inputs?.flow_speed_cm_s ?? "—"} cm/s`],
+    ["Pressure", `${inputs?.pressure_kpa ?? "—"} kPa`],
   ];
   return (
     <section className="compare-view" role="dialog" aria-modal="true" aria-label="Compare">
@@ -42,10 +41,7 @@ export function CompareView({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </div>
-        <div className="glass compare-reference">
-          <p className="label">Reference example</p>
-          <p className="note m-0">NASA footage or a reference test goes here, for side-by-side comparison.</p>
-        </div>
+        <ValidationReference />
       </div>
       <div className="table-wrap">
         <table>
