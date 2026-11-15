@@ -15,16 +15,18 @@ export const IssScene = lazy(() => import("../scene/IssScene").then(m => ({ defa
 export function SceneView({ onCompare }: { onCompare: () => void }) {
   const detect = useScenario(s => s.detect);
   const simulate = useScenario(s => s.simulate);
+  const ignition = useScenario(s => s.ignitions);
   const [alarmId, setAlarmId] = useState<string | null>(null);
   const clockEl = useRef<HTMLSpanElement | null>(null);
   const startedAt = useRef<number | null>(null);
 
-  // A new scenario restarts the demo clock and clears the alarm.
-  const scenarioId = simulate?.scenario_id ?? null;
+  // Each new ignition (the store's counter, not the backend's scenario_id, which the mock reuses)
+  // restarts the demo clock and clears the alarm. /apply keeps the clock running.
+  const burning = simulate !== null;
   useEffect(() => {
-    startedAt.current = scenarioId ? performance.now() : null;
+    startedAt.current = burning ? performance.now() : null;
     setAlarmId(null);
-  }, [scenarioId]);
+  }, [ignition, burning]);
 
   // Each /detect result schedules (or cancels) the alarm.
   useEffect(() => {
@@ -44,7 +46,7 @@ export function SceneView({ onCompare }: { onCompare: () => void }) {
         <div className="lab3d-view scene-large">
           <div className="lab3d-canvas">
             <Suspense fallback={<div className="lab3d-msg">Loading the ISS module…</div>}>
-              <IssScene detect={detect} simulate={simulate} alarmId={alarmId} clock={{ el: clockEl, startedAt }} />
+              <IssScene detect={detect} simulate={simulate} alarmId={alarmId} clock={{ el: clockEl, startedAt }} ignition={ignition} />
             </Suspense>
           </div>
           <div className="lab3d-hud">

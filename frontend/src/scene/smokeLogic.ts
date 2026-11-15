@@ -1,7 +1,10 @@
 /* FE-06: how a SimulateOut drives the smoke. Pure, so it's unit-tested; Smoke.tsx applies it in
    useFrame. Smoke drifts along flow_dir at flow_speed_cm_s, with no buoyancy (microgravity), so with
    the fans off it only creeps outward from the fire. */
+import * as THREE from "three";
 import type { SimulateOut, Vec3 } from "../api/types";
+import { FIRE_POS } from "../lab/config.js";
+import { Smoke as CoreSmoke } from "../lab/core.js";
 
 // The demo clock runs 10x real time (plan, FE-06: "time scaled for demo, e.g. 10x").
 export const SCENE_TIME_SCALE = 10;
@@ -33,4 +36,60 @@ export function smokeSettings(sim: SimulateOut | null): SmokeSettings {
     speedMS: speedCmS / 100,
     fans: speedCmS > 0,
   };
+}
+
+// Each simulation substep covers at most this much simulated time (0.05 s of real time at 10x).
+export const MAX_SUBSTEP_SIM_S = 0.5;
+// A frame gap longer than this (a hidden tab, a debugger pause) is capped, so returning to the page
+// doesn't run hundreds of catch-up steps at once. Below it, every real second is simulated in full.
+export const MAX_FRAME_GAP_S = 1;
+
+/* Owns the particle system for Smoke.tsx (and runs headless in tests):
+   - sync(ignition): a new ignition (the store's counter changed) clears the old cloud, even when the
+     backend reuses the same scenario_id; /apply doesn't change the counter, so its smoke stays.
+   - advance(realSeconds): the full elapsed time x 10, in bounded substeps, so smoke moves and fades
+     at the same 10x pace as the alarm's wall clock, at 120 fps or 5 fps. */
+export class SmokeDriver {
+  readonly smoke: CoreSmoke;
+  simElapsed = 0; // simulated seconds since this ignition
+  private ignition: number | null = null;
+  private readonly params = {
+    rate: 0, g: 0, flow: { dir: [1, 0, 0] as Vec3, fans: false }, speed: 0,
+    src: new THREE.Vector3(...(FIRE_POS as [number, number, number])), radius: 0.12, life: SMOKE_LIFE_S,
+  };
+
+  constructor(count = 1600) {
+    this.smoke = new CoreSmoke(count);
+  }
+
+  /** Returns true when this is a new ignition and the cloud was cleared. */
+  sync(ignition: number): boolean {
+    if (ignition === this.ignition) return false;
+    this.ignition = ignition;
+    this.smoke.reset();
+    this.simElapsed = 0;
+    return true;
+  }
+
+  advance(realSeconds: number, s: SmokeSettings): void {
+    const p = this.params;
+    p.rate = s.rate; // 0 once extinguished: the last smoke drifts on and fades
+    p.flow.dir = s.dir;
+    p.flow.fans = s.fans;
+    p.speed = s.speedMS;
+    let remaining = Math.min(Math.max(0, realSeconds), MAX_FRAME_GAP_S) * SCENE_TIME_SCALE;
+    while (remaining > 1e-9) {
+      const step = Math.min(remaining, MAX_SUBSTEP_SIM_S);
+      this.smoke.step(step, p, [], () => {});
+      this.simElapsed += step;
+      remaining -= step;
+    }
+  }
+
+  /** Number of live particles (for tests and debugging). */
+  liveCount(): number {
+    let n = 0;
+    for (let i = 0; i < this.smoke.n; i++) if (this.smoke.age[i] >= 0) n++;
+    return n;
+  }
 }

@@ -107,6 +107,22 @@ describe("useScenario store", () => {
     expect(store().inputs.material).toBe("Nomex");
   });
 
+  it("counts ignitions, not backend ids: Ignite again with the same scenario_id is a new ignition", async () => {
+    fake.simulate.mockResolvedValue(sim("burning", "synthetic-scenario-001"));
+    fake.detect.mockResolvedValue(det(true));
+    await store().ignite();
+    expect(store().ignitions).toBe(1);
+    await store().ignite();
+    expect(store().ignitions).toBe(2);
+    expect(store().simulate?.scenario_id).toBe("synthetic-scenario-001");
+    fake.suppress.mockResolvedValue(ranked);
+    fake.apply.mockResolvedValue(sim("extinguished", "synthetic-scenario-001"));
+    await store().runApply("fans_off");
+    expect(store().ignitions).toBe(2); // /apply is not a new ignition
+    store().reset();
+    expect(store().ignitions).toBe(2); // keeps counting, so the next Ignite is new
+  });
+
   it("reset keeps the inputs so the loop can rerun", async () => {
     fake.simulate.mockResolvedValue(sim("burning"));
     fake.detect.mockResolvedValue(det(false));

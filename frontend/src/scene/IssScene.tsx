@@ -97,10 +97,11 @@ interface IssSceneProps {
   detect: DetectOut | null;
   simulate: SimulateOut | null;
   alarmId?: string | null; // the detector that tripped, once the demo clock reaches time_to_detect_s
+  ignition?: number; // the store's ignition counter: a new value restarts the smoke
   clock?: SceneClock;
 }
 
-export function IssScene({ detect, simulate, alarmId = null, clock }: IssSceneProps) {
+export function IssScene({ detect, simulate, alarmId = null, clock, ignition = 0 }: IssSceneProps) {
   return (
     <Canvas
       flat
@@ -119,7 +120,7 @@ export function IssScene({ detect, simulate, alarmId = null, clock }: IssScenePr
       </ModelBoundary>
       <DetectorMarkers detect={detect} alarmId={alarmId} />
       {clock && <ClockReadout clock={clock} />}
-      <Smoke simulate={simulate} />
+      <Smoke simulate={simulate} ignition={ignition} />
       <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />

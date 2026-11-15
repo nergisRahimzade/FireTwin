@@ -47,6 +47,9 @@ interface ScenarioData {
   history: SimulateOut[]; // every prediction in this scenario, in order
   chat: ChatTurn[];
   phase: Phase;
+  // Frontend ignition counter: +1 on every successful /simulate (not /apply). The 3D scene restarts its
+  // smoke and demo clock when it changes, even if the backend reuses a scenario_id (the BE-06 mock does).
+  ignitions: number;
   loading: Record<Step, boolean>;
   error: string | null;
 }
@@ -81,6 +84,7 @@ export const initialScenario: ScenarioData = {
   history: [],
   chat: [],
   phase: "idle",
+  ignitions: 0,
   loading: IDLE_LOADING,
   error: null,
 };
@@ -125,7 +129,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       if (!res) return null;
       // A new scenario: earlier detection, actions and results no longer apply.
       set(s => ({
-        simulate: res, detect: null, suppress: null, results: null, history: [res],
+        simulate: res, detect: null, suppress: null, results: null, history: [res], ignitions: s.ignitions + 1,
         phase: nextPhase(s.phase, { type: "simulated", state: res.state }),
       }));
       return res;
@@ -180,6 +184,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     },
 
     // Keeps the chosen inputs and the loaded /meta, so the user can rerun the loop at once.
-    reset: () => set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat })),
+    // ignitions keeps counting, so the next Ignite after a Reset is always a new ignition.
+    reset: () => set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions })),
   };
 });
