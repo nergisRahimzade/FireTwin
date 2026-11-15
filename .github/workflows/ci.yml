@@ -77,3 +77,27 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  windows:
+    # Native Windows can't run make dev or the container entrypoint (no POSIX process groups or
+    # exec). These tests check both stop early with a clear message there, and that mode selection
+    # still works. The supported Windows routes are Docker Desktop and WSL (docs/OPS_NOTES.md).
+    name: Windows (startup checks)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      UV_LOCKED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.5"
+          enable-cache: true
+
+      - name: Install Python 3.11 and the locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Startup tests (pytest directly; the Makefile needs a POSIX shell)
+        run: uv run pytest tests/test_dev.py tests/test_container_startup.py
