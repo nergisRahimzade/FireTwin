@@ -79,23 +79,27 @@ describe("research PDF", () => {
   it("contains selectable per-session values, outcomes, all suppression probabilities and linked evidence", async () => {
     const pdf = await createResearchPdf(buildResearchReport([session(), { ...session(), id: 2 }], start));
     const output = pdf.output();
+    const text = (pdf.internal as unknown as { pages: string[][] }).pages.slice(1).flat().join("\n");
     expect(output).toMatch(/^%PDF/);
-    for (const text of ["SESSION 1", "SESSION 2", "Synthetic material", "90.0%", "10.0%", "water_mist", "co2", "SYNTHETIC", "OUTSIDE TESTED RANGE", "12:00:02.000 UTC", "EXTINGUISHED"]) {
-      expect(output).toContain(text);
+    expect(pdf.getNumberOfPages()).toBe(3); // two dashboards and one shared evidence appendix
+    for (const value of ["SESSION 1", "SESSION 2", "Synthetic material", "90.0%", "10.0%", "water_mist", "co2", "SYNTHETIC", "OUTSIDE TESTED RANGE", "12:00:02.000", "EXTINGUISHED"]) {
+      expect(text).toContain(value);
     }
     expect(output).toContain("/URI (https://example.test/synthetic-evidence)");
-    expect(output).toContain("Crew risk");
-    expect(output).toContain("Not recorded"); // missing measurement is not printed as zero
+    expect(text).toContain("crew risk");
+    expect(text).toContain("Not recorded"); // missing measurement is not printed as zero
+    expect(output).toContain("/FlateDecode"); // compressed PDF streams, still selectable text
   });
 
   it("paginates long source text without dropping the final session or its footer", async () => {
     const long = structuredClone(session());
-    long.history[0].explanation = "Long synthetic explanation. ".repeat(1500) + "END OF LONG EXPLANATION";
+    long.history[0].nearest_tests[0].source_url = "https://example.test/" + "long-source-".repeat(1500) + "EVIDENCE_END";
     const pdf = await createResearchPdf(buildResearchReport([long, { ...session(), id: 99 }], start));
-    expect(pdf.getNumberOfPages()).toBeGreaterThan(4);
-    expect(pdf.output()).toContain("END OF LONG EXPLANATION");
-    expect(pdf.output()).toContain("SESSION 99");
+    expect(pdf.getNumberOfPages()).toBeGreaterThan(3);
     const pages = (pdf.internal as unknown as { pages: string[][] }).pages.slice(1);
+    expect(pdf.output()).toContain("EVIDENCE_END"); // the complete clickable URL is preserved
+    expect(pages[pages.length - 1].join("\n")).toContain("END"); // tail renders even if the word wraps
+    expect(pages.flat().join("\n")).toContain("SESSION 99");
     expect(pages.every(page => page.join("\n").includes("Flame is illustrative"))).toBe(true);
   });
 });

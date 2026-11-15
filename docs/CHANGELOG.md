@@ -11,12 +11,14 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   edited controls across reloads, count sessions independently of replays, and distinguish
   tested versus model-only conditions in the O2 chart. This records the already merged PR.
 
-- **FE-09**: replace the dashboard screenshot PDF with a portrait session research report:
+- **FE-09**: replace the dashboard screenshot PDF with a compact landscape analytics report:
   timestamped inputs/materials, initial/final model statistics, saved suppression probabilities
   and recommendations, step outcomes, and linked NASA evidence rows with synthetic labels.
   Save per-session response events and ranking input snapshots; export every saved session
   without API calls or recalculating historical recommendations. Older missing details are
-  explicitly unrecorded. Text and vector layout flow across pages.
+  explicitly unrecorded. KPI tiles, probability bars and dense tables replace repeated prose;
+  a shared evidence appendix deduplicates source URLs. Compressed text/vector pages continue
+  when data is long, retaining measurements and references.
 
 - **FE-06** (PR #54 review fixes): use the live preview's trust and extrapolation flags
   so the flame's outside-range warning follows edited settings. Label unrecorded previews

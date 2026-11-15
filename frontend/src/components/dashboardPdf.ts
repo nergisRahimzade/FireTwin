@@ -1,226 +1,246 @@
 import type { jsPDF } from "jspdf";
-import type { SimulateOut } from "../api/types";
+import type { ScenarioIn } from "../api/types";
 import type { Session } from "../store/useScenario";
 import {
   buildResearchReport, evidenceIds, reportInputs, reportPercent, reportTimestamp,
   type ReportSession, type ResearchReport,
 } from "./sessionReport";
 
-const PAPER = "#F5F2EA", INK = "#514331", MUTED = "#726A5D", LINE = "#B5AA97", LIGHT = "#E6E0D4";
-const MARGIN = 16, WIDTH = 178, BOTTOM = 273;
-const printText = (value: string) => value
-  .replace(/₂/g, "2").replace(/→/g, " to ").replace(/[–—]/g, "-")
-  .replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[^\S\n]+/g, " ")
-  .replace(/[\u0000-\u0008\u000b-\u001f]/g, "");
+const INK = "#17202B", MUTED = "#626B76", LINE = "#D3D8DF";
+const ACCENT = "#CE476F", PINK = "#FBE5EC", BLUE = "#527BA9", PALE = "#F5F7FA";
+const M = 10, W = 277, BOTTOM = 192, BODY = 7.5, LEADING = 3.1;
+const clean = (text: string) => text.replace(/₂/g, "2").replace(/→/g, " to ")
+  .replace(/[–—]/g, "-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+const timestamp = (at: number | null) => reportTimestamp(at).replace(" UTC", "");
+const number = (value: number | null) => value === null ? "Not recorded" : String(value);
+const conditions = (i: ScenarioIn) => `O2 ${i.o2_pct}% | ${i.pressure_kpa} kPa | ${i.flow_speed_cm_s} cm/s | dir [${i.flow_dir.join(", ")}] | ${i.module}`;
 
-class ResearchPages {
-  y = 0;
+/** Changes are lossless relative to the full assessment snapshot printed above each table. */
+function changes(before: ScenarioIn | null, after: ScenarioIn): string {
+  if (!before) return reportInputs(after);
+  const out: string[] = [];
+  if (before.material !== after.material) out.push(`Material: ${after.material}`);
+  if (before.module !== after.module) out.push(`Module: ${after.module}`);
+  if (before.o2_pct !== after.o2_pct) out.push(`O2 ${before.o2_pct}% to ${after.o2_pct}%`);
+  if (before.pressure_kpa !== after.pressure_kpa) out.push(`Pressure ${after.pressure_kpa} kPa`);
+  if (before.flow_speed_cm_s !== after.flow_speed_cm_s) out.push(`Flow ${before.flow_speed_cm_s} to ${after.flow_speed_cm_s} cm/s`);
+  if (before.flow_dir.some((v, j) => v !== after.flow_dir[j])) out.push(`Direction [${after.flow_dir.join(", ")}]`);
+  return out.join("; ") || "No model-input change";
+}
+
+class DashboardPages {
+  y = 25;
+  private label = "";
   private page = 0;
-  private sessionId = 0;
   constructor(readonly pdf: jsPDF, private report: ResearchReport) {}
+  get pageNumber() { return this.page; }
 
-  startSession(id: number) {
-    this.sessionId = id;
-    this.newPage(true);
-  }
-
-  private newPage(first = false) {
-    if (this.page++) this.pdf.addPage();
+  newPage(label = this.label) {
+    this.label = label;
     const p = this.pdf;
-    p.setFillColor(PAPER);
-    p.rect(0, 0, 210, 297, "F");
-    p.setTextColor(INK);
-    if (first) {
-      p.setFont("times", "bold"); p.setFontSize(25);
-      p.text(["FireTwin", "Session Research"], MARGIN, 25, { lineHeightFactor: 1.05 });
-      p.setFont("helvetica", "bold"); p.setFontSize(10);
-      p.text(`SESSION ${this.sessionId}`, 127, 21);
-      p.setFont("helvetica", "normal"); p.setFontSize(8);
-      p.text(["NASA Space Apps 2026", '"Flame in Freefall"', `${this.report.sessions.length} saved session(s) in this report`], 127, 27, { lineHeightFactor: 1.6 });
-      this.y = 46;
-    } else {
-      p.setFont("times", "bold"); p.setFontSize(16);
-      p.text(`FireTwin / Session ${this.sessionId}`, MARGIN, 21);
-      p.setFont("helvetica", "normal"); p.setFontSize(8);
-      p.text("Research record / continued", 194, 21, { align: "right" });
-      this.y = 29;
+    if (this.page++) p.addPage();
+    p.setFillColor("#FFFFFF"); p.rect(0, 0, 297, 210, "F");
+    p.setFillColor(ACCENT); p.rect(M, 9, 2, 10, "F");
+    this.print(`FIRETWIN / ${label}`, M + 5, 15, 14, true);
+    this.print("SESSION ANALYTICS  |  NASA Space Apps 2026", 287, 14, 7, false, MUTED, "right");
+    p.setDrawColor(LINE); p.setLineWidth(0.25); p.line(M, 21, 287, 21);
+    this.y = 25;
+  }
+
+  print(text: string, x: number, y: number, size = BODY, bold = false, color = INK, align: "left" | "right" = "left") {
+    this.pdf.setFont("helvetica", bold ? "bold" : "normal"); this.pdf.setFontSize(size);
+    this.pdf.setTextColor(color); this.pdf.text(clean(text), x, y, { align });
+  }
+
+  lines(text: string, width: number, size = BODY): string[] {
+    this.pdf.setFont("helvetica", "normal"); this.pdf.setFontSize(size);
+    return this.pdf.splitTextToSize(clean(text), width) as string[];
+  }
+
+  text(text: string, width = W, size = BODY, bold = false) {
+    for (const line of this.lines(text, width, size)) {
+      if (this.y + LEADING > BOTTOM) this.newPage();
+      this.print(line, M, this.y + 2.5, size, bold);
+      this.y += LEADING;
     }
-    p.setDrawColor(LINE); p.setLineWidth(0.35);
-    p.line(MARGIN, this.y, 194, this.y);
-    this.y += 7;
+    this.y += 1;
   }
 
-  private ensure(height: number) {
-    if (this.y + height > BOTTOM) this.newPage();
+  heading(text: string, width = W) {
+    if (this.y + 14 > BOTTOM) this.newPage();
+    this.pdf.setFillColor(PINK); this.pdf.rect(M, this.y, width, 5.6, "F");
+    this.print(text, M + 2, this.y + 4, 8, true); this.y += 7;
   }
 
-  text(value: string, options: { size?: number; bold?: boolean; muted?: boolean; url?: string } = {}) {
-    const p = this.pdf, size = options.size ?? 8.5, height = size * 0.3528 * 1.45;
-    p.setFont("helvetica", options.bold ? "bold" : "normal"); p.setFontSize(size);
-    const lines = p.splitTextToSize(printText(value), WIDTH) as string[];
-    if (options.bold) this.ensure(Math.min(24, (lines.length + 2) * height));
-    for (const line of lines) {
-      this.ensure(height);
-      p.setFont("helvetica", options.bold ? "bold" : "normal"); p.setFontSize(size);
-      p.setTextColor(options.muted ? MUTED : INK);
-      p.text(line, MARGIN, this.y + height * 0.75);
-      if (options.url) p.link(MARGIN, this.y, p.getTextWidth(line), height, { url: options.url });
-      this.y += height;
-    }
-    this.y += 1.8;
-  }
-
-  section(title: string) {
-    this.ensure(24); this.y += 3;
-    const p = this.pdf;
-    p.setDrawColor(LINE); p.line(MARGIN, this.y + 4, 194, this.y + 4);
-    p.setFont("helvetica", "bold"); p.setFontSize(10);
-    const w = Math.min(WIDTH, p.getTextWidth(title) + 16);
-    p.setFillColor(PAPER); p.roundedRect(MARGIN, this.y, w, 8, 4, 4, "FD");
-    p.setTextColor(INK); p.text(title, MARGIN + 8, this.y + 5.5);
-    this.y += 13;
-  }
-
-  cards(left: [string, string[]], right: [string, string[]]) {
-    const p = this.pdf, w = 85;
-    p.setFont("helvetica", "normal"); p.setFontSize(8.2);
-    const content = [left, right].map(([title, lines]) => ({
-      title, lines: lines.flatMap(line => p.splitTextToSize(printText(line), w - 12) as string[]),
-    }));
-    const h = Math.max(...content.map(c => c.lines.length)) * 4.1 + 19;
-    if (h > 100) {
-      for (const [title, lines] of [left, right]) { this.section(title); lines.forEach(line => this.text(line)); }
-      return;
-    }
-    this.ensure(h + 6);
-    content.forEach((card, i) => {
-      const x = MARGIN + i * 93;
-      p.setDrawColor(LINE); p.setFillColor(PAPER); p.roundedRect(x, this.y, w, h, 4, 4, "FD");
-      p.setTextColor(INK); p.setFont("helvetica", "bold"); p.setFontSize(10);
-      p.text(card.title, x + 6, this.y + 8);
-      p.setFont("helvetica", "normal"); p.setFontSize(8.2);
-      card.lines.forEach((line, j) => p.text(line, x + 6, this.y + 16 + j * 4.1));
-    });
-    this.y += h + 6;
-  }
-
-  probabilityChart(initial: number, final: number) {
-    this.ensure(35);
-    const p = this.pdf;
-    p.setDrawColor(LINE); p.roundedRect(MARGIN, this.y, WIDTH, 30, 4, 4, "S");
-    p.setFont("helvetica", "bold"); p.setFontSize(9); p.setTextColor(INK);
-    p.text("MODEL BURN PROBABILITY", MARGIN + 6, this.y + 7);
-    [["At ignition", initial], ["Last recorded", final]].forEach(([label, value], i) => {
-      const y = this.y + 12 + i * 8;
-      p.setFont("helvetica", "normal"); p.setFontSize(8);
-      p.text(String(label), MARGIN + 6, y + 3.5);
-      p.setFillColor(LIGHT); p.roundedRect(62, y, 100, 4.5, 1, 1, "F");
-      const probability = Number(value);
-      if (Number.isFinite(probability) && probability > 0) {
-        p.setFillColor(INK); p.rect(62, y, Math.max(0, Math.min(1, probability)) * 100, 4.5, "F");
+  /** Repeats headers and splits unusually long rows across pages without truncation. */
+  table(headers: string[], rows: string[][], widths: number[], links?: (row: number, col: number) => string | undefined) {
+    const width = widths.reduce((sum, value) => sum + value, 0);
+    const header = () => {
+      this.pdf.setFillColor("#E9EDF2"); this.pdf.rect(M, this.y, width, 5.5, "F");
+      let x = M;
+      headers.forEach((title, i) => { this.print(title, x + 1.4, this.y + 4, 6.7, true); x += widths[i]; });
+      this.y += 5.5;
+    };
+    if (this.y + 12 > BOTTOM) this.newPage();
+    header();
+    rows.forEach((row, rowIndex) => {
+      const cells = row.map((cell, col) => this.lines(cell, widths[col] - 2.8));
+      const max = Math.max(1, ...cells.map(cell => cell.length));
+      let offset = 0;
+      while (offset < max) {
+        let fit = Math.floor((BOTTOM - this.y - 1.3) / LEADING);
+        const capacity = Math.floor((BOTTOM - 30.5 - 1.3) / LEADING);
+        if (fit < 1 || (offset === 0 && max > fit && max <= capacity)) {
+          this.newPage(); header(); fit = Math.floor((BOTTOM - this.y - 1.3) / LEADING);
+        }
+        const count = Math.min(max - offset, fit), h = count * LEADING + 1.3;
+        if (rowIndex % 2 === 0) { this.pdf.setFillColor(PALE); this.pdf.rect(M, this.y, width, h, "F"); }
+        let x = M;
+        cells.forEach((cell, col) => {
+          const visible = col === 0 && offset > 0 ? cell.slice(0, count) : cell.slice(offset, offset + count);
+          visible.forEach((line, j) => {
+            this.print(line, x + 1.4, this.y + 2.7 + j * LEADING);
+            const url = links?.(rowIndex, col);
+            if (url) this.pdf.link(x + 1, this.y + j * LEADING, widths[col] - 2, LEADING, { url });
+          });
+          x += widths[col];
+        });
+        this.pdf.setDrawColor(LINE); this.pdf.setLineWidth(0.15);
+        this.pdf.line(M, this.y + h, M + width, this.y + h);
+        this.y += h; offset += count;
       }
-      p.text(reportPercent(probability), 169, y + 3.5);
     });
-    this.y += 36;
+    this.y += 2;
   }
 
-  sourceUrl(url: string) {
-    let safe = false;
-    try { safe = ["http:", "https:"].includes(new URL(url).protocol); } catch { /* plain text */ }
-    this.text(url || "Source URL not recorded", { size: 7.5, muted: true, url: safe ? url : undefined });
+  metrics(session: ReportSession) {
+    const delta = (session.final.burn_probability - session.initial.burn_probability) * 100;
+    const tiles = [
+      ["IGNITION BURN (MODEL)", reportPercent(session.initial.burn_probability)],
+      ["FINAL BURN (MODEL)", reportPercent(session.final.burn_probability)],
+      ["CHANGE / PERCENTAGE POINTS", `${delta > 0 ? "+" : ""}${delta.toFixed(1)} pp`],
+      ["FINAL RECORDED VERDICT", session.final.state.toUpperCase()],
+    ];
+    const width = (W - 9) / 4;
+    tiles.forEach(([label, value], i) => {
+      const x = M + i * (width + 3);
+      this.pdf.setFillColor(PINK); this.pdf.rect(x, this.y, width, 5, "F");
+      this.print(label, x + 2, this.y + 3.6, 7, true);
+      this.print(value, x + 2, this.y + 13.5, i === 3 ? 13 : 17, true, ACCENT);
+      this.pdf.setDrawColor(LINE); this.pdf.line(x, this.y + 16, x + width, this.y + 16);
+    });
+    this.y += 19;
+  }
+
+  sidebar(session: ReportSession, top: number): number {
+    const p = this.pdf, x = 226, width = 61;
+    p.setDrawColor(LINE); p.rect(x, top, width, 39, "S");
+    this.print("BURN PROBABILITY / MODEL", x + 3, top + 5, 7.5, true);
+    [["Ignition", session.initial.burn_probability], ["Final", session.final.burn_probability]].forEach(([label, value], i) => {
+      const y = top + 11 + i * 12;
+      this.print(String(label), x + 3, y, 7.5);
+      this.print(reportPercent(Number(value)), x + width - 3, y, 7.5, true, INK, "right");
+      p.setFillColor("#E9EDF2"); p.rect(x + 3, y + 2, width - 6, 4, "F");
+      p.setFillColor(i === 0 ? ACCENT : BLUE); p.rect(x + 3, y + 2, (width - 6) * Math.max(0, Math.min(1, Number(value))), 4, "F");
+    });
+    this.print("0%", x + 3, top + 36, 6, false, MUTED);
+    this.print("100%", x + width - 3, top + 36, 6, false, MUTED, "right");
+    const detection = [...session.steps].reverse().find(step => step.detection)?.detection;
+    const lines = [
+      `Trust: ${session.initial.trust} to ${session.final.trust}`,
+      `Initial range: ${session.initial.extrapolated ? "OUTSIDE TESTED RANGE" : "Within model ranges"}`,
+      `Final range: ${session.final.extrapolated ? "OUTSIDE TESTED RANGE" : "Within model ranges"}`,
+      `Alarm: ${!detection ? "Not recorded" : !detection.detected ? "Not detected" : `${number(detection.time_to_detect_s)} s (model)`}`,
+      `Applied actions: ${session.steps.filter(step => step.kind === "apply").length}`,
+      `Supporting references: ${session.evidence.length}`,
+      `Synthetic references: ${session.evidence.filter(ref => ref.is_synthetic).length}`,
+      "Evidence: shared appendix",
+    ];
+    const wrapped = lines.flatMap(line => this.lines(line, width - 6, 7.2));
+    const y = top + 43, h = 10 + wrapped.length * LEADING;
+    p.setDrawColor(LINE); p.rect(x, y, width, h, "S");
+    this.print("TRACE & STATUS", x + 3, y + 5, 7.5, true);
+    wrapped.forEach((line, i) => this.print(line, x + 3, y + 10 + i * LEADING, 7.2));
+    return y + h + 3;
   }
 
   finish() {
     const p = this.pdf, count = p.getNumberOfPages();
     for (let i = 1; i <= count; i++) {
-      p.setPage(i); p.setDrawColor(LINE); p.line(MARGIN, 281, 194, 281);
-      p.setFont("helvetica", "normal"); p.setFontSize(7); p.setTextColor(MUTED);
-      p.text("Flame is illustrative; verdicts come from NASA PSI data.", MARGIN, 286);
-      p.text(`${i} / ${count}`, 194, 286, { align: "right" });
-      p.text(`Exported ${reportTimestamp(this.report.generatedAt)}`, MARGIN, 291);
+      p.setPage(i); p.setDrawColor(LINE); p.line(M, 196, 287, 196);
+      this.print("Probabilities are model estimates; crew risk is assumed. Sources are measured unless marked SYNTHETIC. Times: app responses, UTC.", M, 200, 6.5, false, MUTED);
+      this.print(`Exported ${reportTimestamp(this.report.generatedAt)}`, M, 205, 6.5, false, MUTED);
+      this.print(`Flame is illustrative; verdicts come from NASA PSI data.   ${i} / ${count}`, 287, 205, 6.5, false, MUTED, "right");
     }
   }
 }
 
-const predictionLines = (result: SimulateOut) => [
-  `Verdict: ${result.state.toUpperCase()} (model)`,
-  `Burn probability: ${reportPercent(result.burn_probability)}`,
-  `Trust: ${result.trust} | ${result.extrapolated ? "OUTSIDE TESTED RANGE" : "Within recorded model ranges"}`,
-  `Spread: ${result.spread_rate_mm_s === null ? "Not modeled / no recorded estimate" : `${result.spread_rate_mm_s} mm/s (model)`}`,
-];
-
-function drawSession(pages: ResearchPages, session: ReportSession) {
-  const { initial, final } = session;
-  pages.startSession(session.id);
-  pages.text(`Recorded start: ${reportTimestamp(session.startedAt)}`, { size: 8, muted: true });
-  pages.text(`Scenario ID: ${initial.scenario_id}`, { size: 8, muted: true });
-  if (session.synthetic) pages.text("SYNTHETIC DATA PRESENT - fixture evidence is marked below.", { bold: true });
-  pages.cards(["Research objective", [
-    "Explore how oxygen, airflow and material affect sustained combustion in the ISS lab.",
-    "This report preserves saved browser sessions, model predictions and their cited test rows.",
-  ]], ["Values used at ignition", [
-    `Material: ${initial.inputs.material}`, `Module: ${initial.inputs.module}`,
-    `Oxygen: ${initial.inputs.o2_pct}% | Pressure: ${initial.inputs.pressure_kpa} kPa`,
-    `Airflow: ${initial.inputs.flow_speed_cm_s} cm/s`, `Direction: [${initial.inputs.flow_dir.join(", ")}]`,
-  ]]);
-  pages.cards(["Ignition prediction", predictionLines(initial)], ["Final recorded result", predictionLines(final)]);
-  pages.probabilityChart(initial.burn_probability, final.burn_probability);
-  pages.section("Analysis & conclusion");
-  const actions = session.steps.filter(step => step.kind === "apply").length;
-  pages.text(`Final recorded model verdict: ${final.state.toUpperCase()}. ${actions} suppression action(s) applied. Burn probability: ${reportPercent(initial.burn_probability)} at ignition to ${reportPercent(final.burn_probability)} at the last saved prediction.`);
-  pages.text(`Derived change in model burn probability: ${((final.burn_probability - initial.burn_probability) * 100).toFixed(1)} percentage points. Final material and conditions: ${reportInputs(final.inputs)}.`);
-  pages.section("Method & evidence");
-  pages.text("Probabilities and spread are model estimates, not measurements. NASA rows in the evidence register are the supporting observations. Trust and range flags are preserved from each response.");
-  pages.text(`Initial evidence: ${evidenceIds(session, initial.nearest_tests)}. Final evidence: ${evidenceIds(session, final.nearest_tests)}.`);
-  pages.text("Step timestamps are browser response-recording times in UTC, not NASA experiment times. Only data saved before export is included.", { size: 7.5, muted: true });
-  pages.section("Suppression strategies");
-  if (!session.rankings.length) pages.text("No suppression ranking was recorded for this session. Alternatives and probabilities were not recomputed for export.");
+function drawSession(pages: DashboardPages, session: ReportSession) {
+  pages.newPage(`SESSION ${session.id}`);
+  pages.text(`Started ${reportTimestamp(session.startedAt)} | Scenario ${session.initial.scenario_id}${session.synthetic ? " | SYNTHETIC DATA PRESENT" : ""}`, W, 7.5, true);
+  pages.metrics(session);
+  pages.text(`IGNITION: ${reportInputs(session.initial.inputs)}`, W, 7.5);
+  pages.text(`FINAL: ${reportInputs(session.final.inputs)}`, W, 7.5);
+  const firstPage = pages.pageNumber, sidebarBottom = pages.sidebar(session, pages.y);
+  pages.heading("SUPPRESSION ASSESSMENTS / SAVED RESPONSES", 211);
+  if (!session.rankings.length) pages.text("No ranking recorded; no alternative probabilities were computed for export.", 211);
   session.rankings.forEach((ranking, i) => {
-    pages.text(`Assessment ${i + 1} | ${reportTimestamp(ranking.at)}`, { bold: true });
-    pages.text(`Recommended at that assessment: ${ranking.result.recommended}`);
-    pages.text(ranking.inputs ? `Input snapshot: ${reportInputs(ranking.inputs)}` : "Ranking input snapshot not recorded for this older session.", { size: 7.5, muted: true });
-    ranking.result.actions.forEach((action, j) => {
-      pages.text(`${j + 1}. ${action.label} (${action.action})${action.action === ranking.result.recommended ? " - RECOMMENDED" : ""}`, { bold: true });
-      pages.text(`Extinction probability (model): ${reportPercent(action.extinction_probability)} | Crew risk index (assumed): ${action.crew_risk.toFixed(3)} | Ranking score: ${action.score.toFixed(4)}`);
-      pages.text(`Data support: ${action.data_support} | Evidence: ${evidenceIds(session, action.sources)}`, { size: 7.5 });
-      pages.text(`Proposed values: ${reportInputs(action.new_inputs)}`, { size: 7.5 });
-      pages.text(action.explanation || "Explanation not recorded.", { size: 7.8, muted: true });
-    });
+    pages.text(`A${i + 1} | ${timestamp(ranking.at)} UTC | Recommended: ${ranking.result.recommended}`, 211, 7.5, true);
+    pages.text(ranking.inputs ? `Input snapshot: ${reportInputs(ranking.inputs)}` : "Assessment inputs not recorded; complete proposed values shown below.", 211, 7);
+    pages.table(["Method", "Ext. %", "Risk idx", "Score", "Support", "Proposed changes from input snapshot", "Evidence"],
+      ranking.result.actions.map(action => [
+        `${action.label}${action.action === ranking.result.recommended ? " *" : ""}`,
+        reportPercent(action.extinction_probability), action.crew_risk.toFixed(3), action.score.toFixed(4),
+        action.data_support, changes(ranking.inputs, action.new_inputs), evidenceIds(session, action.sources),
+      ]), [35, 16, 14, 16, 18, 80, 32]);
   });
-  pages.section("Timestamped results");
-  session.steps.forEach((step, i) => {
-    pages.text(`${i + 1}. ${step.kind.toUpperCase()}${step.action ? ` / ${step.action}` : ""} | ${reportTimestamp(step.at)}`, { bold: true });
-    if (step.prediction) {
-      const result = step.prediction;
-      if (step.kind === "apply" && !step.action) pages.text("Applied action name not recorded in this older session.", { size: 7.5, muted: true });
-      pages.text(reportInputs(result.inputs), { size: 7.8 });
-      pages.text(`${result.state.toUpperCase()} | Burn (model): ${reportPercent(result.burn_probability)} | Trust: ${result.trust} | ${result.extrapolated ? "OUTSIDE TESTED RANGE" : "Within recorded model ranges"}`);
-      pages.text(`Evidence: ${evidenceIds(session, result.nearest_tests)}. ${result.explanation || "No explanation recorded."}`, { size: 7.8, muted: true });
-    }
-    if (step.detection) {
-      const d = step.detection;
-      pages.text(d.detected ? `Modeled alarm: ${d.detector_id ?? "Detector not recorded"} | Delay: ${d.time_to_detect_s === null ? "Not recorded" : `${d.time_to_detect_s} s`}` : "No modeled alarm detected.");
-      pages.text(d.note, { size: 7.8, muted: true });
-    }
-  });
-  pages.section("NASA evidence register");
-  if (!session.evidence.length) pages.text("No test references were saved. Supporting measurements are unavailable for this session.");
-  session.evidence.forEach((ref, i) => {
-    pages.text(`[E${i + 1}] ${ref.test_id} / ${ref.investigation} | ${ref.fuel_type} | ${ref.outcome}${ref.is_synthetic ? " [SYNTHETIC - NOT A NASA MEASUREMENT]" : ""}`, { size: 8, bold: true });
-    pages.text(`Test O2: ${ref.o2_pct === null ? "Not recorded" : `${ref.o2_pct}%`} | Pressure: ${ref.pressure_kpa === null ? "Not recorded" : `${ref.pressure_kpa} kPa`} | Airflow: ${ref.flow_cm_s === null ? "Not recorded" : `${ref.flow_cm_s} cm/s`}`, { size: 7.8 });
-    pages.sourceUrl(ref.source_url);
-  });
-  pages.text("Recommendations are the saved assessments above; an untried alternative is not an observed session outcome. Missing steps, times or evidence are not filled in with estimates.", { size: 7.5, muted: true });
+  if (pages.pageNumber === firstPage) pages.y = Math.max(pages.y, sidebarBottom);
+  pages.heading("TIMESTAMPED RESULTS / RECORDED OUTCOMES");
+  pages.table(["Step / action", "Recorded at (UTC)", "Material", "Conditions used", "Result / model burn / spread", "Trust / range", "Evidence"],
+    session.steps.map(step => {
+      const r = step.prediction, d = step.detection;
+      return [step.kind === "apply" ? `Apply: ${step.action ?? "Not recorded"}` : step.kind.toUpperCase(), timestamp(step.at),
+        r?.inputs.material ?? "Not recorded", r ? conditions(r.inputs) : "Detector input snapshot not recorded",
+        r ? `${r.state.toUpperCase()} / ${reportPercent(r.burn_probability)} / spread ${r.spread_rate_mm_s === null ? "Not modeled" : `${r.spread_rate_mm_s} mm/s`}`
+          : d ? `${d.detected ? `${d.detector_id ?? "Detector not recorded"}: ${number(d.time_to_detect_s)} s (model)` : "Not detected"}. ${d.note}` : "Not recorded",
+        r ? `${r.trust} / ${r.extrapolated ? "OUTSIDE TESTED RANGE" : "Within model ranges"}` : "Illustrative detector model",
+        r ? evidenceIds(session, r.nearest_tests) : "Not recorded",
+      ];
+    }), [24, 37, 32, 71, 43, 28, 42]);
 }
 
-/** Selectable text, linked evidence and flowing portrait pages, rather than a screenshot. */
+function safeUrl(url: string): string | undefined {
+  try { return ["http:", "https:"].includes(new URL(url).protocol) ? url : undefined; } catch { return undefined; }
+}
+
+function drawEvidence(pages: DashboardPages, report: ResearchReport) {
+  pages.newPage("EVIDENCE REGISTER");
+  pages.text("Recorded supporting test rows. Reference numbers [E1], [E2], etc. are scoped to each session. Not recorded is missing data, not zero.");
+  const sources = [...new Set(report.sessions.flatMap(session => session.evidence.map(ref => ref.source_url)).filter(Boolean))];
+  const rows = report.sessions.flatMap(session => session.evidence.map((ref, i) => [
+    String(session.id), `[E${i + 1}]`, ref.test_id, ref.investigation, ref.fuel_type, number(ref.o2_pct),
+    number(ref.pressure_kpa), number(ref.flow_cm_s), ref.outcome, ref.is_synthetic ? "SYNTHETIC" : "Measured",
+    ref.source_url ? `S${sources.indexOf(ref.source_url) + 1}` : "Not recorded",
+  ]));
+  pages.heading("NASA TEST DATA / SAVED REFERENCES");
+  if (rows.length) pages.table(["Session", "Ref.", "Test ID", "Investigation", "Fuel", "O2 (%)", "P (kPa)", "Flow (cm/s)", "Outcome", "Provenance", "Source"],
+    rows, [13, 15, 45, 35, 20, 19, 24, 24, 25, 30, 27]);
+  report.sessions.filter(session => !session.evidence.length).forEach(session => pages.text(`Session ${session.id}: no supporting test references recorded.`));
+  pages.heading("SOURCE LINKS / DEDUPLICATED URLS");
+  if (sources.length) pages.table(["ID", "Source URL"], sources.map((url, i) => [`S${i + 1}`, url]), [13, 264],
+    (row, col) => col === 1 ? safeUrl(sources[row]) : undefined);
+  else pages.text("No source URLs recorded.");
+  pages.text("* Recommended at that saved assessment. Ext. % = model extinction probability; risk idx = assumed crew-risk index. Proposed changes apply to that assessment's full input snapshot. No stored probabilities or recommendations are recomputed during export.", W, 7);
+}
+
+/** Compact vector/text dashboards with a shared measured-data appendix. */
 export async function createResearchPdf(report: ResearchReport): Promise<jsPDF> {
   const { jsPDF } = await import("jspdf");
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  pdf.setProperties({ title: "FireTwin - Session research report", subject: "Saved conditions, model results, suppression and NASA evidence", creator: "FireTwin" });
-  const pages = new ResearchPages(pdf, report);
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+  pdf.setProperties({ title: "FireTwin - Session analytics report", subject: "Recorded session values, suppression probabilities and supporting evidence", creator: "FireTwin" });
+  const pages = new DashboardPages(pdf, report);
   report.sessions.forEach(session => drawSession(pages, session));
-  pages.finish();
+  drawEvidence(pages, report); pages.finish();
   return pdf;
 }
 
