@@ -27,7 +27,7 @@ import logging
 import re
 from pathlib import Path
 
-from clean_bass_ii import outcome_and_flow
+from clean_bass_ii import flow_ramp, imputed_extinction_flow, outcome_and_flow
 from psi_sources import BY_NAME, ROOT, first_number, read_rows
 
 log = logging.getLogger("label_outcomes")
@@ -95,6 +95,7 @@ def label_saffire_2() -> list[dict]:
 
 def label_bass_ii() -> list[dict]:
     out = []
+    imputed = imputed_extinction_flow()
     for r in read_rows(BY_NAME["BASS-II"].raw_path):
         test = r.get("Test #", "")
         if not test:
@@ -103,13 +104,23 @@ def label_bass_ii() -> list[dict]:
         outcome, _ = outcome_and_flow(fan, air)
         if outcome == "extinguished":
             note = " | ".join(x for x in (fan, air) if x)[:80]
-            out.append(
-                _label(
-                    f"BASS-II-{test}",
-                    "extinguished",
-                    f"PSI-25 table, test {test}: extinction written in fan/air display ({note})",
+            start, end, was_imputed = flow_ramp(fan, air, imputed)
+            page = f"PSI-25 table, test {test}: extinction written in fan/air display ({note})"
+            if was_imputed:
+                page += (
+                    f"; final air speed not written, IMPUTED {end:g} cm/s (median of the "
+                    "extinction speeds the table states for step-down tests)"
                 )
-            )
+            out.append(_label(f"BASS-II-{test}", "extinguished", page))
+            if start is not None:
+                out.append(
+                    _label(
+                        f"BASS-II-{test}-start",
+                        "burned",
+                        f"PSI-25 table, test {test}: flame burning at {start:g} cm/s before the "
+                        f"air was changed to extinction ({note})",
+                    )
+                )
             continue
         co2_0, co2_1 = (
             first_number(r.get("Initial CO2 % by vol")),

@@ -126,12 +126,12 @@
     },
     {
       "file": "bass_ii.csv",
-      "rows": 129,
+      "rows": 147,
       "empty_fields": {
         "o2_pct": 0,
-        "pressure_kpa": 129,
-        "flow_cm_s": 21,
-        "spread_rate_mm_s": 129
+        "pressure_kpa": 147,
+        "flow_cm_s": 6,
+        "spread_rate_mm_s": 147
       },
       "rows_without_o2": 0
     },
@@ -315,16 +315,16 @@
       ]
     }
   },
-  "unified_rows": 414,
+  "unified_rows": 432,
   "unified_empty_fields": {
     "o2_pct": 0,
-    "pressure_kpa": 141,
-    "flow_cm_s": 21,
-    "spread_rate_mm_s": 412
+    "pressure_kpa": 159,
+    "flow_cm_s": 6,
+    "spread_rate_mm_s": 430
   },
   "unified_outcomes": {
     "BASS-II": {
-      "burned": 85,
+      "burned": 103,
       "extinguished": 27,
       "unknown": 17
     },

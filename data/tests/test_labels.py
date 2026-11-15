@@ -35,7 +35,13 @@ def test_committed_labels_match_what_the_rules_produce(labels) -> None:
 def test_sensor_inferred_labels_say_they_are_inferred(labels) -> None:
     bass = labels[labels["test_id"].str.startswith("BASS-II-") & (labels["outcome"] == "burned")]
     assert len(bass) > 0
-    assert bass["source_page"].str.contains("INFERRED").all()
+    # Two kinds of burned label: stated in the table (a flame burning before the air was changed,
+    # "-start" rows) or inferred from the gas sensors, which must say so.
+    stated = bass["test_id"].str.endswith("-start")
+    assert bass.loc[stated, "source_page"].str.contains("flame burning at").all()
+    assert bass.loc[~stated, "source_page"].str.contains("INFERRED").all()
+    imputed = labels["source_page"].str.contains("IMPUTED")
+    assert (labels.loc[imputed, "outcome"] == "extinguished").all()
     assert (
         labels.loc[labels["outcome"] == "extinguished", "source_page"]
         .str.contains("INFERRED")

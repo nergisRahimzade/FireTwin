@@ -92,7 +92,14 @@ def test_bass_ii_reads_airflow_notes(tmp_path):
     assert (b2["outcome"], b2["flow_cm_s"], b2["material"]) == ("extinguished", 2.0, "PMMA rod")
     assert (b3["outcome"], b3["flow_cm_s"]) == ("extinguished", 20.0)  # blowoff at the top speed
     assert b3["material"] == "Cotton-Fiberglass (SIBAL)"
-    assert (b4["outcome"], b4["flow_cm_s"]) == ("extinguished", None)  # lowest speed not written
+    # Lowest speed not written: the extinction speed is imputed from the step-down tests in the
+    # same table that do state one (here B2, 2.0 cm/s), never above the lowest speed written.
+    assert (b4["outcome"], b4["flow_cm_s"]) == ("extinguished", 2.0)
+    # A step-down extinction also records that the flame burned at the first speed written.
+    assert (rows["BASS-II-B2-start"]["outcome"], rows["BASS-II-B2-start"]["flow_cm_s"]) == (
+        "burned",
+        5.0,
+    )
     assert (b5["outcome"], b5["flow_cm_s"]) == ("unknown", 5.0)  # no ignition is not a verdict
     assert b2["o2_pct"] == 21.0 and b2["pressure_kpa"] is None
 
