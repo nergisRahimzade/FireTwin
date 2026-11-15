@@ -6,6 +6,7 @@ description = "FireTwin: AI fire-safety digital twin of an ISS module (NASA Spac
 requires-python = ">=3.11,<3.12"
 # Runtime packages (fastapi, pandas, ...) get added by the tasks that need them (BE-05, ML-01, ...).
 dependencies = [
+    "chromadb>=1.5.9",
     "fastapi>=0.163.0",
     "joblib>=1.6.0",
     "openai>=3.51.0",
@@ -24,6 +25,12 @@ testpaths = ["data/tests", "ml/tests", "backend/tests", "tests"]
 addopts = "--import-mode=importlib"
 # Root exposes data/ml modules; backend exposes app just as uvicorn's --app-dir does.
 pythonpath = [".", "backend"]
+# Starlette's TestClient prefers the httpx2 package and warns when it falls back to httpx. The plan
+# names httpx (BE-12), so ignore exactly that one message and class; every other warning still shows.
+# Revisit if Starlette drops httpx support (the tests would then fail, not just warn).
+filterwarnings = [
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100

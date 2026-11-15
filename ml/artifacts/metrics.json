@@ -1,58 +1,58 @@
 {
-  "n_rows": 64,
-  "n_synthetic_rows": 64,
-  "trained_on_synthetic_data": true,
+  "n_rows": 220,
+  "n_synthetic_rows": 0,
+  "n_rows_with_assumed_pressure": 8,
+  "assumed_pressure_kpa": 101.3,
+  "rows_per_investigation": {
+    "BASS-II": {
+      "burned": 0,
+      "extinguished": 7
+    },
+    "FLEX": {
+      "burned": 27,
+      "extinguished": 186
+    }
+  },
+  "trained_on_synthetic_data": false,
   "evaluation": "leave-one-investigation-out",
-  "chosen_variant": "physics_ppo2",
-  "accuracy": 0.828125,
+  "chosen_variant": "physics",
+  "accuracy": 1.0,
   "physics_model": {
-    "accuracy": 0.828125,
-    "log_loss": 0.3540515926997941,
-    "n_rows": 64
+    "accuracy": 1.0,
+    "log_loss": 0.07798379313705818,
+    "n_rows": 7
   },
   "physics_model_other_variant": {
-    "physics": {
-      "accuracy": 0.84375,
-      "log_loss": 0.35584382121108127,
-      "n_rows": 64
+    "physics_ppo2": {
+      "accuracy": 1.0,
+      "log_loss": 0.07863873705541442,
+      "n_rows": 7
     }
   },
   "boundary_model_option_b": {
-    "accuracy": 0.9791666666666666,
-    "log_loss": 0.17307530591449038,
-    "n_rows": 48
+    "accuracy": null,
+    "log_loss": null,
+    "n_rows": 0
   },
   "baseline_plain_logistic": {
-    "accuracy": 0.8125,
-    "log_loss": 0.43721151722012863,
-    "n_rows": 64
+    "accuracy": 1.0,
+    "log_loss": 0.07798379313705765,
+    "n_rows": 7
   },
   "folds": [
     {
       "held_out": "BASS-II",
-      "n_test": 16
-    },
-    {
-      "held_out": "FLEX",
-      "n_test": 16
-    },
-    {
-      "held_out": "Saffire-II",
-      "n_test": 16
-    },
-    {
-      "held_out": "Saffire-III",
-      "n_test": 16
+      "n_test": 7
     }
   ],
   "coefficient_check": {
     "coefficients_scaled": {
-      "o2_pct": 1.4121368881187113,
-      "ln_u": 1.8815156167744016,
-      "ln_u_sq": -0.34806416581550886,
-      "ppo2_kpa": 0.20174958118804528,
-      "fuel_solid": -0.5372964238556518,
-      "fuel_droplet": 0.5372964238556518,
+      "o2_pct": 0.706135508706001,
+      "ln_u": -0.10565759115419125,
+      "ln_u_sq": -0.07538715909699584,
+      "pressure_kpa": -0.12702206546352854,
+      "fuel_solid": -0.1849103248784713,
+      "fuel_droplet": 0.18491032487847098,
       "fuel_gas": 0.0
     },
     "o2_coefficient_positive": true,

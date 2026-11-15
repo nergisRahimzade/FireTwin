@@ -121,15 +121,27 @@ def build_real(clean_dir: Path = CLEAN_DIR, labels_csv: Path = LABELS_CSV) -> pd
     return table[COLUMNS]
 
 
+def write_table(table: pd.DataFrame, path: Path = OUT_PARQUET) -> None:
+    """Save the unified table as parquet with stable column types."""
+    try:
+        table = table.copy()
+        for col in ("o2_pct", "pressure_kpa", "flow_cm_s", "spread_rate_mm_s"):
+            table[col] = pd.to_numeric(table[col], errors="coerce")
+        table["is_synthetic"] = table["is_synthetic"].astype(bool)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        table.to_parquet(path, index=False)
+    except Exception:
+        log.exception("write_table: could not write %d rows to %s", len(table), path)
+        raise
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
     has_clean = any(CLEAN_DIR.glob("*.csv"))
     table = build_real() if has_clean else build_seed()
     if not has_clean:
         log.warning("no CSVs in data/clean/: writing the SYNTHETIC seed table (DAT-01)")
-    table["spread_rate_mm_s"] = pd.to_numeric(table["spread_rate_mm_s"], errors="coerce")
-    OUT_PARQUET.parent.mkdir(parents=True, exist_ok=True)
-    table.to_parquet(OUT_PARQUET, index=False)
+    write_table(table)
     log.info("wrote %d rows to %s", len(table), OUT_PARQUET)
 
 

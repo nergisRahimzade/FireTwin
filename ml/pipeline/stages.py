@@ -52,11 +52,13 @@ def retrieve(query: str, k: int = config.RETRIEVE_TOP_K, docs_dir: Path = config
         except Exception:
             log.exception("retrieve: cannot read %s (query=%r)", path, query)
             raise
+        # Line 1 is "source_url: <url>" (DAT-07); a bare URL is accepted too.
+        source_url = header.removeprefix("source_url:").strip()
         for para in (p.strip() for p in body.split("\n\n")):
             overlap = len(words & set(re.findall(r"[a-z0-9]+", para.lower())))
             if para and overlap:
                 passages.append(
-                    Passage(path.stem, path.parent.name, header.strip(), para[:400], float(overlap))
+                    Passage(path.stem, path.parent.name, source_url, para[:400], float(overlap))
                 )
     return sorted(passages, key=lambda p: -p.score)[:k]
 

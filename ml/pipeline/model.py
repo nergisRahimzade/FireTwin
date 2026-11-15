@@ -48,6 +48,18 @@ def load_ranges() -> dict:
         raise
 
 
+def usable_rows(table: pd.DataFrame) -> pd.DataFrame:
+    """Rows the model can compare against: O2 and flow present, pressure filled in.
+
+    A missing pressure becomes the nominal cabin pressure (see config). The extra column
+    `pressure_recorded` says whether the value came from the NASA table or the assumption.
+    """
+    rows = table.dropna(subset=["o2_pct", "flow_cm_s"]).copy()
+    rows["pressure_recorded"] = rows["pressure_kpa"].notna()
+    rows["pressure_kpa"] = rows["pressure_kpa"].fillna(config.NOMINAL_PRESSURE_KPA)
+    return rows
+
+
 def fuel_type_of(material: str) -> str | None:
     """fuel_type for a material name from the table; None if the material is unknown."""
     table = load_table()
@@ -80,7 +92,7 @@ def nearest_with_distance(scenario: Scenario, k: int = config.NEAREST_K) -> list
 
     Distance is Euclidean over (o2, pressure, flow), each scaled by its range in the table.
     """
-    table = load_table().dropna(subset=DIST_FEATURES)
+    table = usable_rows(load_table())
     if table.empty:
         return []
     values = _scenario_values(scenario)
@@ -99,7 +111,7 @@ def nearest_with_distance(scenario: Scenario, k: int = config.NEAREST_K) -> list
             investigation=row["investigation"],
             fuel_type=row["fuel_type"],
             o2_pct=row["o2_pct"],
-            pressure_kpa=row["pressure_kpa"],
+            pressure_kpa=row["pressure_kpa"] if row["pressure_recorded"] else None,
             flow_cm_s=row["flow_cm_s"],
             outcome=row["outcome"],
             source_url=row["source_url"],

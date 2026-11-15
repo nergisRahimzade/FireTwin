@@ -98,9 +98,10 @@ Add an entry each time an OPS task makes a decision like this.
   has not changed, so no frontend type regeneration is needed for this review follow-up.
 
 **Follow-ups**
-- Starlette prints a deprecation warning: using `httpx` with its TestClient is deprecated in
-  favour of `httpx2`. The plan specifies httpx (BE-12), so it stays for now. Revisit before
-  OPS-03 if warnings ever become errors.
+- Starlette warns that using `httpx` with its TestClient is deprecated in favour of `httpx2`.
+  The plan specifies httpx (BE-12), so `pyproject.toml` ignores **exactly** that message and
+  class (`StarletteDeprecationWarning`, which is a `UserWarning`, not a `DeprecationWarning`).
+  Any other warning still shows. Switch to httpx2 if Starlette ever drops httpx support.
 - Proposals only, **not done** (they change contract behaviour, so all three must agree):
   reject unknown request fields (`extra="forbid"`), and enforce the commented ranges
   (O2 10–40, flow 0–40) as validation.
@@ -149,6 +150,7 @@ Add an entry each time an OPS task makes a decision like this.
   Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.
 
 ## OPS-03: CI (2026-11-14, Ryan)
+## BE-07: /meta choices and integration follow-ups (2026-11-14, Ryan)
 
 **Chosen (the plan left it open)**
 - Python runs `make lint` and `make test`, the same commands as rule 7, so CI and laptops can't
@@ -392,6 +394,7 @@ git push origin demo-v1                     # tags are pushed separately from br
   still append history, modified inputs compute separately, applied results can be reused by new
   scenarios, unknown IDs stay 404 and mock mode never invokes the cache.
 
+
 ## BE-10 / BE-11 integration into main (2026-11-14, Ryan)
 
 - PR #19 uses `feature/BE-09`, which now includes merged BE-10 and BE-11 PRs. Main already
@@ -404,6 +407,9 @@ git push origin demo-v1                     # tags are pushed separately from br
   per-app mode isolation uses mock acceptance versus real 404 for an unknown scenario ID.
 - Both sides' changelog and operational notes are retained. The backend ownership exception
   remains limited to BE-11's approved predict/explain call-site change.
+- Validation of the resolved integration: `make test` 492 passed, `make lint` passed (83 files),
+  and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
+  removed. An additional real-mode chat request returned the expected no-evidence response.
 - Validation of the resolved integration: `make test` 504 passed, `make lint` passed (84 files),
   and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
   removed. An additional real-mode chat request returned the expected no-evidence response.
