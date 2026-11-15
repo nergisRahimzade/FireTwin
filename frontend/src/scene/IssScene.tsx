@@ -10,6 +10,7 @@ import type { DetectOut, SimulateOut } from "../api/types";
 import { CAMERA_FOV, CAMERA_START, clampCamera } from "../lab/core.js";
 import { FallbackModule } from "./FallbackModule";
 import { Flame } from "./Flame";
+import { Smoke } from "./Smoke";
 import { IssLab } from "./IssLab";
 import { detectorMarks } from "./detectors";
 
@@ -76,6 +77,7 @@ export function IssScene({ detect, simulate }: { detect: DetectOut | null; simul
         </Suspense>
       </ModelBoundary>
       <DetectorMarkers detect={detect} />
+      <Smoke simulate={simulate} />
       <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />
