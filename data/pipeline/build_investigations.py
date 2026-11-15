@@ -4,7 +4,7 @@ Every value is taken from a file in the repo, never typed in from memory:
 - conditions ranges and fuels: the unified table (data/processed/tests.parquet);
 - objective: the "Objectives" section of the PSI description in data/docs/<investigation>/;
 - hardware, sample geometry and the air-flow range of investigations that have no rows in the
-  unified table: their PSI experiment table in data/raw/, when that file is present.
+  unified table: their PSI experiment table in data/psi_tables/, when that file is present.
 A field with no source in the repo is null and is listed under "missing", so the gap is visible.
 
 Not named clean_*.py on purpose: `make data` runs those; run this one by hand after it.
@@ -26,7 +26,7 @@ log = logging.getLogger("build_investigations")
 ROOT = Path(__file__).resolve().parents[2]
 TABLE = ROOT / "data" / "processed" / "tests.parquet"
 DOCS_DIR = ROOT / "data" / "docs"
-RAW_DIR = ROOT / "data" / "raw"
+RAW_DIR = ROOT / "data" / "psi_tables"
 OUT = ROOT / "data" / "processed" / "investigations.json"
 PSI_PAGE = "https://psi.nasa.gov/physci/repo/data/investigations/{id}"
 
@@ -81,13 +81,54 @@ def _span(values: pd.Series) -> dict | None:
 
 
 def objective_from_doc(name: str, docs_dir: Path = DOCS_DIR) -> str | None:
-    """The first paragraph under the "Objectives" heading of the investigation's PSI text."""
+    """The first paragraph under an "Objectives" heading, else the first paragraph of the text.
+
+    Works for the PSI descriptions and for plain abstracts: line 1 may be "source_url: <url>".
+    """
+    heading = re.compile(r"^Objectives?\s*\n+(.+?)(?:\n\s*\n|\Z)", flags=re.M | re.S)
     for path in sorted((docs_dir / name).glob("*.txt")):
         text = path.read_text(encoding="utf-8")
-        match = re.search(r"^Objectives?\s*\n+(.+?)(?:\n\s*\n|\Z)", text, flags=re.M | re.S)
+        match = heading.search(text)
         if match:
             return " ".join(match.group(1).split())
+        body = [ln for ln in text.splitlines() if not ln.lower().startswith("source_url:")]
+        paragraphs = [" ".join(para.split()) for para in "\n".join(body).split("\n\n")]
+        paragraphs = [para for para in paragraphs if para]
+        if paragraphs:
+            return paragraphs[0][:600]
     return None
+
+
+SENSOR_WORDS = [
+    ("camera", "video camera"),
+    ("radiometer", "radiometer"),
+    ("o2 % by vol", "O2 gas analyzer"),
+    ("co2", "CO2 gas analyzer"),
+    ("co (ppm)", "CO gas analyzer"),
+    ("weight loss", "mass (weight-loss) measurement"),
+    ("rt/r0", "smoke particle-size (Rt/R0) measurement"),
+]
+GEOMETRY_COLUMNS = ("thickness", "length", "width", "diameter")
+
+
+def sensors_from_columns(header: list[str]) -> list[str] | None:
+    """Instruments implied by the table's own columns (a camera column means cameras recorded)."""
+    text = " | ".join(h.lower() for h in header)
+    found = [label for word, label in SENSOR_WORDS if word in text]
+    return found or None
+
+
+def geometry_from_rows(header: list[str], rows: list[dict]) -> dict | None:
+    """Distinct values written in the table's thickness/length/width/diameter columns."""
+    out = {}
+    for column in header:
+        name = column.lower()
+        is_result = "burn" in name or "spread" in name or "extinction" in name  # outcomes
+        if any(word in name for word in GEOMETRY_COLUMNS) and not is_result:
+            values = sorted({r[column] for r in rows if r.get(column)})
+            if values:
+                out[column] = values[:8]
+    return out or None
 
 
 def raw_table_facts(file_name: str, flow_col: str | None, material_col: str | None) -> dict:
@@ -108,6 +149,8 @@ def raw_table_facts(file_name: str, flow_col: str | None, material_col: str | No
         log.exception("raw_table_facts: cannot read %s", path)
         raise
     facts: dict = {"n_table_rows": len(rows), "table_columns": header}
+    facts["sensors"] = sensors_from_columns(header)
+    facts["geometry"] = geometry_from_rows(header, rows)
     if material_col in header:
         facts["materials"] = sorted({r[material_col] for r in rows if r.get(material_col)})
     if flow_col in header:
@@ -132,14 +175,14 @@ def build(table_path: Path = TABLE) -> list[dict]:
             "materials": sorted(rows["material"].dropna().unique())
             if in_table
             else raw.get("materials"),
-            "sample_geometry": None,
+            "sample_geometry": raw.get("geometry"),
             "hardware": sorted(rows["hardware"].dropna().unique()) if in_table else None,
             "conditions": {
                 "o2_pct": _span(rows["o2_pct"]) if in_table else None,
                 "pressure_kpa": _span(rows["pressure_kpa"]) if in_table else None,
                 "flow_cm_s": _span(rows["flow_cm_s"]) if in_table else raw.get("flow_cm_s"),
             },
-            "sensors": None,
+            "sensors": raw.get("sensors"),
             "n_tests_in_unified_table": int(len(rows)),
             "n_rows_in_psi_table": raw.get("n_table_rows"),
             "psi_table_columns": raw.get("table_columns"),

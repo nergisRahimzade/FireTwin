@@ -48,12 +48,14 @@ def load_ranges() -> dict:
         raise
 
 
-def usable_rows(table: pd.DataFrame) -> pd.DataFrame:
+def usable_rows(table: pd.DataFrame, known_only: bool = False) -> pd.DataFrame:
     """Rows the model can compare against: O2 and flow present, pressure filled in.
 
     A missing pressure becomes the nominal cabin pressure (see config). The extra column
     `pressure_recorded` says whether the value came from the NASA table or the assumption.
     """
+    if known_only:
+        table = table[table["outcome"].isin(config.KNOWN_OUTCOMES)]
     rows = table.dropna(subset=["o2_pct", "flow_cm_s"]).copy()
     rows["pressure_recorded"] = rows["pressure_kpa"].notna()
     rows["pressure_kpa"] = rows["pressure_kpa"].fillna(config.NOMINAL_PRESSURE_KPA)
@@ -92,7 +94,12 @@ def nearest_with_distance(scenario: Scenario, k: int = config.NEAREST_K) -> list
 
     Distance is Euclidean over (o2, pressure, flow), each scaled by its range in the table.
     """
-    table = usable_rows(load_table())
+    # Only tests with a recorded result can support a verdict: a test whose outcome is
+    # unknown says nothing about burning or going out. Fall back to all rows only when
+    # there are too few known ones to show k neighbours.
+    table = usable_rows(load_table(), known_only=True)
+    if len(table) < k:
+        table = usable_rows(load_table())
     if table.empty:
         return []
     values = _scenario_values(scenario)
@@ -126,13 +133,49 @@ def nearest_tests(scenario: Scenario, k: int = config.NEAREST_K) -> list[TestRef
     return [ref for ref, _, _ in nearest_with_distance(scenario, k)]
 
 
+@lru_cache(maxsize=1)
+def trust_thresholds() -> tuple[float, float]:
+    """(strong, medium) distances: measured by ml/calibrate_trust.py when its file exists."""
+    path = config.TRUST_CALIBRATION_PATH
+    try:
+        if path.is_file():
+            data = json.loads(path.read_text())
+            return float(data["strong_distance"]), float(data["medium_distance"])
+    except Exception:
+        log.exception("trust_thresholds: cannot read %s; using the config defaults", path)
+    return config.TRUST_STRONG_DIST, config.TRUST_MEDIUM_DIST
+
+
+@lru_cache(maxsize=1)
+def load_metrics() -> dict:
+    try:
+        return json.loads(config.METRICS_PATH.read_text())
+    except Exception:
+        log.exception("load_metrics: cannot read %s (run `make train`)", config.METRICS_PATH)
+        raise
+
+
+def fuel_model_has_skill(fuel_type: str | None) -> bool:
+    """True when this fuel type's model beat the base rate in training (see metrics.json).
+
+    No fuel model, or a missing metrics file, counts as no skill: it is never assumed.
+    """
+    try:
+        return fuel_type in load_metrics().get("fuel_models_with_skill", [])
+    except Exception:
+        return False
+
+
 def trust_level(scenario: Scenario) -> str:
     """strong = >=3 same-fuel tests within 0.15; medium = >=1 within 0.30; else weak."""
     near = nearest_with_distance(scenario, k=max(config.NEAREST_K, config.TRUST_STRONG_COUNT))
-    dists = [d for _, d, same in near if same]
-    if sum(d <= config.TRUST_STRONG_DIST for d in dists) >= config.TRUST_STRONG_COUNT:
+    if not fuel_model_has_skill(fuel_type_of(scenario.material)):
+        return "weak"  # the model has not shown it beats guessing the base rate for this fuel
+    strong_dist, medium_dist = trust_thresholds()
+    dists = [d for ref, d, same in near if same and ref.outcome in config.KNOWN_OUTCOMES]
+    if sum(d <= strong_dist for d in dists) >= config.TRUST_STRONG_COUNT:
         return "strong"
-    if any(d <= config.TRUST_MEDIUM_DIST for d in dists):
+    if any(d <= medium_dist for d in dists):
         return "medium"
     return "weak"
 
@@ -140,8 +183,10 @@ def trust_level(scenario: Scenario) -> str:
 def data_support(scenario: Scenario) -> str:
     """direct = a same-fuel test within the medium distance; indirect = same fuel only."""
     near = nearest_with_distance(scenario)
-    same = [d for _, d, is_same in near if is_same]
-    if any(d <= config.TRUST_MEDIUM_DIST for d in same):
+    _, medium_dist = trust_thresholds()
+    known = config.KNOWN_OUTCOMES
+    same = [d for ref, d, is_same in near if is_same and ref.outcome in known]
+    if any(d <= medium_dist for d in same):
         return "direct"
     return "indirect" if same else "none"
 
@@ -154,9 +199,20 @@ def burn_probability(scenario: Scenario) -> float:
     try:
         bundle = load_model()
         row = pd.DataFrame(
-            [{**_scenario_values(scenario), "fuel_type": fuel_type_of(scenario.material)}]
+            [
+                {
+                    **_scenario_values(scenario),
+                    "fuel_type": fuel_type_of(scenario.material),
+                    "material": scenario.material,
+                }
+            ]
         )
-        return float(physics.predict_logistic(bundle["model"], row, bundle["variant"])[0])
+        # The fuel type's own model when it has one, else the pooled model.
+        return float(
+            physics.predict_per_fuel(
+                bundle.get("per_fuel", {}), row, bundle["model"], bundle["variant"]
+            )[0]
+        )
     except Exception:
         log.exception("burn_probability failed for scenario=%s", scenario)
         raise

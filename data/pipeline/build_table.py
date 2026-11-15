@@ -110,6 +110,9 @@ def build_real(clean_dir: Path = CLEAN_DIR, labels_csv: Path = LABELS_CSV) -> pd
             log.exception("build_real: could not merge labels from %s", labels_csv)
             raise
     table["outcome"] = table["outcome"].fillna("unknown")
+    # Rows with no O2 value cannot describe a burn condition (BASS and Saffire-III record none).
+    # They stay in data/clean/ and are listed in docs/data_quality.md, but not in this table.
+    table = table[table["o2_pct"].notna()]
     if "is_synthetic" not in table:
         table["is_synthetic"] = False
     missing = [c for c in COLUMNS if c not in table.columns]
@@ -142,6 +145,10 @@ def main() -> None:
     if not has_clean:
         log.warning("no CSVs in data/clean/: writing the SYNTHETIC seed table (DAT-01)")
     write_table(table)
+    if has_clean:
+        import data_quality  # sits next to this script; `make data` runs scripts from the repo root
+
+        data_quality.write_report(table)
     log.info("wrote %d rows to %s", len(table), OUT_PARQUET)
 
 

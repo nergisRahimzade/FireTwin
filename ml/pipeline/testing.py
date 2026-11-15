@@ -27,7 +27,13 @@ _REAL_PATHS = {name: getattr(config, name) for name in _PATH_NAMES}
 
 
 def _clear_caches() -> None:
-    for loader in (model.load_table, model.load_model, model.load_ranges):
+    for loader in (
+        model.load_table,
+        model.load_model,
+        model.load_ranges,
+        model.trust_thresholds,
+        model.load_metrics,
+    ):
         # A test may have replaced a loader with a plain function, which has no cache.
         clear = getattr(loader, "cache_clear", None)
         if clear is not None:

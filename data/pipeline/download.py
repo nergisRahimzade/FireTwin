@@ -1,8 +1,8 @@
-"""DAT-04: put the PSI experiment tables in data/raw/ and log each one in data/raw/downloads.csv.
+"""DAT-04: put the PSI experiment tables in data/psi_tables/ and log each in downloads.csv there.
 
 PSI's file API only answers a signed-in session, so a plain download is refused (HTTP 403).
 For each table in psi_sources.SOURCES, in this order:
-  1. already in data/raw/                     -> status "present"
+  1. already in data/psi_tables/                     -> status "present"
   2. found in the --from folder (tables you    -> status "copied"
      downloaded from PSI while signed in)
   3. fetched from the PSI API                  -> status "downloaded", or "failed: <why>"

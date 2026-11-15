@@ -1,0 +1,352 @@
+{
+  "raw": [
+    {
+      "table": "BASS",
+      "file": "PSI-26_Experimental table_BASS.csv",
+      "rows": 122,
+      "empty_cells_by_column": {
+        "As Run Test #": 1,
+        "Test #": 1,
+        "Sample #": 1
+      }
+    },
+    {
+      "table": "BASS-II",
+      "file": "PSI-25_Experimental table_BASS-II.csv",
+      "rows": 129,
+      "empty_cells_by_column": {
+        "Fan display": 13,
+        "Air display": 4,
+        "Total Frames Shot": 4,
+        "Calibrated final O2 % by vol": 2,
+        "Initial CO2 % by vol": 2,
+        "Final CO2 % by vol": 6,
+        "Initial CO (ppm)": 2,
+        "Final CO (ppm)": 5
+      }
+    },
+    {
+      "table": "Saffire-I",
+      "file": "PSI-98_Experimental table_SAFFIRE-1.csv",
+      "rows": 4,
+      "empty_cells_by_column": {
+        "Sample Thickness (cm)": 2,
+        "Sample Length (cm)": 2,
+        "Sample Width (cm)": 2,
+        "Air Flow (cm/s)": 2,
+        "Percent O2": 2,
+        "Ignition Power (W)": 2,
+        "Ignition Time (s)": 2,
+        "Burn Time (s)": 2,
+        "Flow Direction": 2,
+        "Camera 1": 2,
+        "Camera 2": 2
+      }
+    },
+    {
+      "table": "Saffire-II",
+      "file": "PSI-99_Experimental table_SAFFIRE-2.csv",
+      "rows": 15,
+      "empty_cells_by_column": {
+        "Material": 6,
+        "Samle Thickness": 6,
+        "Sample Length": 6,
+        "Sample Width (cm)": 6,
+        "Air Flow (cm/s)": 6,
+        "Percent O2 (Note 1)": 6,
+        "Ignition Power (W)": 6,
+        "Ignition Time (s)": 6,
+        "Burn Time (s)": 6,
+        "Flow Direction": 6,
+        "?-g Burn Length": 6,
+        "?-g Spread Length": 10,
+        "1-g Burn Length": 6,
+        "1-g Spread Rate": 7,
+        "Camera 1": 8,
+        "Camera 2": 9
+      }
+    },
+    {
+      "table": "Saffire-III",
+      "file": "PSI-100_Experimental table_SAFFIRE-3.csv",
+      "rows": 2,
+      "empty_cells_by_column": {}
+    },
+    {
+      "table": "FLEX",
+      "file": "PSI-69_Experimental table_FLEX.csv",
+      "rows": 274,
+      "empty_cells_by_column": {
+        "Test GMT": 1,
+        "Droplet initial diameter; mm": 6,
+        "Visible flame extinction diameter; mm": 49,
+        "Burning rate; mm": 16,
+        "Burn time; s": 6
+      }
+    },
+    {
+      "table": "FLEX-2",
+      "file": "PSI-68_Experimental table_Flex2.csv",
+      "rows": 8,
+      "empty_cells_by_column": {}
+    },
+    {
+      "table": "SAME",
+      "file": "PSI-102_Experimental table_SAME.csv",
+      "rows": 8,
+      "empty_cells_by_column": {
+        "Air Flow (cm/s)": 4,
+        "Weight loss rate (mg/min)": 4,
+        "Aging Duration (minutes)": 4
+      }
+    },
+    {
+      "table": "SAME-R",
+      "file": "PSI-101_Experimental table_SAME-R.csv",
+      "rows": 109,
+      "empty_cells_by_column": {
+        "Duration (sec)": 41,
+        "Primary aging time (sec)": 42,
+        "Primary mixing time (sec)": 42,
+        "Net aging time (sec)": 5
+      }
+    }
+  ],
+  "clean_tables": [
+    {
+      "file": "bass.csv",
+      "rows": 121,
+      "empty_fields": {
+        "o2_pct": 121,
+        "pressure_kpa": 121,
+        "flow_cm_s": 121,
+        "spread_rate_mm_s": 121
+      },
+      "rows_without_o2": 121
+    },
+    {
+      "file": "bass_ii.csv",
+      "rows": 129,
+      "empty_fields": {
+        "o2_pct": 0,
+        "pressure_kpa": 129,
+        "flow_cm_s": 21,
+        "spread_rate_mm_s": 129
+      },
+      "rows_without_o2": 0
+    },
+    {
+      "file": "flex.csv",
+      "rows": 274,
+      "empty_fields": {
+        "o2_pct": 0,
+        "pressure_kpa": 1,
+        "flow_cm_s": 0,
+        "spread_rate_mm_s": 274
+      },
+      "rows_without_o2": 0
+    },
+    {
+      "file": "saffire_i.csv",
+      "rows": 2,
+      "empty_fields": {
+        "o2_pct": 0,
+        "pressure_kpa": 2,
+        "flow_cm_s": 0,
+        "spread_rate_mm_s": 2
+      },
+      "rows_without_o2": 0
+    },
+    {
+      "file": "saffire_ii.csv",
+      "rows": 9,
+      "empty_fields": {
+        "o2_pct": 0,
+        "pressure_kpa": 9,
+        "flow_cm_s": 0,
+        "spread_rate_mm_s": 9
+      },
+      "rows_without_o2": 0
+    },
+    {
+      "file": "saffire_iii.csv",
+      "rows": 2,
+      "empty_fields": {
+        "o2_pct": 2,
+        "pressure_kpa": 2,
+        "flow_cm_s": 0,
+        "spread_rate_mm_s": 2
+      },
+      "rows_without_o2": 2
+    }
+  ],
+  "left_out_of_unified_table": {
+    "bass.csv": {
+      "count": 121,
+      "test_ids": [
+        "BASS-1",
+        "BASS-42",
+        "BASS-18",
+        "BASS-7",
+        "BASS-8",
+        "BASS-43",
+        "BASS-44",
+        "BASS-45",
+        "BASS-19",
+        "BASS-20",
+        "BASS-21",
+        "BASS-4",
+        "BASS-10",
+        "BASS-12",
+        "BASS-54",
+        "BASS-55",
+        "BASS-56",
+        "BASS-57",
+        "BASS-110",
+        "BASS-30",
+        "BASS-31",
+        "BASS-32",
+        "BASS-33",
+        "BASS-12-R",
+        "BASS-12-R2",
+        "BASS-46",
+        "BASS-47",
+        "BASS-48",
+        "BASS-49",
+        "BASS-22",
+        "BASS-23",
+        "BASS-24",
+        "BASS-25",
+        "BASS-58",
+        "BASS-59",
+        "BASS-60",
+        "BASS-61",
+        "BASS-5",
+        "BASS-14",
+        "BASS-66",
+        "BASS-67",
+        "BASS-34",
+        "BASS-35",
+        "BASS-16",
+        "BASS-5b",
+        "BASS-6",
+        "BASS-82",
+        "BASS-82a",
+        "BASS-82b",
+        "BASS-68",
+        "BASS-69",
+        "BASS-111",
+        "BASS-112",
+        "BASS-113",
+        "BASS-2",
+        "BASS-3",
+        "BASS-15",
+        "BASS-13",
+        "BASS-17",
+        "BASS-114",
+        "BASS-62",
+        "BASS-63",
+        "BASS-64",
+        "BASS-65",
+        "BASS-118",
+        "BASS-11",
+        "BASS-9",
+        "BASS-102",
+        "BASS-83a",
+        "BASS-83b",
+        "BASS-83c",
+        "BASS-84a",
+        "BASS-84b",
+        "BASS-86a",
+        "BASS-86b",
+        "BASS-86c",
+        "BASS-70",
+        "BASS-71",
+        "BASS-74",
+        "BASS-75",
+        "BASS-98",
+        "BASS-99",
+        "BASS-114",
+        "BASS-115",
+        "BASS-116",
+        "BASS-117",
+        "BASS-117a",
+        "BASS-100",
+        "BASS-85",
+        "BASS-93",
+        "BASS-26",
+        "BASS-27",
+        "BASS-28",
+        "BASS-87",
+        "BASS-103",
+        "BASS-104",
+        "BASS-105",
+        "BASS-38",
+        "BASS-39",
+        "BASS-40",
+        "BASS-72",
+        "BASS-73",
+        "BASS-118",
+        "BASS-119",
+        "BASS-89",
+        "BASS-95",
+        "BASS-92",
+        "BASS-78",
+        "BASS-50",
+        "BASS-51",
+        "BASS-52",
+        "BASS-53",
+        "BASS-106",
+        "BASS-107",
+        "BASS-108",
+        "BASS-109",
+        "BASS-79",
+        "BASS-80",
+        "BASS-75",
+        "BASS-53",
+        "BASS-53a"
+      ]
+    },
+    "saffire_iii.csv": {
+      "count": 2,
+      "test_ids": [
+        "Saffire-III-S1",
+        "Saffire-III-S2"
+      ]
+    }
+  },
+  "unified_rows": 414,
+  "unified_empty_fields": {
+    "o2_pct": 0,
+    "pressure_kpa": 141,
+    "flow_cm_s": 21,
+    "spread_rate_mm_s": 412
+  },
+  "unified_outcomes": {
+    "BASS-II": {
+      "burned": 85,
+      "extinguished": 27,
+      "unknown": 17
+    },
+    "FLEX": {
+      "burned": 27,
+      "extinguished": 186,
+      "unknown": 61
+    },
+    "Saffire-I": {
+      "burned": 2,
+      "extinguished": 0,
+      "unknown": 0
+    },
+    "Saffire-II": {
+      "burned": 5,
+      "extinguished": 4,
+      "unknown": 0
+    }
+  },
+  "other_tables": [
+    "flex2_conditions.csv",
+    "same.csv",
+    "same_r.csv"
+  ]
+}

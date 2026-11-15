@@ -1,0 +1,9 @@
+fuel,o2_pct_min,o2_pct_max,pressure_atm_min,pressure_atm_max,flow_cm_s_min,flow_cm_s_max,droplet_diameter_mm_min,droplet_diameter_mm_max,ambient_gas,source_url
+IsoOctane (pure),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+n-Octane (pure),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+Heptane (pure),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+Decane (pure),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+Ethanol (pure),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+Propanol (95%) Glycerol (5%) (mixture),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+Heptane (50%) IsoOctane (50%) (mixture),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
+Propanol (80%) Glycerol (20%) (mixture),17.0,30.0,0.5,3.0,0.1,5.0,1.5,5.0,O2/N2 or O2/He,https://psi.nasa.gov/physci/repo/data/investigations/PSI-68
