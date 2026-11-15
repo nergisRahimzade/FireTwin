@@ -861,10 +861,16 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 
 ## FE-09: browser session research PDF (2026-11-15, Ryan)
 
-- At the user's request, the browser export is a portrait academic report with cream paper,
-  warm ink, paired summary cards, model probability bars and an evidence register. Every saved
-  session starts a new page; long assessments and source text continue at readable sizes.
-  Text is selectable and HTTP(S) evidence URLs are linked. It replaces the dashboard screenshot.
+- At the user's revised request, the browser export is a compact landscape analytics dashboard
+  with white paper, rose KPI strips, probability bars and dense numerical tables. Typical saved
+  sessions fit one page each; a shared measured-data appendix prints all source rows and links
+  each deduplicated URL once. Long tables/source strings continue without truncation. Text remains
+  selectable and PDF streams are compressed. This supersedes the earlier cream academic layout.
+- Repeated generated explanations and generic introductions are replaced by recorded facts.
+  Proposed action inputs are represented as exact changes from the full assessment snapshot;
+  older assessments without a snapshot show complete proposed inputs. Recorded prediction and
+  suppression probabilities, response times, input conditions, trust/range flags, risk indices,
+  scores and references remain present.
 - Successful simulate/detect/suppress/apply responses now append an internal `SessionEvent`
   with its browser receipt time. Rankings preserve the response and the browser's input snapshot
   at request time, including earlier assessments after Apply/re-ranking. These timestamps are
