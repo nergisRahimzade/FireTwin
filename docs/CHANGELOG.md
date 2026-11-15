@@ -2,6 +2,13 @@
 
 One entry per task. API contract changes (rule 3) must always be noted here.
 
+## 2026-11-15
+
+- **OPS-01**: untrack private root plan PDFs and raw investigation uploads after preserving
+  local copies; ignore their paths and staging folders. Add index/ignore/large-blob guards
+  while retaining processed demo data, NASA text corpus and committed model artifacts.
+  Historical commits and remote branches are unchanged; cleanup limits are in OPS_NOTES.
+
 ## 2026-11-14
 
 - **OPS-01**: repo structure (one folder per layer, `.gitkeep` in empty folders), `Makefile`

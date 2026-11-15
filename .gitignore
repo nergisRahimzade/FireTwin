@@ -24,8 +24,24 @@ data/raw/*
 # ...but keep the empty folder itself tracked.
 !data/raw/.gitkeep
 
-# Team planning documents are private; this rule must protect every clone.
+# Raw investigation uploads are local source inputs, not runtime/demo artifacts.
+/data/BASS/
+/data/BASS2/
+/data/FLEX/
+/data/FLEX2/
+/data/SAFFIRE-II_F1C1_DistortionGrid-30mmBlock_1280x916_color/
+/data/SAME/
+/data/SAME-R/
+/data/Saffire/
+/data/Saffire2/
+/data/Saffire3/
+/data/raw-uploads/
+/data/uploads/
+
+# Team planning documents are private, including copies outside docs/plan/.
 docs/plan/*.pdf
+FireTwin*Project Overview*.pdf
+FireTwin*Implementation Tasks*.pdf
 
 # --- Vector store ---
 # Local Chroma database built by ml/ingest_rag.py (ML-08); rebuild it instead of committing it.

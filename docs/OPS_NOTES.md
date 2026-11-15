@@ -501,3 +501,28 @@ from 16 % to 40 %. The plan's "cable insulation" isn't in the table. So the plan
 
 **Decisions needed:** the team picks the demo scenario (this one, or new data for a burning solid),
 and confirms the ranking rule (Nergis) and the `types.ts` comment (Nathan).
+
+
+## OPS-01: public repository protection follow-up (2026-11-15, Ryan)
+
+- Main had acquired ten raw investigation upload directories and two root copies of the
+  private plan PDFs. They are removed from the tracked tree, with local source copies
+  preserved before untracking. The investigation directories, raw staging directories and
+  plan filenames are now ignored; processed data, text corpus, pipeline, clean CSVs and
+  prebuilt ML artifacts stay tracked. This changes repository packaging, not the data science.
+- `tests/test_repo_protection.py` checks ignore behavior in an isolated Git repository,
+  checks the real index for private plans/raw uploads, and rejects blobs over 100 MiB.
+  Index checks also catch force-added ignored files; ignore rules alone do not untrack files.
+- Existing public history is unchanged. The owner must separately decide whether to remove
+  historical private documents/raw uploads from all affected refs. Inspect main and
+  `data/raw-uploads` first, then other branches/tags that contain the same blobs. Removing
+  a current file or deleting a branch does not purge forks, caches or historical commits.
+  No history rewrite, remote branch deletion or credential rotation is part of this fix.
+
+**Inspection baseline:** `origin/main` was `b01b110`, already containing the upload branch.
+The fix untracks 664 raw source files and two private PDFs; all were copied to an ignored
+local backup before untracking. An audit of all locally fetched reachable objects found
+no blobs above 100 MiB. This does not certify refs that have not been fetched.
+Before updating another existing checkout to this fix, preserve any needed raw uploads
+and plan copies outside their tracked paths: merging their deletion removes clean copies
+from that checkout. A fresh clone retains the processed demo artifacts and text corpus.
