@@ -385,3 +385,12 @@ input, select, textarea { font-size: 16px; }
 .session-row { cursor: pointer; }
 .session-row:hover td { background: rgba(255, 255, 255, 0.03); }
 .session-row.selected td { background: rgba(120, 170, 255, 0.10); }
+
+/* FE-09 chart: zones split by the 50% burn threshold, the boundary O2, this session's point. */
+.o2-chart .zone-burn { fill: rgba(255, 140, 60, 0.07); }
+.o2-chart .zone-out { fill: rgba(80, 220, 160, 0.06); }
+.o2-chart .threshold { stroke: rgba(255, 255, 255, 0.45); stroke-dasharray: 5 4; }
+.o2-chart .boundary { stroke: rgba(255, 255, 255, 0.35); stroke-dasharray: 2 3; }
+.o2-chart .pt-session { fill: #fff; stroke: #0b1020; stroke-width: 1.5; }
+.pt-burned-text { color: var(--risk); }
+.pt-out-text { color: #63e6be; }
