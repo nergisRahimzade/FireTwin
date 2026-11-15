@@ -137,3 +137,8 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   `water_mist` through `/suppress` on the default data. All 9 endpoints, both modes.
   Fix: `backend/tests/conftest.py` now also clears `OPENAI_API_KEY`, so a key in a developer's
   shell can no longer make real, billed API calls during tests (a guard test proves it).
+- **Contract text (rule 3), `SuppressOut.actions` order**: documented as the suppressor actually
+  ranks: data-backed actions by score, then no-data actions, `water_mist` last; `recommended` is the
+  first data-backed action. Replaces "sorted by score", which real NASA data showed was wrong
+  (`cut_power` can outscore data-backed actions). Comment-only change in `schemas.py`; no shape
+  change, so no frontend type regeneration. Also removed an empty duplicate BE-07 heading.
