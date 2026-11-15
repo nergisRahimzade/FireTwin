@@ -16,7 +16,8 @@ before implementing an agreed contract change, then update all consumers under r
 | CSV/DOCX export | Plan requires PDF, which exists. Agree format, provenance, route and response behavior if additional formats are wanted. | Ryan: export; Nathan: download UI; team: scope/contract. | Deferred additional scope. |
 | agent_trace / POST report | No such public field or endpoint exists. Internal pipeline stages are not an HTTP contract. Define payload, access, sources, failure behavior and consumers before proposing an API change. | Team: contract; Nergis: pipeline behavior; Ryan: API; Nathan: UI. | Proposed future scope; not approved by this register. |
 | Suppression ordering and risk assumptions | Code/schema/frontend comment now agree on data-backed-first ordering with water mist last. Confirm scientific assumptions separately; documentation agreement does not validate illustrative risk weights. | Nergis: ranker/assumptions; Ryan: API/export tests; Nathan: ordering and labels. | Implemented ordering documented; any policy/tuning change needs team review. |
-| Real demo narrative and release | Current E2E scenario is Heptane at 30% O2 with zero flow, yielding no detector alarm. Decide an evidence-supported demo story and complete software/science/UI gates before tagging. | Nergis: labels/model/evidence; Nathan: UI; Ryan: E2E/release. | Release decision pending. Package 8; no tag created here. |
+| Real demo narrative and release | `demo-v1` exists on `8f281d9`. On main `60ea3f8` (per-fuel models), Heptane 30% O2 fans off burns with strong trust but trips no alarm, then CO2 puts it out; solids (e.g. PMMA rod 21% O2, 10 cm/s) burn and trip `vent_fwd` at 40 s with weak trust, but no action puts them out. Decide the narrative, then tag `demo-v2`. | Nergis: labels/model/evidence; Nathan: UI; Ryan: E2E/release. | Narrative question sent to the team; `demo-v2` pending. |
+| Private plan PDFs in the public `demo-v1` tag | `demo-v1` points at a commit that still contains both private root plan PDFs (no raw uploads); GitHub serves tag source archives publicly. Options: keep; delete the tag and tag a clean commit as the demo (copies already fetched or cached remain); make the repository private. | Nergis: plan author; repository owner. | Owner decision pending; no action taken. |
 
 ## Proposed simulation validation matrix (package 4)
 
@@ -41,3 +42,27 @@ from model predictions and dataset bounds.
 Record agreement here with date, participants, accepted matrix changes and implementation
 PR. No entries above currently assert that all three teammates have agreed. Implementation
 must include error, boundary, catalog, no-side-effect and action-compatibility checks.
+
+### Verified findings before agreement (2026-11-15, real mode, code as on main)
+
+| Request to `POST /simulate` | Result today |
+|---|---|
+| `o2_pct` = `NaN` or `Infinity` (JSON literal) | 422 from `model.burn_probability` ("not a finite number") |
+| `o2_pct` = 150 | 200, burning, p = 0.9999999999 |
+| `flow_speed_cm_s` = -3, `flow_dir` = `[0, 0, 0]`, `material` = `"Nope"`, `pressure_kpa` = -1 | 200 with a verdict |
+
+- **Action outputs vs request bounds.** `ScenarioIn` is also the type of `SimulateOut.inputs` and
+  `ActionResult.new_inputs`. CO2 lowers O2 by `CO2_O2_DROP_PCT` = 6 (`ml/pipeline/stages.py`), so a
+  request at O2 10-16 yields CO2 outputs at O2 4-10. With bounds on the shared model, Pydantic
+  doesn't re-check `model_copy(update=...)` results, so the API would return 200 with values that
+  break its own published schema. Options: (1) bounds on the `/simulate` request model only
+  (recommended; contract change, needs the simulate router signature); (2) an O2 floor that covers
+  action outputs; (3) floor CO2 output at 10 (a science/ranking change).
+- **Side effects.** `routers/simulate.py` calls `store.create()` before predicting, so the 422
+  requests above still create an empty scenario. "No side effects" needs validation (including the
+  material check) before `store.create()`.
+- **Material check location.** The schema must not import data loaders, so the catalog check needs a
+  simulate-router hook calling the same catalog as `/meta`; unknown material (422) stays distinct
+  from an unavailable catalog (503).
+- Open questions for agreement: which option above; whether the router validates before
+  `store.create()`; material matching (exact or case/whitespace-insensitive).

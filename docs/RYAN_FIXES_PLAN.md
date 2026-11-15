@@ -10,13 +10,13 @@ and PDFs are not distributed with the public plan; obtain them from the team if 
 | Package | State | Next action |
 |---|---|---|
 | 1 — repository protection | Merged, PR #26 (`8355532`). | Current-tree protection is done; historical cleanup requires a separate owner decision. |
-| 2 — Windows execution/tests | Assigned to Claude's isolated branch; not merged in this baseline. | Review Claude's handoff and integrate its proposed shared-doc entries before its PR. |
+| 2 — Windows execution/tests | Merged, PR #31 (`6ecf863`); the native Windows Python 3.11 CI job passed. | Done. Native Windows `make dev` stays unsupported (Docker Desktop or WSL). |
 | 3 — runtime mounts/mode visibility | Merged, PR #27 (`fd5ec94`). | Narrow runtime mounts and startup messages are on main. |
 | 4 — validation | Proposed policy only. | Agree the request/error matrix in `docs/DECISIONS.md` before changing behavior. |
 | 5 — historical PDF recommendation | Pending shared-store handoff. | Coordinate snapshot semantics with Nergis. |
-| 6 — offline vector retrieval | Open. | Agree/provision index plus embedding cache; preserve keyword fallback. |
-| 7 — documentation | This documentation reconciliation. | Review current-state corrections and decision register; no runtime changes. |
-| 8 — demo freeze | Pending other gates and team narrative. | Verify and authorize release on an exact green SHA. |
+| 6 — offline vector retrieval | Merged, PR #34 (`60ea3f8`). | Follow-ups RAG-004/RAG-005 (empty-folder search, untracked bundle outputs) on `feature/ML-08-followups`. |
+| 7 — documentation | Merged, PR #29 (`db5f8dd`). | Later corrections (tag status, ordering) on `feature/OPS-01-docs-followups`. |
+| 8 — demo freeze | `demo-v1` exists (annotated, on `8f281d9`); later fixes need a new tag. | Agree the demo narrative, then tag `demo-v2` on an exact green SHA. |
 
 ## Baseline and findings
 
@@ -41,7 +41,7 @@ Never merge the raw-upload branch as an implementation base.
 | Whole data directory mounted | Historical broad mount followed OPS-02 literally. PR #27 now mounts only processed data, cited documents and artifacts read-only; this is a documented plan deviation. |
 | Uploads can be staged | Fixed in PR #26: confirmed source directories and private plan names are ignored; index tests catch forced additions. Package 1 merged. |
 | Public raw-upload branch | Joint repo-owner/data-owner issue. Inspected `origin/data/raw-uploads` has 692 files under data, about 150.9 MiB, including the normal pipeline files. The note's 491 MB/664 files/two oversized videos were not confirmed by this tree; inspect local files and reachable history before asserting those figures. Historical cleanup is still a separate owner decision. |
-| Missing demo-v1 | Confirmed absent from the remote tag listing. Package 8, after release gates. |
+| Missing demo-v1 | Superseded: absent at the original audit, then created on 2026-11-15 as an annotated tag on `8f281d9` (PR #24 merge) after real-mode `make e2e` passed. Package 8 now tags `demo-v2`. |
 | Duplicate/stale docs | Reconciled by package 7: current snapshot, corrected contract descriptions, distinct historical runs and pending-decision register. |
 | Chat fallback is raw text; only ten eval questions | These match ML-10 and ML-09 respectively. Ryan owns them even though the note tags them Nergis. Improve only with an explicit additional requirement; do not call the planned behavior a missing feature. |
 | Results synthetic provenance / agent_trace / POST report | Team contract decisions. Ryan coordinates schemas, API and tests; Nergis owns stored provenance; Nathan owns consumers. Package 7 records the decision without inventing fields. |
@@ -252,9 +252,9 @@ labels, training correctness and metrics; Nathan owns working controls/verdict/a
   UI loop; a green endpoint suite alone does not establish model correctness or UI readiness.
 - Verify artifacts/corpus provenance, fresh-clone startup, offline behavior, no raw/private
   files in the release tree, lockfiles, all required CI and `make lint`/`make test`.
-- Record the tested SHA and known limits. Only after release authorization, create an
-  annotated `demo-v1` on that exact green main commit and publish it. Recheck the remote tag
-  first; never move an existing release tag. Use a later version for subsequent fixes.
+- Record the tested SHA and known limits. Only after release authorization, create the next
+  annotated tag on that exact green main commit and publish it: `demo-v2`, because `demo-v1`
+  already exists on `8f281d9`. Recheck the remote tags first; never move an existing release tag.
 
 Acceptance: reproducible run instructions, exact SHA and checks, approved demo narrative,
 release tag only after all agreed gates pass. Missing scientific evidence remains a blocker
