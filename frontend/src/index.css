@@ -297,12 +297,13 @@ input, select, textarea { font-size: 16px; }
 .one-page {
   display: grid; gap: 20px; align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-  grid-template-areas: "scene vars" "recs vars" "dash vars";
+  grid-template-areas: "scene vars" "recs vars" "dash vars" "chat vars";
 }
 .area-scene { grid-area: scene; min-width: 0; }
 .area-vars { grid-area: vars; min-width: 0; }
 .area-recs { grid-area: recs; min-width: 0; }
 .area-dash { grid-area: dash; min-width: 0; }
+.area-chat { grid-area: chat; min-width: 0; }
 .vars-panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
 .scene-large { height: clamp(380px, 58vh, 640px); }
 .panel { padding: 18px 20px; display: grid; gap: 12px; }
@@ -322,7 +323,7 @@ input, select, textarea { font-size: 16px; }
 .compare-panes .lab3d-view { height: clamp(320px, 50vh, 560px); }
 .compare-reference { display: grid; align-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; border-style: dashed; }
 @media (max-width: 900px) {
-  .one-page { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scene" "vars" "recs" "dash"; }
+  .one-page { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scene" "vars" "recs" "dash" "chat"; }
   .vars-panel { position: static; max-height: none; overflow: visible; }
   .collapsible-toggle { display: flex; }
   .collapsible-body:not(.open) { display: none; }
@@ -332,3 +333,10 @@ input, select, textarea { font-size: 16px; }
   .compare-panes { grid-template-columns: minmax(0, 1fr); }
 }
 .alarm-banner { margin: 0; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #FFE3DF; background: rgba(255,90,74,.16); border: 1px solid #FF5A4A; }
+/* FE-10 chat */
+.chat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-height: 420px; overflow-y: auto; }
+.chat-list li { display: grid; gap: 6px; }
+.chat-q { font-weight: 600; }
+.chat-a { white-space: pre-wrap; }
+.chat-form { display: flex; gap: 8px; }
+.chat-form input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: var(--fg); font-size: 16px; }
