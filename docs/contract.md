@@ -33,8 +33,6 @@ Changing them is a contract change (rule 3).
   (seed ids start with `SYN-`, mock ids with `synthetic-`). Options: store full `TestRef` dicts in
   `sources`, or add an `is_synthetic` key to each row. Either is a contract change (rule 3).
 
-## GET /meta (BE-07): keys inside the free-form fields
-
 ## 3D coordinate system (frontend and backend)
 
 One frame for the 3D scene (`frontend/src/scene/`) and the detector service (BE-03,
@@ -158,3 +156,17 @@ marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|
 - `cache.clear()` invalidates entries and prevents already-running older work from refilling the
   cache. It does not reload the ML loaders: restart the backend after rebuilding model/data
   artifacts. The cache is not shared across worker processes and disappears on restart.
+
+## POST /suppress: order of `actions` (BE-04)
+
+The contract used to say "sorted by score". The suppressor (BE-04) ranks by NASA data support first,
+following the plan's BE-04 rules (`water_mist` has no PSI data and is "ranked last unless data is
+added"; `cut_power` changes no input and has no data support):
+
+1. Actions with `data_support` `"direct"` or `"indirect"`, highest `score` first.
+2. Then actions with `data_support` `"none"`, highest `score` first, except `water_mist`, always last.
+
+`recommended` is the first data-backed action (`cut_power` if none is backed). A no-data action can
+therefore score higher yet appear lower; the UI should show the list in the given order and highlight
+`recommended` by name. **Pending confirmation (Nergis, Nathan):** this documents the current BE-04
+behaviour; `frontend/src/api/types.ts` still says "sorted by score".
