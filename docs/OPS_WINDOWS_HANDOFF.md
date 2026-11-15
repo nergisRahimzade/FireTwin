@@ -152,7 +152,33 @@ the first PR run settles it. Native `make dev` support was not built (out of sco
 - No changes needed outside the assigned files.
 - Integration: append the two entries above, and mark the old OPS-01 skip note as superseded.
 - Repo owner: decide whether `Windows (startup checks)` becomes a required check (it isn't yet).
-- Package 3 overlap: the launcher message says `docker compose up --build`; if package 3 changes
-  the recommended real-mode command (e.g. `MOCK_MODE=0`), the message may want the same wording.
+- Package 3 overlap: the launcher message says `docker compose up --build`, which matches
+  `docker/README.md` after #27 (it documents `MOCK_MODE=0` and the PowerShell form separately).
+  No wording change needed. This branch still merges cleanly with main `fd5ec94`.
 - If native Windows `make dev` is wanted later, it needs its own process-control design (job
   objects, `npm.cmd` resolution, Ctrl+Break handling) and testing on Windows; not started here.
+
+## 7. Review notes on #26 and #27 for the next docs build (Codex)
+
+Reviewed after both merged (main `fd5ec94`). No code defects found; #27's real-mode Compose run
+was re-verified independently (separate project, temporary ports: both services healthy, both
+mode lines logged, only `docs`/`processed` under `/app/data`, raw stand-in invisible, mount
+read-only, `make e2e` PASS). Small items for `feature/OPS-01-docs-reconciliation`:
+
+1. `docs/OPS_NOTES.md`, section "OPS-02: runtime mounts and mode visibility": the bullet ending
+   "Startup mode visibility is described under BE-05 below." points the wrong way; the BE-05
+   section is directly *above* it. Say "above".
+2. `docs/CHANGELOG.md`, `## 2026-11-15`: a blank line separates the new OPS-02/BE-05 bullets
+   from the OPS-01 bullet, splitting one list into two. Remove the blank line.
+3. `backend/app/main.py` lifespan uses `print` for the mode line. It matches the entrypoint's
+   `print`, so optional, but the team style prefers `logging` (level from `LOG_LEVEL`). If
+   changed, keep `backend/tests/test_startup_mode.py` asserting the line still appears and no
+   key is printed.
+4. Record for teammates (OPS_NOTES, under the #26 cleanup note): updating an older checkout
+   (e.g. one at `b01b110`) to current main deletes the raw upload folders and root plan PDFs
+   from that working tree. Plan copies under `docs/plan/` are untouched (ignored); raw files
+   stay recoverable from history (`b01b110`), but copy them outside the repo first if needed.
+5. Process: #26 and #27 were merged with no review recorded on GitHub. Next PRs should get a
+   recorded review before merge, per "don't merge into main until the team says so".
+6. Environment: `/tmp` on this machine is a 7.7 GB tmpfs (92 % full) and is wiped on WSL
+   restart. Worktrees there lose uncommitted work; commit early or use a disk-backed path.
