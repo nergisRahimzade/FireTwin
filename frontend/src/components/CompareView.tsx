@@ -4,6 +4,7 @@
 import { Suspense, useEffect } from "react";
 import { useScenario } from "../store/useScenario";
 import { IssScene } from "./SceneView";
+import { ValidationReference } from "./ValidationReference";
 
 export function CompareView({ onClose }: { onClose: () => void }) {
   const detect = useScenario(s => s.detect);
@@ -42,10 +43,7 @@ export function CompareView({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </div>
-        <div className="glass compare-reference">
-          <p className="label">Reference example</p>
-          <p className="note m-0">NASA footage or a reference test goes here, for side-by-side comparison.</p>
-        </div>
+        <ValidationReference />
       </div>
       <div className="table-wrap">
         <table>
