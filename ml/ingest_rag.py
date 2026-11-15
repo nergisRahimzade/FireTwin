@@ -219,7 +219,8 @@ def _active_directory(root: Path) -> Path:
 
 def _publish(root: Path, generation: str) -> None:
     # Only this small pointer is replaced atomically. Existing generation directories are
-    # immutable after build and retained so readers already using one remain valid.
+    # retained so readers already using one remain valid. Chroma queries may still
+    # write bookkeeping files; builders never mutate an existing generation.
     temporary = root / f".CURRENT.{generation}.tmp"
     try:
         with temporary.open("x") as stream:
@@ -271,7 +272,7 @@ def ingest(
     collection.add(
         ids=[c["id"] for c in chunks],
         documents=[c["text"] for c in chunks],
-        metadatas=[{k: c[k] for k in ("title", "investigation", "source_url")} for c in chunks],
+        metadatas=[{k: v for k, v in c.items() if k not in {"id", "text"}} for c in chunks],
     )
     if collection.count() != len(chunks):
         raise StoreUnavailable("candidate chunk count mismatch; previous index remains active")

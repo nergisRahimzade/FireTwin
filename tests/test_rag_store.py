@@ -242,3 +242,11 @@ def test_production_local_embedding_identity_survives_reopening(monkeypatch, tmp
     )
     hits = ingest_rag.search("smoke", 1, db)
     assert hits is not None and hits[0]["id"] == chunks[0]["id"]
+
+
+def test_custom_extra_scalar_metadata_is_preserved_for_fingerprint_validation(synthetic_store):
+    db, chunks, _ = synthetic_store
+    custom = [{**chunks[0], "is_synthetic": True}]
+    ingest_rag.ingest(db, chunks=custom)
+    hits = ingest_rag.search("smoke", 1, db)
+    assert hits is not None and hits[0]["is_synthetic"] is True
