@@ -4,14 +4,16 @@
    the aisle), soft lighting, and a marker at every detector position /detect returns. */
 import { Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Component, type ReactNode, Suspense, useMemo } from "react";
+import { Component, type MutableRefObject, type ReactNode, Suspense, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { DetectOut, SimulateOut } from "../api/types";
 import { CAMERA_FOV, CAMERA_START, clampCamera } from "../lab/core.js";
 import { FallbackModule } from "./FallbackModule";
 import { Flame } from "./Flame";
+import { Smoke } from "./Smoke";
 import { IssLab } from "./IssLab";
 import { detectorMarks } from "./detectors";
+import { simSecondsSince } from "./clock";
 
 // Falls back to the coded module when the glTF can't load (Suspense only covers "still loading").
 class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
@@ -32,33 +34,70 @@ function KeepCameraInside() {
   return null;
 }
 
-function DetectorMarkers({ detect }: { detect: DetectOut | null }) {
+const IDLE_COLOR = 0x63e6be;
+const ALARM_COLOR = 0xff5a4a;
+
+// FE-04 markers at the /detect positions; FE-06: the tripped one turns red and pulses.
+function DetectorMarkers({ detect, alarmId }: { detect: DetectOut | null; alarmId: string | null }) {
   const marks = useMemo(() => detectorMarks(detect), [detect]);
+  const halos = useRef<Record<string, THREE.Mesh | null>>({});
+  const t = useRef(0);
+  useFrame((_, delta) => {
+    t.current += delta;
+    const pulse = 1 + 0.35 * (0.5 + 0.5 * Math.sin(t.current * 8));
+    for (const [key, mesh] of Object.entries(halos.current)) {
+      if (mesh) mesh.scale.setScalar(key.endsWith(`-${alarmId}`) ? pulse : 1);
+    }
+  });
   return (
     <>
-      {marks.map((m, index) => (
-        // index + id: two detectors could share an id
-        <group key={`${index}-${m.id}`} position={m.position} name={m.id}>
-          <mesh>
-            <sphereGeometry args={[0.05, 16, 12]} />
-            <meshBasicMaterial color={0x63e6be} />
-          </mesh>
-          <mesh>
-            <sphereGeometry args={[0.16, 24, 16]} />
-            <meshBasicMaterial color={0x63e6be} transparent opacity={0.2} depthWrite={false} blending={THREE.AdditiveBlending} />
-          </mesh>
-          <Html center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-            <div className="lab3d-tag r3f vent">
-              {m.id}{m.synthetic ? " · synthetic" : ""}
-            </div>
-          </Html>
-        </group>
-      ))}
+      {marks.map((m, index) => {
+        const key = `${index}-${m.id}`; // index + id: two detectors could share an id
+        const tripped = m.id === alarmId;
+        const color = tripped ? ALARM_COLOR : IDLE_COLOR;
+        return (
+          <group key={key} position={m.position} name={m.id}>
+            <mesh>
+              <sphereGeometry args={[0.05, 16, 12]} />
+              <meshBasicMaterial color={color} />
+            </mesh>
+            <mesh ref={el => { halos.current[key] = el; }}>
+              <sphereGeometry args={[0.16, 24, 16]} />
+              <meshBasicMaterial color={color} transparent opacity={tripped ? 0.45 : 0.2} depthWrite={false} blending={THREE.AdditiveBlending} />
+            </mesh>
+            <Html center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+              <div className={`lab3d-tag r3f ${tripped ? "hit" : "vent"}`}>
+                {m.id}{tripped ? " · alarm" : ""}{m.synthetic ? " · synthetic" : ""}
+              </div>
+            </Html>
+          </group>
+        );
+      })}
     </>
   );
 }
 
-export function IssScene({ detect, simulate }: { detect: DetectOut | null; simulate: SimulateOut | null }) {
+
+
+// The demo clock readout: simulated seconds since ignition (10x real time). DOM text only.
+function ClockReadout({ el, ignitedAt }: { el: MutableRefObject<HTMLSpanElement | null>; ignitedAt: number | null }) {
+  useFrame(() => {
+    if (el.current) el.current.textContent = simSecondsSince(ignitedAt).toFixed(1);
+  });
+  return null;
+}
+
+interface IssSceneProps {
+  detect: DetectOut | null;
+  simulate: SimulateOut | null;
+  // From the store, so every view (main page or Compare) shows the same moment of the same ignition.
+  alarmId?: string | null; // the detector that tripped, once the demo clock reached time_to_detect_s
+  ignition?: number; // the ignition counter: a new value restarts the smoke
+  ignitedAt?: number | null; // Date.now() at this ignition: drives the clock and smoke catch-up
+  clockEl?: MutableRefObject<HTMLSpanElement | null>; // optional HUD readout of the demo clock
+}
+
+export function IssScene({ detect, simulate, alarmId = null, ignition = 0, ignitedAt = null, clockEl }: IssSceneProps) {
   return (
     <Canvas
       flat
@@ -75,7 +114,9 @@ export function IssScene({ detect, simulate }: { detect: DetectOut | null; simul
           <IssLab />
         </Suspense>
       </ModelBoundary>
-      <DetectorMarkers detect={detect} />
+      <DetectorMarkers detect={detect} alarmId={alarmId} />
+      {clockEl && <ClockReadout el={clockEl} ignitedAt={ignitedAt} />}
+      <Smoke simulate={simulate} ignition={ignition} />
       <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />

@@ -8,6 +8,11 @@ import { IssScene } from "./SceneView";
 export function CompareView({ onClose }: { onClose: () => void }) {
   const detect = useScenario(s => s.detect);
   const simulate = useScenario(s => s.simulate);
+  // Same ignition, clock and alarm as the main view (FE-06), so a tripped detector stays red here
+  // and the smoke shows where the fire is now, not from the start.
+  const ignition = useScenario(s => s.ignitions);
+  const ignitedAt = useScenario(s => s.ignitedAt);
+  const alarmId = useScenario(s => s.alarmId);
   const inputs = useScenario(s => s.inputs);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -32,7 +37,7 @@ export function CompareView({ onClose }: { onClose: () => void }) {
           <div className="lab3d-view">
             <div className="lab3d-canvas">
               <Suspense fallback={<div className="lab3d-msg">Loading the ISS module…</div>}>
-                <IssScene detect={detect} simulate={simulate} />
+                <IssScene detect={detect} simulate={simulate} alarmId={alarmId} ignition={ignition} ignitedAt={ignitedAt} />
               </Suspense>
             </div>
           </div>
