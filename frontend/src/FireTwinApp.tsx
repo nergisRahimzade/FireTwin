@@ -7,6 +7,7 @@ import { ApiStatus } from "./components/ApiStatus";
 import { ChatPanel } from "./components/ChatPanel";
 import { CompareView } from "./components/CompareView";
 import { Dashboard } from "./components/Dashboard";
+import { ErrorToast } from "./components/ErrorToast";
 import { SceneView } from "./components/SceneView";
 import { SuppressionPanel } from "./components/SuppressionPanel";
 import { VerdictCard } from "./components/VerdictCard";
@@ -23,6 +24,7 @@ export default function FireTwinApp() {
         <p className="muted m-0">A fire-safety digital twin of an ISS lab module: set up a fire, detect it, suppress it, and see why.</p>
       </header>
       <ApiStatus />
+      <ErrorToast />
       {comparing ? (
         <CompareView onClose={closeCompare} />
       ) : (
