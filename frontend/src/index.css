@@ -304,6 +304,13 @@ input, select, textarea { font-size: 16px; }
 .area-recs { grid-area: recs; min-width: 0; }
 .area-dash { grid-area: dash; min-width: 0; }
 .area-chat { grid-area: chat; min-width: 0; }
+/* FE-10 chat */
+.chat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-height: 420px; overflow-y: auto; }
+.chat-list li { display: grid; gap: 6px; }
+.chat-q { font-weight: 600; }
+.chat-a { white-space: pre-wrap; }
+.chat-form { display: flex; gap: 8px; }
+.chat-form input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: var(--fg); font-size: 16px; }
 .vars-panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
 .scene-large { height: clamp(380px, 58vh, 640px); }
 .panel { padding: 18px 20px; display: grid; gap: 12px; }
@@ -333,10 +340,3 @@ input, select, textarea { font-size: 16px; }
   .compare-panes { grid-template-columns: minmax(0, 1fr); }
 }
 .alarm-banner { margin: 0; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #FFE3DF; background: rgba(255,90,74,.16); border: 1px solid #FF5A4A; }
-/* FE-10 chat */
-.chat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-height: 420px; overflow-y: auto; }
-.chat-list li { display: grid; gap: 6px; }
-.chat-q { font-weight: 600; }
-.chat-a { white-space: pre-wrap; }
-.chat-form { display: flex; gap: 8px; }
-.chat-form input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: var(--fg); font-size: 16px; }
