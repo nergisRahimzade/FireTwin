@@ -354,6 +354,26 @@ input, select, textarea { font-size: 16px; }
 .compare-reference { display: grid; align-content: start; justify-items: stretch; gap: 10px; padding: 18px; text-align: left; }
 .compare-caption { font-size: 12px; } .compare-caption a { color: var(--accent); }
 .validation-video { display: block; width: 100%; height: clamp(220px, 28vw, 420px); aspect-ratio: 16 / 9; border: 0; background: #000; }
+/* Compare video view: YouTube puts its iframe inside .validation-video; make it fill the box. */
+.validation-video iframe { display: block; width: 100%; height: 100%; border: 0; }
+.compare-results { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+.compare-model { display: grid; gap: 10px; align-content: start; }
+.compare-results td.muted { font-size: 13px; }
+/* Video timeline: one bar per phase (unlit / burning / out), a playhead that follows the video. */
+.video-timeline { display: grid; gap: 8px; }
+.video-timeline svg { width: 100%; height: auto; }
+.video-timeline .axis-title { fill: var(--muted); font: 600 10px var(--f-body); letter-spacing: .06em; }
+.video-timeline .tick { fill: var(--muted); font: 10px var(--f-data); }
+.video-timeline .phase { stroke: none; }
+.video-timeline .phase-none { fill: rgba(255, 255, 255, 0.06); }
+.video-timeline .phase-burning { fill: rgba(255, 138, 61, 0.45); }
+.video-timeline .phase-out { fill: rgba(99, 230, 190, 0.16); }
+.video-timeline .phase-now { stroke: var(--fg); stroke-width: 1.5; }
+.video-timeline .phase-label { fill: var(--fg); font: 11px var(--f-body); pointer-events: none; }
+.video-timeline .playhead { stroke: var(--fg); stroke-width: 2; }
+.video-timeline .readout { fill: var(--fg); font: 10.5px var(--f-data); paint-order: stroke; stroke: var(--bg-2); stroke-width: 3px; }
+.video-timeline .seek-area { cursor: pointer; }
+.phase-buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 900px) {
   .one-page { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scene" "verdict" "vars" "recs" "dash" "chat"; }
   .left-col { display: contents; } /* mobile: back to one stacked grid */
@@ -362,6 +382,7 @@ input, select, textarea { font-size: 16px; }
   .scene-large { height: clamp(300px, 70vw, 440px); }
   .num-input input { min-height: 44px; }
   .compare-panes { grid-template-columns: minmax(0, 1fr); }
+  .compare-results { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 767px) {
   .collapsible-toggle {

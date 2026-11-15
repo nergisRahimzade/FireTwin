@@ -227,16 +227,23 @@ describe("FE-06 alarm in the store (second review)", () => {
 });
 
 describe("views read the alarm from the store", () => {
-  it("SceneView and CompareView keep no timers or alarm state of their own", () => {
-    const files = import.meta.glob(["../components/SceneView.tsx", "../components/CompareView.tsx"], {
+  it("SceneView keeps no timers or alarm state of its own", () => {
+    const files = import.meta.glob(["../components/SceneView.tsx"], {
       query: "?raw", import: "default", eager: true,
     }) as Record<string, string>;
-    expect(Object.keys(files)).toHaveLength(2);
+    expect(Object.keys(files)).toHaveLength(1);
     for (const source of Object.values(files)) {
       expect(source).not.toMatch(/setTimeout|useState|performance\.now/);
       expect(source).toMatch(/useScenario\(s => s\.alarmId\)/);
       expect(source).toMatch(/useScenario\(s => s\.ignitedAt\)/);
     }
+  });
+  it("CompareView shows the video's test, so it neither reads nor times the live alarm", () => {
+    // Compare's 3D follows a NASA video (its time comes from the YouTube player), not the live
+    // ignition, so it must not show or schedule the live fire's alarm.
+    const files = import.meta.glob(["../components/CompareView.tsx"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+    const source = Object.values(files)[0];
+    expect(source).not.toMatch(/setTimeout|setInterval|alarmId|ignitedAt/);
   });
 });
 

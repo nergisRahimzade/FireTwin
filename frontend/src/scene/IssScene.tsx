@@ -95,9 +95,12 @@ interface IssSceneProps {
   ignition?: number; // the ignition counter: a new value restarts the smoke
   ignitedAt?: number | null; // Date.now() at this ignition: drives the clock and smoke catch-up
   clockEl?: MutableRefObject<HTMLSpanElement | null>; // optional HUD readout of the demo clock
+  // false = no smoke. Compare's video view: its flame follows a video that can be rewound, and
+  // smoke builds up frame by frame, so it couldn't follow a seek (the video shows none anyway).
+  smoke?: boolean;
 }
 
-export function IssScene({ detect, simulate, alarmId = null, ignition = 0, ignitedAt = null, clockEl }: IssSceneProps) {
+export function IssScene({ detect, simulate, alarmId = null, ignition = 0, ignitedAt = null, clockEl, smoke = true }: IssSceneProps) {
   return (
     <Canvas
       flat
@@ -116,7 +119,7 @@ export function IssScene({ detect, simulate, alarmId = null, ignition = 0, ignit
       </ModelBoundary>
       <DetectorMarkers detect={detect} alarmId={alarmId} />
       {clockEl && <ClockReadout el={clockEl} ignitedAt={ignitedAt} />}
-      <Smoke simulate={simulate} ignition={ignition} />
+      {smoke && <Smoke simulate={simulate} ignition={ignition} />}
       <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />
