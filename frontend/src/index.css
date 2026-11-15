@@ -348,9 +348,9 @@ input, select, textarea { font-size: 16px; }
 .compare-panes > * { min-width: 0; }
 .compare-panes > .lab3d { min-height: clamp(320px, 50vh, 560px); }
 .compare-panes .lab3d-view { height: clamp(320px, 50vh, 560px); }
-.compare-reference { display: grid; align-content: start; justify-items: stretch; min-height: clamp(320px, 50vh, 560px); gap: 8px; padding: 24px; text-align: center; border-style: dashed; }
+.compare-reference { display: grid; align-content: start; justify-items: stretch; gap: 10px; padding: 18px; text-align: left; }
+.compare-caption { font-size: 12px; } .compare-caption a { color: var(--accent); }
 .validation-video { display: block; width: 100%; height: clamp(220px, 28vw, 420px); aspect-ratio: 16 / 9; border: 0; background: #000; }
-.validation-placeholder { width: 100%; min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 18px; background: rgba(0,0,0,.35); border: 1px dashed var(--line); text-align: center; }
 @media (max-width: 900px) {
   .one-page { grid-template-columns: minmax(0, 1fr); grid-template-areas: "scene" "verdict" "vars" "recs" "dash" "chat"; }
   .left-col { display: contents; } /* mobile: back to one stacked grid */

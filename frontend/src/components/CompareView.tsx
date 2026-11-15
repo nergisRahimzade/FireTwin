@@ -1,4 +1,4 @@
-/* Compare mode keeps the current Three.js scene beside the selected NASA reference. */
+/* Compare mode: the 3D simulation (left) beside the FLEX-2 reference video (right). */
 import { Suspense, useEffect } from "react";
 import { useScenario } from "../store/useScenario";
 import { IssScene } from "./SceneView";
@@ -45,10 +45,10 @@ export function CompareView({ onClose }: { onClose: () => void }) {
       </div>
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Variable</th><th>Your scenario</th><th>Reference</th></tr></thead>
+          <thead><tr><th>Variable</th><th>Your scenario</th></tr></thead>
           <tbody>
             {rows.map(([name, value]) => (
-              <tr key={name}><td>{name}</td><td className="mono">{value}</td><td className="na">—</td></tr>
+              <tr key={name}><td>{name}</td><td className="mono">{value}</td></tr>
             ))}
           </tbody>
         </table>
