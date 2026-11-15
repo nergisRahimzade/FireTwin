@@ -50,10 +50,51 @@ Copying `.env.example` to `.env` explicitly sets `MOCK_MODE=1`; remove that sett
 value blank to use Docker's automatic selection. The native `make dev` flag behavior is unchanged:
 its backend defaults to mock mode and accepts only `0`/`1`, so keep blank values Docker-specific.
 
-Both `data/` and `ml/artifacts/` are read-only bind mounts. Their tracked placeholder directories
+Only `data/processed/`, `data/docs/` and `ml/artifacts/` are read-only bind mounts.
+Raw uploads, clean intermediate CSVs and pipeline scripts are not mounted into the backend.
+The processed table/metadata and cited text corpus remain available to the API. Their tracked directories
 must exist; Compose will not silently create missing host paths. Training and downloads happen
 outside these containers. Runtime source and dependencies live in the images; private plan PDFs,
 local env files, host environments, caches, data and artifacts are excluded from the build context.
+
+## Choosing and checking the mode
+
+The backend prints `FireTwin API: synthetic mock mode (MOCK_MODE=1)` or
+`FireTwin API: real mode (MOCK_MODE=0)` at startup, both natively and in Docker.
+In Docker, `docker compose logs backend` also includes the entrypoint's selection message.
+These messages identify routing mode; real mode does not certify model accuracy or data quality.
+
+For real mode on POSIX/WSL:
+
+```sh
+MOCK_MODE=0 docker compose up --build
+# Native POSIX development, with uv/npm installed:
+MOCK_MODE=0 make dev
+```
+
+For Docker Desktop's Linux engine from PowerShell:
+
+```powershell
+$env:MOCK_MODE = '0'
+docker compose up --build
+# To return to automatic selection for later Docker commands:
+Remove-Item Env:MOCK_MODE
+```
+
+Use `1` to explicitly select synthetic mocks. An exported shell setting takes precedence
+over a root `.env`; an unset shell setting allows `.env` to supply the value. Blank mode
+is automatic only in Docker: native startup still accepts only `0` or `1` and defaults to `1`.
+The native launcher loads `.env` only for the backend, while tests never load it.
+Only the named Compose settings are forwarded; the frontend never receives provider keys.
+
+If required artifact **files** are missing or empty, automatic mode selects mocks and
+explicit real mode fails with the missing filenames. Missing mount **directories** fail
+before the entrypoint: restore the tracked directories rather than letting Docker create
+empty paths as root. Downloads and training remain host-side tasks.
+
+The vector database and embedding cache are not mounted by this change. Chat uses the
+existing keyword fallback when no vector store is present; provisioning offline vector
+retrieval is a separate task.
 
 ## Ports and frontend connection
 
@@ -76,7 +117,9 @@ commands when recreating the stack.
 ## Checks and boundaries
 
 `make test` includes startup selection, explicit overrides, bad flags and command execution;
-these unit tests need neither Docker nor ML packages. Container checks additionally cover image
+the mode-selection tests need neither Docker nor ML packages. Compose configuration checks
+use the Docker Compose CLI without requiring a running engine, and skip explicitly when
+the CLI is unavailable. Container checks additionally cover image
 builds, both health checks, the Vite-served API URL, browser CORS, the synthetic API responses and
 PDF download, real-mode end-to-end operation, automatic missing-file fallback, provider settings,
 non-root execution, and read-only mounts.

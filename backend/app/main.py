@@ -5,6 +5,8 @@ real feature routers get plugged in by later tasks. Run it with `make dev`
 (uvicorn app.main:app --app-dir backend).
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,8 +17,19 @@ from app.schemas import HealthOut
 def create_app() -> FastAPI:
     """Build a fresh app. A function (not just a global) so tests can build one per setting."""
     settings = get_settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Report the captured effective mode, never the Settings object or provider keys.
+        mode = (
+            "synthetic mock mode (MOCK_MODE=1)" if settings.mock_mode else "real mode (MOCK_MODE=0)"
+        )
+        print(f"FireTwin API: {mode}", flush=True)
+        yield
+
     app = FastAPI(
         title="FireTwin API",
+        lifespan=lifespan,
         version="0.1.0",
         description=(
             "Synthetic mock API for frontend development. All outcomes and citations are fixed "
