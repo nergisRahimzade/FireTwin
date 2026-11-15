@@ -8,6 +8,7 @@ import type {
 } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 import { alarmAfterS } from "../scene/alarmLogic";
+import { loadSavedInputs, saveInputs } from "./savedInputs";
 
 export type Phase = "idle" | "burning" | "detected" | "suppressing" | "out" | "still_burning";
 
@@ -75,7 +76,7 @@ const recordInputs = (inputs: ScenarioIn, action: TimelineEvent["action"], conte
    its values and replays it in 3D; Ignite starts a new session from those values. Kept while the
    tab is open (Render forgets scenarios when it sleeps, so replays never call the API). */
 export interface Session {
-  id: number; // the ignition number, so ids only grow
+  id: number; // the Ignite number (sessionCount), so ids only grow and never skip
   startedAt: number; // Date.now() when its /simulate returned
   inputs: ScenarioIn; // the values it was ignited with
   history: SimulateOut[]; // every prediction, in order (simulate, then each apply)
@@ -104,6 +105,9 @@ interface ScenarioData {
   // neither restarts the demo clock nor fires the alarm again.
   ignitedAt: number | null; // Date.now() when this ignition's /simulate returned
   alarmId: string | null; // the detector that tripped, once the demo clock reached time_to_detect_s
+  // FE-09: +1 on every successful Ignite, and only then; it numbers the sessions. Separate from
+  // `ignitions`, which replays also bump (to restart the 3D smoke), so session numbers don't skip.
+  sessionCount: number;
   sessions: Session[];
   liveSession: number | null; // the session the backend is still running; null before Ignite / after Reset
   viewing: number | null; // a past session shown read-only; null = the live one
@@ -149,6 +153,7 @@ export const initialScenario: ScenarioData = {
   ignitions: 0,
   ignitedAt: null,
   alarmId: null,
+  sessionCount: 0,
   sessions: [],
   liveSession: null,
   viewing: null,
@@ -252,18 +257,22 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
 
   return {
     ...initialScenario,
+    inputs: loadSavedInputs(), // the setup from the last visit, if this browser saved one
 
-    setInputs: patch => set(s => {
-      const inputs = { ...s.inputs, ...patch };
-      const at = Date.now();
-      const changes = TRACKED_INPUTS.filter(key => patch[key] !== undefined && !Object.is(s.inputs[key], inputs[key]));
-      const timeline = changes.map(key => ({
-        at, variable: INPUT_LABELS[key], action: inputs[key] == null || inputs[key] === "" ? "removed" as const : "modified" as const,
-        from: inputValue(key, s.inputs[key]), value: inputs[key] == null || inputs[key] === "" ? null : inputValue(key, inputs[key]),
-        context: "Control panel",
-      }));
-      return { inputs, timeline: [...s.timeline, ...timeline] };
-    }),
+    setInputs: patch => {
+      set(s => {
+        const inputs = { ...s.inputs, ...patch };
+        const at = Date.now();
+        const changes = TRACKED_INPUTS.filter(key => patch[key] !== undefined && !Object.is(s.inputs[key], inputs[key]));
+        const timeline = changes.map(key => ({
+          at, variable: INPUT_LABELS[key], action: inputs[key] == null || inputs[key] === "" ? "removed" as const : "modified" as const,
+          from: inputValue(key, s.inputs[key]), value: inputs[key] == null || inputs[key] === "" ? null : inputValue(key, inputs[key]),
+          context: "Control panel",
+        }));
+        return { inputs, timeline: [...s.timeline, ...timeline] };
+      });
+      saveInputs(get().inputs); // the user's own setup: kept for the next page load
+    },
     clearError: () => set({ error: null }),
 
     loadMeta: async () => {
@@ -271,8 +280,10 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       if (!meta) return;
       set(s => ({
         meta,
-        // Pick the first material when none is chosen yet, so Ignite works straight away.
-        inputs: s.inputs.material || !meta.materials.length ? s.inputs : { ...s.inputs, material: meta.materials[0].name },
+        // Pick the first material when none is chosen yet, or when the saved one is no longer listed
+        // (e.g. renamed in the data), so Ignite works straight away.
+        inputs: meta.materials.some(m => m.name === s.inputs.material) || !meta.materials.length
+          ? s.inputs : { ...s.inputs, material: meta.materials[0].name },
       }));
     },
 
@@ -283,6 +294,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const usedAt = Date.now();
       const res = await run("simulate", () => api.simulate(inputs), () => resets === resetsAtSend);
       if (!res || resets !== resetsAtSend) return null; // Reset while in flight: drop the late reply
+      saveInputs(inputs); // Ignite on a replayed session's values makes them the setup to keep
       // A new scenario: earlier detection, actions and results no longer apply.
       epoch++;
       clearAlarm();
@@ -295,9 +307,9 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
         ],
         ignitedAt: Date.now(), alarmId: null,
         phase: nextPhase(s.phase, { type: "simulated", state: res.state }),
-        viewing: null, liveSession: s.ignitions + 1,
+        viewing: null, liveSession: s.sessionCount + 1, sessionCount: s.sessionCount + 1,
         sessions: [...s.sessions, {
-          id: s.ignitions + 1, startedAt: Date.now(), inputs, history: [res], detect: null, suppress: null,
+          id: s.sessionCount + 1, startedAt: Date.now(), inputs, history: [res], detect: null, suppress: null,
           results: null, phase: nextPhase("idle", { type: "simulated", state: res.state }), curve: null,
         }],
       }));
@@ -397,7 +409,8 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     },
 
     // Keeps the chosen inputs and the loaded /meta, so the user can rerun the loop at once.
-    // ignitions keeps counting, so the next Ignite after a Reset is always a new ignition.
+    // ignitions and sessionCount keep counting, so the next Ignite after a Reset is always a new
+    // ignition and a new session number.
     reset: () => {
       const activeInputs = get().simulate?.inputs ?? null;
       epoch++; // in-flight scenario replies are now stale
@@ -406,7 +419,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       clearReplay();
       set(s => ({
         ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions,
-        sessions: s.sessions, liveSession: null, viewing: null,
+        sessionCount: s.sessionCount, sessions: s.sessions, liveSession: null, viewing: null,
         timeline: [...s.timeline, ...(activeInputs ? recordInputs(activeInputs, "removed", "Scenario reset; removed from active run", Date.now()) : [])],
       }));
     },
@@ -433,7 +446,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const live = get().sessions.find(x => x.id === get().liveSession);
       if (!live) {
         set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, timeline: s.timeline,
-          ignitions: s.ignitions, sessions: s.sessions, liveSession: null, viewing: null }));
+          ignitions: s.ignitions, sessionCount: s.sessionCount, sessions: s.sessions, liveSession: null, viewing: null }));
         return;
       }
       const last = live.history.length - 1;

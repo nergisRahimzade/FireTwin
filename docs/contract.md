@@ -15,6 +15,7 @@ below; documenting a gap does not approve dropping a field or adding a new one.
 |---|---|---|
 | `MetaOut.materials[]` | `name`, `fuel_type`, `n_tests`, `is_synthetic` | BE-07 (unified test table) |
 | `MetaOut.ranges` | `{feature: {min, max, is_synthetic}}` for `o2_pct`, `pressure_kpa`, `flow_cm_s` | BE-07 from `ml/artifacts/feature_ranges.json` (ML-03) |
+| `MetaOut.ranges_by_fuel_type` | `{fuel_type: {feature: {min, max, is_synthetic}}}`, same features | BE-07 from `feature_ranges.json` `"by_fuel_type"` (ML-03) |
 | `MetaOut.investigations[]` | at least `name`, `pillar`, `objective`, `source_url`, `is_synthetic` (DAT-06 adds more) | BE-07 from `processed/investigations.json` (DAT-06) |
 | `DetectOut.detectors[]` | `id`, `position` (`[x, y, z]`, metres), `peak_concentration`, `is_synthetic` | BE-03 detector service |
 | `ResultsOut.rows[]` | `step` (`"simulate"`, `"detect"` or `"apply"`), `inputs`, `state`, `probability`, `trust`, `detection_s`, `action`, `sources` | BE-01 store via BE-08 |
@@ -82,12 +83,16 @@ marker there is hidden. y = 1.37 sits on the rack face, inside the open aisle (|
 |---|---|---|
 | `materials[]` | `name`, `fuel_type`, `n_tests`, `is_synthetic` | one entry per (material, fuel_type) in `data/processed/tests.parquet` |
 | `ranges` | `{feature: {min, max, is_synthetic}}` for `o2_pct`, `pressure_kpa`, `flow_cm_s` | the `"overall"` section of `ml/artifacts/feature_ranges.json` |
+| `ranges_by_fuel_type` | `{fuel_type: {feature: {min, max, is_synthetic}}}`, same features | the `"by_fuel_type"` section of the same file |
 | `investigations[]` | passed through from `data/processed/investigations.json` (DAT-06) | committed metadata; `[]` if absent |
 
 - `ranges` uses training feature names (`flow_cm_s`); the request field is `flow_speed_cm_s`.
   The frontend's `testedRange()` already accepts either name.
 - `is_synthetic` is `true` on a material if any of its tests is synthetic, and on every range if
   any table row is synthetic (the ranges are computed from the table).
+- The predictor flags `extrapolated` against the material's own fuel type, so the UI shades
+  `ranges_by_fuel_type[<the material's fuel_type>]` on its sliders and falls back to `ranges`
+  only when that fuel type is missing. A fuel type's `is_synthetic` is `true` if any of its rows is.
 - Missing or malformed table/ranges file -> HTTP 503 whose `detail` says what to run.
 
 ## GET /results/{scenario_id} (BE-08)

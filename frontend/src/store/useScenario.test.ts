@@ -10,6 +10,7 @@ const fake = vi.hoisted(() => ({
 vi.mock("../api/client", () => ({ api: fake, API_BASE: "http://test" }));
 
 import { inputsDiffer } from "../scene/livePreview";
+import { SAVED_INPUTS_KEY } from "./savedInputs";
 import { initialScenario, nextPhase, useScenario } from "./useScenario";
 
 const sim = (state: SimulateOut["state"], id = "s1"): SimulateOut => ({
@@ -114,7 +115,7 @@ describe("useScenario store", () => {
   });
 
   it("loadMeta fills /meta and picks the first material", async () => {
-    fake.meta.mockResolvedValue({ materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges: {}, investigations: [] });
+    fake.meta.mockResolvedValue({ materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges: {}, ranges_by_fuel_type: {}, investigations: [] });
     await store().loadMeta();
     expect(store().inputs.material).toBe("Nomex");
   });
@@ -432,6 +433,27 @@ describe("FE-09 saved sessions", () => {
     expect(store().sessions.map(s => s.id)).toEqual([2]);
   });
 
+  it("session numbers count Ignites only: viewing saved sessions doesn't use up a number", async () => {
+    await igniteTwice();
+    store().viewSession(1); // replays bump `ignitions` (the 3D restart counter)...
+    store().viewLive();
+    store().viewSession(1);
+    fake.simulate.mockResolvedValueOnce(sim("burning", "s3"));
+    fake.detect.mockResolvedValueOnce(det(false));
+    await store().ignite(); // ...but the next session is still number 3
+    expect(store().sessions.map(s => s.id)).toEqual([1, 2, 3]);
+    expect(store().liveSession).toBe(3);
+  });
+
+  it("session numbers keep counting after Reset and Clear history", async () => {
+    await igniteTwice();
+    store().reset();
+    store().clearHistory();
+    fake.simulate.mockResolvedValueOnce(sim("extinguished", "s3"));
+    await store().ignite();
+    expect(store().sessions.map(s => s.id)).toEqual([3]);
+  });
+
   it("each session keeps its own O2 curve", async () => {
     await igniteTwice();
     store().setSessionCurve(1, [[10, 0.1], [40, 0.9]]);
@@ -533,3 +555,35 @@ describe("FE-09 review fixes: late replies are archived, replays stay quiet", ()
     expect(store().error).toBeNull();
   });
 });
+
+describe("FE-03: the setup is saved for the next page load", () => {
+  const saved = new Map<string, string>();
+  beforeEach(() => {
+    saved.clear();
+    vi.stubGlobal("localStorage", { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, v: string) => saved.set(k, v) });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+  const savedO2 = () => JSON.parse(saved.get(SAVED_INPUTS_KEY) ?? "null")?.o2_pct;
+
+  it("saves a control the user moves", () => {
+    store().setInputs({ o2_pct: 26 });
+    expect(savedO2()).toBe(26);
+  });
+  it("a replay or an applied action doesn't overwrite the saved setup", async () => {
+    store().setInputs({ material: "Cotton", o2_pct: 26 });
+    fake.simulate.mockResolvedValueOnce(sim("burning"));
+    fake.detect.mockResolvedValueOnce(det(false));
+    await store().ignite();
+    fake.apply.mockResolvedValueOnce({ ...sim("extinguished"), inputs: { ...DEFAULT_SCENARIO, o2_pct: 15 } });
+    await store().runApply("co2");
+    expect(store().inputs.o2_pct).toBe(15); // the controls show the applied action...
+    expect(savedO2()).toBe(26); // ...but the saved setup is still the user's
+  });
+  it("a saved material that /meta no longer lists is replaced by the first one", async () => {
+    useScenario.setState({ inputs: { ...DEFAULT_SCENARIO, material: "Renamed rod" } });
+    fake.meta.mockResolvedValue({ materials: [{ name: "Nomex", fuel_type: "solid", n_tests: 12 }], ranges: {}, ranges_by_fuel_type: {}, investigations: [] });
+    await store().loadMeta();
+    expect(store().inputs.material).toBe("Nomex");
+  });
+});
+
