@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import type { TestRef } from "../api/types";
 import { useScenario } from "../store/useScenario";
+
+const EMPTY_TESTS: ReadonlyArray<TestRef> = Object.freeze([]);
 
 const NASA_REFERENCES = {
   bass: {
@@ -46,7 +49,8 @@ function referenceForInvestigation(investigation?: string | null): ReferenceKey 
 }
 
 export function ValidationReference() {
-  const syntheticTests = useScenario(s => s.simulate?.nearest_tests?.filter(test => test?.is_synthetic) ?? []);
+  const nearestTests = useScenario(s => s.simulate?.nearest_tests ?? EMPTY_TESTS);
+  const syntheticTests = nearestTests.filter(test => test?.is_synthetic);
   const optionsKey = syntheticTests.map(test => test?.test_id ?? "").join("|");
   const preferredTest = syntheticTests.find(test => referenceForInvestigation(test.investigation) === "bass");
   const defaultSelection = preferredTest ? `test:${preferredTest.test_id}`
