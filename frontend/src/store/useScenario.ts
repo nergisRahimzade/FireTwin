@@ -37,6 +37,28 @@ export function nextPhase(phase: Phase, ev: PhaseEvent): Phase {
 
 export type Step = "meta" | "simulate" | "detect" | "suppress" | "apply" | "results" | "chat";
 export interface ChatTurn { question: string; reply: ChatOut }
+export interface TimelineEvent {
+  at: number;
+  variable: string;
+  action: "used" | "modified" | "removed";
+  from: string | null;
+  value: string | null;
+  context: string;
+}
+
+const TRACKED_INPUTS = ["material", "o2_pct", "pressure_kpa", "flow_speed_cm_s", "flow_dir"] as const;
+type TrackedInput = typeof TRACKED_INPUTS[number];
+const INPUT_LABELS: Record<TrackedInput, string> = {
+  material: "Material", o2_pct: "Oxygen", pressure_kpa: "Cabin pressure",
+  flow_speed_cm_s: "Airflow speed", flow_dir: "Airflow direction",
+};
+const inputValue = (key: TrackedInput, value: unknown) =>
+  key === "flow_dir" && Array.isArray(value) ? value.join(", ") : String(value);
+const recordInputs = (inputs: ScenarioIn, action: TimelineEvent["action"], context: string, at = Date.now()) =>
+  TRACKED_INPUTS.map(key => ({
+    at, variable: INPUT_LABELS[key], action, from: null,
+    value: inputValue(key, inputs[key]), context,
+  }));
 
 interface ScenarioData {
   inputs: ScenarioIn;
@@ -46,6 +68,7 @@ interface ScenarioData {
   suppress: SuppressOut | null;
   results: ResultsOut | null;
   history: SimulateOut[]; // every prediction in this scenario, in order
+  timeline: TimelineEvent[]; // variable edits and uses across this browser session
   chat: ChatTurn[];
   phase: Phase;
   // Frontend ignition counter: +1 on every successful /simulate (not /apply). The 3D scene restarts its
@@ -87,6 +110,7 @@ export const initialScenario: ScenarioData = {
   suppress: null,
   results: null,
   history: [],
+  timeline: [],
   chat: [],
   phase: "idle",
   ignitions: 0,
@@ -154,7 +178,17 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
   return {
     ...initialScenario,
 
-    setInputs: patch => set(s => ({ inputs: { ...s.inputs, ...patch } })),
+    setInputs: patch => set(s => {
+      const inputs = { ...s.inputs, ...patch };
+      const at = Date.now();
+      const changes = TRACKED_INPUTS.filter(key => patch[key] !== undefined && !Object.is(s.inputs[key], inputs[key]));
+      const timeline = changes.map(key => ({
+        at, variable: INPUT_LABELS[key], action: inputs[key] == null || inputs[key] === "" ? "removed" as const : "modified" as const,
+        from: inputValue(key, s.inputs[key]), value: inputs[key] == null || inputs[key] === "" ? null : inputValue(key, inputs[key]),
+        context: "Control panel",
+      }));
+      return { inputs, timeline: [...s.timeline, ...timeline] };
+    }),
     clearError: () => set({ error: null }),
 
     loadMeta: async () => {
@@ -169,13 +203,21 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
 
     runSimulate: async () => {
       const resetsAtSend = resets;
-      const res = await run("simulate", () => api.simulate(get().inputs), () => resets === resetsAtSend);
+      const inputs = get().inputs;
+      const previousInputs = get().simulate?.inputs ?? null;
+      const usedAt = Date.now();
+      const res = await run("simulate", () => api.simulate(inputs), () => resets === resetsAtSend);
       if (!res || resets !== resetsAtSend) return null; // Reset while in flight: drop the late reply
       // A new scenario: earlier detection, actions and results no longer apply.
       epoch++;
       clearAlarm();
       set(s => ({
         simulate: res, detect: null, suppress: null, results: null, history: [res], ignitions: s.ignitions + 1,
+        timeline: [
+          ...s.timeline,
+          ...(previousInputs ? recordInputs(previousInputs, "removed", "Previous scenario replaced by Ignite", usedAt) : []),
+          ...recordInputs(inputs, "used", "Ignite", usedAt),
+        ],
         ignitedAt: Date.now(), alarmId: null,
         phase: nextPhase(s.phase, { type: "simulated", state: res.state }),
       }));
@@ -204,10 +246,19 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     runApply: async action => {
       const id = scenarioId();
       if (!id) return needScenario();
+      const previousInputs = get().simulate?.inputs ?? null;
       const res = await runCurrent("apply", () => api.apply(id, action));
       if (res) {
         set(s => ({
           simulate: res, history: [...s.history, res],
+          timeline: [
+            ...s.timeline,
+            ...(previousInputs ? TRACKED_INPUTS.filter(key => !Object.is(previousInputs[key], res.inputs[key])).map(key => ({
+              at: Date.now(), variable: INPUT_LABELS[key], action: "modified" as const,
+              from: inputValue(key, previousInputs[key]), value: inputValue(key, res.inputs[key]), context: `Apply ${action}`,
+            })) : []),
+            ...recordInputs(res.inputs, "used", `Apply ${action}`),
+          ],
           phase: nextPhase(s.phase, { type: "applied", state: res.state }),
         }));
       }
@@ -236,10 +287,14 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     // Keeps the chosen inputs and the loaded /meta, so the user can rerun the loop at once.
     // ignitions keeps counting, so the next Ignite after a Reset is always a new ignition.
     reset: () => {
+      const activeInputs = get().simulate?.inputs ?? null;
       epoch++; // in-flight scenario replies are now stale
       resets++;
       clearAlarm();
-      set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions }));
+      set(s => ({
+        ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions,
+        timeline: [...s.timeline, ...(activeInputs ? recordInputs(activeInputs, "removed", "Scenario reset; removed from active run", Date.now()) : [])],
+      }));
     },
   };
 });

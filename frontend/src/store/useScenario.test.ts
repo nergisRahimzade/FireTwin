@@ -134,6 +134,26 @@ describe("useScenario store", () => {
     expect(store().simulate).toBeNull();
     expect(store().inputs.o2_pct).toBe(34);
   });
+
+  it("records variable edits, use during Ignite, and removal from the active run on Reset", async () => {
+    store().setInputs({ material: "Cotton", o2_pct: 30 });
+    expect(store().timeline).toContainEqual(expect.objectContaining({
+      variable: "Oxygen", action: "modified", from: "21", value: "30",
+    }));
+
+    const inputs = { ...DEFAULT_SCENARIO, material: "Cotton", o2_pct: 30 };
+    fake.simulate.mockResolvedValue({ ...sim("burning"), inputs });
+    fake.detect.mockResolvedValue(det(false));
+    await store().ignite();
+    expect(store().timeline).toContainEqual(expect.objectContaining({
+      variable: "Oxygen", action: "used", value: "30", context: "Ignite",
+    }));
+
+    store().reset();
+    expect(store().timeline).toContainEqual(expect.objectContaining({
+      variable: "Oxygen", action: "removed", value: "30", context: "Scenario reset; removed from active run",
+    }));
+  });
 });
 
 describe("FE-06 alarm in the store (second review)", () => {

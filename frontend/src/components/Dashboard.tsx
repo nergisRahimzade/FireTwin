@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { TestRef } from "../api/types";
 import { useScenario } from "../store/useScenario";
+import { downloadDashboardPdf } from "./dashboardPdf";
 import { changeText, o2Sweep, resultText, sourceId, stampRows } from "./dashboard.logic";
 
 function O2Chart() {
@@ -52,12 +53,16 @@ function O2Chart() {
 }
 
 export function Dashboard() {
+  const dashboardRef = useRef<HTMLElement>(null);
   const scenarioId = useScenario(s => s.simulate?.scenario_id ?? null);
   const historyLen = useScenario(s => s.history.length);
   const detect = useScenario(s => s.detect);
   const results = useScenario(s => s.results);
   const loadingResults = useScenario(s => s.loading.results);
   const loadResults = useScenario(s => s.loadResults);
+  const timeline = useScenario(s => s.timeline);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const stamps = useRef<string[]>([]);
 
   useEffect(() => {
@@ -67,22 +72,28 @@ export function Dashboard() {
 
   const rows = results?.scenario_id === scenarioId ? results?.rows ?? [] : [];
   stamps.current = stampRows(stamps.current, rows.length, new Date().toLocaleString());
-  const pdfUrl = scenarioId ? api.exportUrl(scenarioId) : null;
 
   return (
-    <section className="area-dash glass panel" aria-label="Results dashboard">
+    <section ref={dashboardRef} className="area-dash glass panel" aria-label="Results dashboard">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="panel-title">Dashboard</h2>
         <div className="export-menu" role="group" aria-label="Export">
-          {pdfUrl ? (
-            <a className="btn-ghost" href={pdfUrl} target="_blank" rel="noreferrer" download>Export PDF</a>
-          ) : (
-            <button type="button" className="btn-ghost" disabled title="Run a scenario first">Export PDF</button>
-          )}
-          <button type="button" className="btn-ghost" disabled title="Not available yet">DOCX</button>
-          <button type="button" className="btn-ghost" disabled title="Not available yet">CSV</button>
+          <button
+            type="button" className="btn-ghost" disabled={exporting}
+            onClick={async () => {
+              if (!dashboardRef.current) return;
+              setExporting(true);
+              setExportError(null);
+              try { await downloadDashboardPdf(dashboardRef.current, timeline); }
+              catch { setExportError("Could not export the dashboard PDF."); }
+              finally { setExporting(false); }
+            }}
+          >
+            {exporting ? "Creating PDF…" : "Export to PDF"}
+          </button>
         </div>
       </div>
+      {exportError && <p className="error" role="alert">{exportError}</p>}
       <div className="table-wrap">
         <table>
           <thead>
