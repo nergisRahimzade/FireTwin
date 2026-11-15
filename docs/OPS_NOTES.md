@@ -576,7 +576,10 @@ local backup before untracking. An audit of all locally fetched reachable object
 no blobs above 100 MiB. This does not certify refs that have not been fetched.
 Before updating another existing checkout to this fix, preserve any needed raw uploads
 and plan copies outside their tracked paths: merging their deletion removes clean copies
-from that checkout. A fresh clone retains the processed demo artifacts and text corpus.
+from that checkout. Ignored local plan copies under `docs/plan/` are untouched.
+The removed files remain recoverable from historical commit `b01b110`; preserving a
+separate local copy first avoids relying on that history. A fresh clone retains the
+processed demo artifacts and text corpus.
 
 
 ## BE-05: effective API mode at startup (2026-11-15, Ryan)
@@ -601,7 +604,7 @@ from that checkout. A fresh clone retains the processed demo artifacts and text 
   No vector store or embedding cache is provisioned here; that is a separate ML-08 task.
 - Native defaults remain strict 0/1 with `1` as the default. Docker blank/unset remains
   automatic. Shell overrides beat optional `.env` values; `.env.example` explicitly
-  selects mocks. Startup mode visibility is described under BE-05 below.
+  selects mocks. Startup mode visibility is described under BE-05 above.
 - `tests/test_compose_runtime.py` renders the real Compose configuration with synthetic
   env settings and checks mount boundaries, default/explicit modes, precedence, loopback
   ports, browser URL/CORS and backend-only keys. It uses the Compose CLI without an engine

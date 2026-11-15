@@ -15,7 +15,6 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   precedence and missing-file/directory behavior; add real Compose rendering checks.
 - **BE-05**: announce the captured effective API mode on startup for native and Docker
   runs, with lifecycle tests confirming default/explicit modes and no key disclosure.
-
 - **OPS-01**: untrack private root plan PDFs and raw investigation uploads after preserving
   local copies; ignore their paths and staging folders. Add index/ignore/large-blob guards
   while retaining processed demo data, NASA text corpus and committed model artifacts.
