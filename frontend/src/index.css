@@ -360,3 +360,7 @@ input, select, textarea { font-size: 16px; }
 .o2-chart .pt-burned { fill: var(--risk); }
 .o2-chart .pt-out { fill: #63e6be; }
 .o2-chart .tick { fill: var(--muted); font: 10px var(--f-data); }
+/* Recommended action pinned to the bottom of the viewport (always visible while acting on a fire). */
+.extinguish-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(12px, env(safe-area-inset-bottom, 0px)); z-index: 40;
+  width: min(720px, calc(100vw - 32px)); display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-radius: 14px; border: 1px solid var(--accent); background: rgba(5,8,15,.92); }

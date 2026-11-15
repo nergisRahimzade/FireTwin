@@ -25,9 +25,11 @@ export function clampToLimits(key: SliderKey, value: number): number {
   const { min, max } = LIMITS[key];
   return Math.min(max, Math.max(min, value));
 }
+// Typed values keep up to two decimals (e.g. 10.37 %); the number boxes use step 0.01 to match.
+export const TYPED_STEP = 0.01;
 export function parseTyped(key: SliderKey, text: string): number | null {
-  const value = Number(text.trim().replace(",", "."));
-  return text.trim() === "" || !Number.isFinite(value) ? null : clampToLimits(key, value);
+  const value = parseFloat(text.trim().replace(",", "."));
+  return text.trim() === "" || !Number.isFinite(value) ? null : Math.round(clampToLimits(key, value) * 100) / 100;
 }
 
 export const sameDir = (a: Vec3, b: Vec3) => a.every((v, i) => v === b[i]);

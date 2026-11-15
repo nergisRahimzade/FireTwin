@@ -4,6 +4,7 @@
    /apply; the new verdict replaces the old one, and the 3D flame fades out if the fire goes out.
    The recommended action is highlighted. */
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useScenario } from "../store/useScenario";
 import { Sources } from "./Sources";
 import { canAct, shouldAutoRank } from "./suppression.logic";
@@ -24,8 +25,22 @@ export function SuppressionPanel() {
   }, [alarmId, suppress, loading.suppress, runSuppress]);
 
   const actable = canAct(phase);
+  // Pinned to the bottom of the screen: the recommended action stays one click away while the user
+  // watches the 3D view, without scrolling down to this panel.
+  const best = suppress?.actions.find(a => a.action === suppress.recommended) ?? suppress?.actions[0];
   return (
     <section className="area-recs glass panel" aria-label="Suppression recommendations">
+      {best && actable && createPortal( // portal: .glass (backdrop-filter) would trap position: fixed
+        <div className="extinguish-bar" role="region" aria-label="Recommended action">
+          <span>
+            <strong>Extinguish:</strong> {best.label} · {pct(best.extinction_probability)} extinction
+          </span>
+          <button type="button" className="btn-primary" disabled={loading.apply} onClick={() => void runApply(best.action)}>
+            {loading.apply ? "Applying…" : "Apply"}
+          </button>
+        </div>,
+        document.body,
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="panel-title m-0">Suppression recommendations</h2>
         {simulate && actable && !suppress && (
