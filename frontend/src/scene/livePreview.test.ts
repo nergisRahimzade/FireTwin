@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SCENARIO } from "../api/types";
 import type { PreviewOut, SimulateOut } from "../api/types";
+import { flameTarget } from "./flameLogic";
 import { inputsDiffer, liveScenario } from "./livePreview";
 
 const ignited: SimulateOut = {
@@ -38,5 +39,22 @@ describe("liveScenario", () => {
     expect(scene.state).toBe("extinguished");
     expect(scene.burn_probability).toBe(0.2);
     expect(scene.explanation).toBe(ignited.explanation); // the verdict text stays the recorded one
+  });
+
+  it.each([
+    [false, true, "weak"],
+    [true, false, "strong"],
+  ] as const)("updates the flame's outside-range flag from %s to %s", (before, after, trust) => {
+    const recorded = { ...ignited, extrapolated: before };
+    const inputs = { ...recorded.inputs, o2_pct: after ? 40 : 21 };
+    const preview: PreviewOut = {
+      state: "burning", burn_probability: 0.9, trust, extrapolated: after,
+      is_synthetic: false, inputs,
+    };
+    const scene = liveScenario(recorded, inputs, preview);
+    expect(scene.extrapolated).toBe(after);
+    expect(scene.trust).toBe(trust);
+    expect(flameTarget(scene).extrapolated).toBe(after);
+    expect(recorded.extrapolated).toBe(before); // the recorded verdict stays unchanged
   });
 });

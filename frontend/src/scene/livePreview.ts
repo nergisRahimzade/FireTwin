@@ -3,7 +3,7 @@
    model's verdict for them from POST /preview (no scenario is created, nothing is recorded).
    The verdict card, alarm and dashboard keep showing the ignited scenario: pressing Ignite again
    records the new settings. */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { PreviewOut, ScenarioIn, SimulateOut } from "../api/types";
 
@@ -25,7 +25,10 @@ export function inputsDiffer(a: ScenarioIn, b: ScenarioIn): boolean {
 /** The scene's view of the scenario at new inputs: verdict from the preview when it has one. */
 export function liveScenario(sim: SimulateOut, inputs: ScenarioIn, preview: PreviewOut | null): SimulateOut {
   if (!preview) return { ...sim, inputs }; // until the verdict arrives: new airflow/O2, old verdict
-  return { ...sim, inputs, state: preview.state, burn_probability: preview.burn_probability };
+  return {
+    ...sim, inputs, state: preview.state, burn_probability: preview.burn_probability,
+    trust: preview.trust, extrapolated: preview.extrapolated,
+  };
 }
 
 export interface LiveScene {
@@ -51,6 +54,10 @@ export function useLiveScene(simulate: SimulateOut | null, inputs: ScenarioIn, e
     return () => { current = false; clearTimeout(timer); };
   }, [simulate, inputs, enabled]);
 
-  if (!simulate || !previewing) return { scene: simulate, previewing: false };
-  return { scene: liveScenario(simulate, inputs, preview), previewing: true };
+  // Memoized: a new scene object on every render would make the flame and smoke recompute each time.
+  const scene = useMemo(
+    () => (simulate && previewing ? liveScenario(simulate, inputs, preview) : simulate),
+    [simulate, inputs, preview, previewing],
+  );
+  return { scene, previewing };
 }

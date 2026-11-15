@@ -15,7 +15,8 @@ export function CompareView({ onClose }: { onClose: () => void }) {
   const alarmId = useScenario(s => s.alarmId);
   const inputs = useScenario(s => s.inputs);
   const viewing = useScenario(s => s.viewing);
-  const { scene } = useLiveScene(simulate, inputs, viewing === null); // the same live preview as the main view
+  // The same live preview as the main view, off while a saved session is replaying.
+  const { scene, previewing } = useLiveScene(simulate, inputs, viewing === null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -34,6 +35,11 @@ export function CompareView({ onClose }: { onClose: () => void }) {
         <h2 className="text-2xl font-bold">Compare</h2>
         <button type="button" className="btn-ghost" onClick={onClose}>Back to simulation</button>
       </header>
+      {previewing && (
+        <p className="note" role="status">
+          Preview of new settings · Ignite again to record. The alarm belongs to the recorded scenario.
+        </p>
+      )}
       <div className="compare-panes">
         <div className="glass lab3d">
           <div className="lab3d-view">
