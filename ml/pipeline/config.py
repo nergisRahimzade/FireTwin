@@ -67,3 +67,12 @@ CREW_RISK_MAX = 0.6  # critic rejects plans above this
 
 # --- Evidence (A2) ---
 RETRIEVE_TOP_K = 3
+
+# --- RAG store (ML-08) ---
+INVESTIGATIONS_PATH = ROOT / "data" / "processed" / "investigations.json"
+CHROMA_DIR = ROOT / "chroma_db"  # git-ignored; rebuild with `python ml/ingest_rag.py`
+RAG_COLLECTION = "firetwin_docs"
+RAG_CHUNK_WORDS = 500  # the plan says ~500 tokens; words are a close, simple stand-in
+RAG_CHUNK_OVERLAP = 50
+# Cosine distance above which a chunk is treated as not about the question.
+RAG_MAX_DISTANCE = 0.75

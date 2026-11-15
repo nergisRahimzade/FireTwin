@@ -10,11 +10,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from app.schemas import ChatOut
-from ml.pipeline import config, stages
+from app.services import fallback
+from ml import ingest_rag
+from ml.pipeline import config
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +48,10 @@ DOCS_DIR = config.DOCS_DIR  # data/docs/<investigation>/*.txt (DAT-07)
 CHAT_PROMPT = PROMPTS_DIR / "chat_v1.txt"
 CHAT_TOP_K = 5
 CHAT_MAX_WORDS = 120
-NOTHING_RELEVANT = "I could not find anything about that in the NASA documents I have."
+NOTHING_RELEVANT = fallback.NOTHING_RELEVANT
+INVESTIGATIONS_PATH = config.INVESTIGATIONS_PATH  # one extra chunk per investigation
+CHROMA_DIR = config.CHROMA_DIR  # vector store built by ml/ingest_rag.py (ML-08)
+SNIPPET_CHARS = 400
 # Words too common to show that a passage is about the question.
 STOPWORDS = frozenset(
     "a an and are as at be but by can did do does for from had has have how i if in is it its "
@@ -116,21 +122,64 @@ def _ask_llm(system: str, user: str, context: str) -> str | None:
         return None
 
 
-def retrieve(query: str, k: int) -> list[dict]:
-    """Top-k report chunks as {title, investigation, source_url, snippet}.
+def _keywords(message: str) -> str:
+    """The question without filler words, so "the" alone never makes a passage relevant."""
+    words = "".join(c.lower() if c.isalnum() else " " for c in message).split()
+    return " ".join(w for w in words if len(w) > 2 and w not in STOPWORDS)
 
-    Keyword search over data/docs for now; swap in the Chroma store here once ML-08 lands.
+
+def _words(text: str) -> set[str]:
+    return set("".join(c.lower() if c.isalnum() else " " for c in text).split())
+
+
+def _snippet(text: str, query_words: set[str]) -> str:
+    """Up to SNIPPET_CHARS of the chunk, starting at the sentence that best matches the query."""
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    best = max(range(len(sentences)), key=lambda i: len(query_words & _words(sentences[i])))
+    return " ".join(sentences[best:])[:SNIPPET_CHARS]
+
+
+def _citation(chunk: dict, query_words: set[str]) -> dict:
+    return {
+        "title": chunk["title"],
+        "investigation": chunk["investigation"],
+        "source_url": chunk["source_url"],
+        "snippet": _snippet(chunk["text"], query_words),
+    }
+
+
+def _keyword_search(query: str, k: int) -> list[dict]:
+    """Chunks sharing the most keywords with the query; none shared = not relevant."""
+    query_words = set(_keywords(query).split())
+    if not query_words:
+        return []
+    scored = []
+    for chunk in ingest_rag.load_chunks(DOCS_DIR, INVESTIGATIONS_PATH):
+        overlap = len(query_words & _words(chunk["text"]))
+        if overlap:
+            scored.append((overlap, chunk))
+    scored.sort(key=lambda pair: -pair[0])
+    return [_citation(chunk, query_words) for _, chunk in scored[:k]]
+
+
+def retrieve(query: str, k: int) -> list[dict]:
+    """Top-k report chunks as {title, investigation, source_url, snippet}; [] if none relevant.
+
+    Uses the Chroma vector store when it has been built (ML-08). Without a store, or if the
+    store cannot be searched, it falls back to keyword search over the same documents.
     """
+    hits = None
     try:
-        return [
-            {
-                "title": p.title,
-                "investigation": p.investigation,
-                "source_url": p.source_url,
-                "snippet": p.snippet,
-            }
-            for p in stages.retrieve(query, k=k, docs_dir=DOCS_DIR)
-        ]
+        hits = ingest_rag.search(query, k, CHROMA_DIR)
+    except Exception:
+        log.exception(
+            "rag.retrieve: vector search failed for query=%r; using keyword search", query
+        )
+    try:
+        if hits is None:
+            return _keyword_search(query, k)
+        query_words = set(_keywords(query).split())
+        return [_citation(h, query_words) for h in hits if h["distance"] <= config.RAG_MAX_DISTANCE]
     except Exception:
         log.exception("rag.retrieve failed for query=%r k=%d", query, k)
         raise
@@ -150,28 +199,6 @@ def _plain(obj: Any) -> Any:
 # ---------- ML-06: explain ----------
 
 
-def _template_explanation(result: dict) -> str:
-    """One sentence built only from the prediction and its nearest tests (offline fallback)."""
-    verdict = "keeps burning" if result["state"] == "burning" else "goes out"
-    text = (
-        f"The model predicts the fire {verdict} (burn probability "
-        f"{result['burn_probability']:.2f}, trust {result['trust']})"
-    )
-    tests = result.get("nearest_tests") or []
-    if tests:
-        t = tests[0]
-        kind = "synthetic placeholder test" if t.get("is_synthetic") else "NASA test"
-        text += (
-            f"; the nearest {kind} {t['test_id']} ({t['investigation']}, {t['o2_pct']:g} % O2, "
-            f"{t['flow_cm_s']:g} cm/s flow) {t['outcome']}"
-        )
-    else:
-        text += "; no nearby NASA test was found"
-    if result.get("extrapolated"):
-        text += ", and these conditions are outside the tested range: no direct NASA data"
-    return text + "."
-
-
 def _cites_a_given_test(text: str, tests: list[dict]) -> bool:
     return any(str(t["test_id"]) in text for t in tests)
 
@@ -186,7 +213,7 @@ def explain(result: Any) -> str:
     try:
         data = _plain(result)
         tests = data.get("nearest_tests") or []
-        template = _template_explanation(data)
+        template = fallback.explanation(data)
     except Exception:
         log.exception("rag.explain: bad result payload %r", result)
         raise
@@ -215,12 +242,6 @@ def explain(result: Any) -> str:
 # ---------- ML-07: answer ----------
 
 
-def _keywords(message: str) -> str:
-    """The question without filler words, so "the" alone never makes a passage relevant."""
-    words = "".join(c.lower() if c.isalnum() else " " for c in message).split()
-    return " ".join(w for w in words if len(w) > 2 and w not in STOPWORDS)
-
-
 def _limit_words(text: str, max_words: int = CHAT_MAX_WORDS) -> str:
     words = text.split()
     return text.strip() if len(words) <= max_words else " ".join(words[:max_words]) + " ..."
@@ -234,16 +255,13 @@ def answer(message: str, scenario: Any = None) -> ChatOut:
     Without a key (or if the LLM call fails) the answer is the text of the top chunk.
     """
     try:
-        keywords = _keywords(message)
-        chunks = retrieve(keywords, CHAT_TOP_K) if keywords else []
+        chunks = retrieve(message, CHAT_TOP_K)
     except Exception:
         log.exception("rag.answer: retrieval failed for message=%r", message)
         raise
+    offline_text, offline_citations = fallback.chat_answer(chunks, CHAT_MAX_WORDS)
     if not chunks:
-        return ChatOut(answer=NOTHING_RELEVANT, citations=[])
-
-    top = chunks[0]
-    fallback = _limit_words(f"{top['snippet']} (source: {top['investigation']})")
+        return ChatOut(answer=offline_text, citations=offline_citations)
     try:
         payload = {
             "question": message,
@@ -255,5 +273,5 @@ def answer(message: str, scenario: Any = None) -> ChatOut:
         log.exception("rag.answer: could not build the LLM request for message=%r", message)
         text = None
     if not text:
-        return ChatOut(answer=fallback, citations=[top])
+        return ChatOut(answer=offline_text, citations=offline_citations)
     return ChatOut(answer=_limit_words(" ".join(text.split())), citations=chunks)

@@ -1,0 +1,459 @@
+[
+  {
+    "name": "BASS",
+    "pillar": "prevention",
+    "objective": null,
+    "fuel": null,
+    "materials": [
+      "1 cm sphere",
+      "1 cm sphere   wake",
+      "1 cm wake sphere",
+      "2 cm pmma sphere",
+      "2 cm sphere",
+      "2 cm sphere   wake ign",
+      "Japan Wax Candle   wake",
+      "Nomex III Natural",
+      "Nomex blend 2 cm",
+      "PMMA 1 cm",
+      "PMMA 2 cm",
+      "PMMA slab",
+      "PMMA sphere 1 cm",
+      "PMMA sphere 2 cm",
+      "SIBAL 1 cm",
+      "SIBAL 2 cm",
+      "SIBAL 2 cm   opposed flow",
+      "SOOT Cleaning",
+      "candle",
+      "candle    paraffin   wake",
+      "candle   Japan wax",
+      "flat wax slab",
+      "nomex natural III",
+      "paraffin wax candle",
+      "paraffin wax slab",
+      "parrafin wax candle",
+      "parrafin wax slab",
+      "pmma 1 cm",
+      "pmma 2 cm",
+      "pmma slab",
+      "pmma slab   oppsed",
+      "pmma slab opposed",
+      "pmma sphere",
+      "ultem sheet"
+    ],
+    "sample_geometry": null,
+    "hardware": null,
+    "conditions": {
+      "o2_pct": null,
+      "pressure_kpa": null,
+      "flow_cm_s": null
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 0,
+    "n_rows_in_psi_table": 122,
+    "psi_table_columns": [
+      "Date",
+      "GMT",
+      "As Run Test #",
+      "Test #",
+      "Sample #",
+      "Fuel Sample Material"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-26",
+    "is_synthetic": false,
+    "missing": [
+      "fuel",
+      "hardware",
+      "objective",
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "BASS-II",
+    "pillar": "prevention",
+    "objective": "BASS-II results contribute to the combustion computational models used in the design of fire detection and suppression systems in microgravity and on Earth. Objectives Include: 1. Study the ignition, flame growth, flame spread, and extinction limits for solid fuels burning in low-velocity forced flows in microgravity. 2. Begin to bridge the gap between the normal gravity NASA-STD-6001 Test #1 method, ground-based microgravity tests, and actual material flammability in microgravity. 3. Provide SoFIE PIs with preliminary data to refine Science Requirements. 4. Practical, realistic (thicker) fuels in typical geometries will be examined, including slabs, cylinders, and spherical sections.",
+    "fuel": [
+      "solid"
+    ],
+    "materials": [
+      "Black rod",
+      "Cotton-Fiberglass (SIBAL)",
+      "Japan wax candle",
+      "Nomex",
+      "PMMA film",
+      "PMMA rod",
+      "PMMA slab",
+      "Spherical section"
+    ],
+    "sample_geometry": null,
+    "hardware": [
+      "MSG"
+    ],
+    "conditions": {
+      "o2_pct": {
+        "min": 13.6,
+        "max": 22.2
+      },
+      "pressure_kpa": null,
+      "flow_cm_s": {
+        "min": 0.0,
+        "max": 28.0
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 129,
+    "n_rows_in_psi_table": 129,
+    "psi_table_columns": [
+      "PI",
+      "Test #",
+      "Date",
+      "GMT",
+      "Sample #",
+      "Fuel Sample Material",
+      "Flow restrictor",
+      "Fan display",
+      "Air display",
+      "Radiometer gain (1000 250 50 10)",
+      "Total Frames Shot",
+      "Calibrated initial O2 % by vol",
+      "Calibrated final O2 % by vol",
+      "Initial CO2 % by vol",
+      "Final CO2 % by vol",
+      "Initial CO (ppm)",
+      "Final CO (ppm)"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-25",
+    "is_synthetic": false,
+    "missing": [
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "Saffire-I",
+    "pillar": "prevention",
+    "objective": null,
+    "fuel": null,
+    "materials": [
+      "Pre-test flow visulation data for sample 1",
+      "Pre-test flow visulation data for sample 2",
+      "SIBAL Fabric"
+    ],
+    "sample_geometry": null,
+    "hardware": null,
+    "conditions": {
+      "o2_pct": null,
+      "pressure_kpa": null,
+      "flow_cm_s": {
+        "min": 20.0,
+        "max": 20.0
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 0,
+    "n_rows_in_psi_table": 4,
+    "psi_table_columns": [
+      "Sample Number",
+      "Material",
+      "Sample Thickness (cm)",
+      "Sample Length (cm)",
+      "Sample Width (cm)",
+      "Air Flow (cm/s)",
+      "Percent O2",
+      "Ignition Power (W)",
+      "Ignition Time (s)",
+      "Burn Time (s)",
+      "Flow Direction",
+      "Camera 1",
+      "Camera 2"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98",
+    "is_synthetic": false,
+    "missing": [
+      "fuel",
+      "hardware",
+      "objective",
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "Saffire-II",
+    "pillar": "prevention",
+    "objective": "The objectives of SAFFIRE-II are to determine how rapidly a large scale fire grows in low-gravity and to investigate the low-g flammability limits compared to those obtained in NASA\u2019s normal gravity material flammability screening test.",
+    "fuel": [
+      "solid"
+    ],
+    "materials": [
+      "Cotton-Fiberglass (SIBAL)",
+      "PMMA",
+      "PMMA & Nomex",
+      "Silicone",
+      "unspecified"
+    ],
+    "sample_geometry": null,
+    "hardware": [
+      "Cygnus"
+    ],
+    "conditions": {
+      "o2_pct": {
+        "min": 21.5,
+        "max": 22.1
+      },
+      "pressure_kpa": null,
+      "flow_cm_s": {
+        "min": 20.0,
+        "max": 20.0
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 9,
+    "n_rows_in_psi_table": 15,
+    "psi_table_columns": [
+      "Sample Number",
+      "Material",
+      "Samle Thickness",
+      "Sample Length",
+      "Sample Width (cm)",
+      "Air Flow (cm/s)",
+      "Percent O2 (Note 1)",
+      "Ignition Power (W)",
+      "Ignition Time (s)",
+      "Burn Time (s)",
+      "Flow Direction",
+      "?-g Burn Length",
+      "?-g Spread Length",
+      "1-g Burn Length",
+      "1-g Spread Rate",
+      "Camera 1",
+      "Camera 2"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-99",
+    "is_synthetic": false,
+    "missing": [
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "Saffire-III",
+    "pillar": "prevention",
+    "objective": null,
+    "fuel": null,
+    "materials": [
+      "SIBAL Fabric"
+    ],
+    "sample_geometry": null,
+    "hardware": null,
+    "conditions": {
+      "o2_pct": null,
+      "pressure_kpa": null,
+      "flow_cm_s": {
+        "min": 30.0,
+        "max": 30.0
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 0,
+    "n_rows_in_psi_table": 2,
+    "psi_table_columns": [
+      "Sample Number",
+      "Material",
+      "Sample Thickness",
+      "Sample Length",
+      "Sample Width",
+      "Air Flow",
+      "Direction",
+      "Camera 1",
+      "Camera 2"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-100",
+    "is_synthetic": false,
+    "missing": [
+      "fuel",
+      "hardware",
+      "objective",
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "FLEX",
+    "pillar": "suppression",
+    "objective": "The FLEX (Flame Extinguishment Experiment) investigation aims to map the flammability limits of liquid fuels in microgravity environments, measure the effectiveness of various gaseous fire suppressants such as CO2, He, and SF6, and develop reliable predictive models for combustion limits under reduced gravity conditions. The mission seeks to validate and improve simplified models by incorporating detailed chemical reactions, heat transfer, and material movement, using both space-based data and extensive ground-based tests. Key flight experiment goals include obtaining high-resolution measurements of droplet burning rates, flame extinction behavior, heat radiation, soot levels, and temperature profiles, while systematically analyzing the effects of different ambient conditions and suppressant concentrations. These investigations are essential for advancing the fundamental understanding of combustion processes in microgravity and enhancing fire safety protocols for future space missions.",
+    "fuel": [
+      "droplet"
+    ],
+    "materials": [
+      "Heptane",
+      "Methanol"
+    ],
+    "sample_geometry": null,
+    "hardware": [
+      "CIR-MDCA"
+    ],
+    "conditions": {
+      "o2_pct": {
+        "min": 12.0,
+        "max": 34.0
+      },
+      "pressure_kpa": {
+        "min": 70.17,
+        "max": 309.29
+      },
+      "flow_cm_s": {
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 274,
+    "n_rows_in_psi_table": 274,
+    "psi_table_columns": [
+      "FLEX Test #",
+      "FLEX Identifier",
+      "Test Date",
+      "Test GMT",
+      "Fuel",
+      "Ambient pressure; mmHg",
+      "O initial ambient composition; mole fraction",
+      "N initial ambient composition; mole fraction",
+      "CO initial ambient composition; mole fraction",
+      "He initial ambient composition; mole fraction",
+      "Droplet initial diameter; mm",
+      "Visible flame extinction diameter; mm",
+      "Burning rate; mm",
+      "Burn time; s",
+      "Test end"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69",
+    "is_synthetic": false,
+    "missing": [
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "FLEX-2",
+    "pillar": "suppression",
+    "objective": "The primary goal of the FLEX-2 flight experiments is to extend the results of FLEX-1 to fuels and environmental conditions that mimic real combustor conditions, as well as, provide benchmark experimental data on bi-component droplet combustion over a wide range of initial conditions in order to validate numerical simulations and to develop new theoretical models.",
+    "fuel": null,
+    "materials": null,
+    "sample_geometry": null,
+    "hardware": null,
+    "conditions": {
+      "o2_pct": null,
+      "pressure_kpa": null,
+      "flow_cm_s": null
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 0,
+    "n_rows_in_psi_table": 8,
+    "psi_table_columns": [
+      "Sample (Fuel Type)",
+      "Initial Droplet Diameter (mm)",
+      "Ambient Gas Mixture",
+      "Oxygen Mole Fraction",
+      "Ambient Pressure (atm)",
+      "Ambient Temperature (C)",
+      "Flow Velocity (cm/s)"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-68",
+    "is_synthetic": false,
+    "missing": [
+      "fuel",
+      "hardware",
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "SAME",
+    "pillar": "detection",
+    "objective": null,
+    "fuel": null,
+    "materials": [
+      "Dibutyl Phthalate: same conditions as 1-4",
+      "Kapton: same conditions as 1-4",
+      "Lampwick: same conditions as 1-4",
+      "Silicone Rubber: same conditions as 1-4",
+      "Teflon"
+    ],
+    "sample_geometry": null,
+    "hardware": null,
+    "conditions": {
+      "o2_pct": null,
+      "pressure_kpa": null,
+      "flow_cm_s": {
+        "min": 5.0,
+        "max": 10.0
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 0,
+    "n_rows_in_psi_table": 8,
+    "psi_table_columns": [
+      "Sample #",
+      "Sample Material",
+      "Air Flow (cm/s)",
+      "Weight loss rate (mg/min)",
+      "Aging Duration (minutes)"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-102",
+    "is_synthetic": false,
+    "missing": [
+      "fuel",
+      "hardware",
+      "objective",
+      "sample_geometry",
+      "sensors"
+    ]
+  },
+  {
+    "name": "SAME-R",
+    "pillar": "detection",
+    "objective": null,
+    "fuel": null,
+    "materials": [
+      "Kapton",
+      "Lampwick",
+      "Pyrell",
+      "Silicone",
+      "Teflon"
+    ],
+    "sample_geometry": null,
+    "hardware": null,
+    "conditions": {
+      "o2_pct": null,
+      "pressure_kpa": null,
+      "flow_cm_s": {
+        "min": 0.0,
+        "max": 8.1
+      }
+    },
+    "sensors": null,
+    "n_tests_in_unified_table": 0,
+    "n_rows_in_psi_table": 109,
+    "psi_table_columns": [
+      "Sample Type",
+      "SAME Test #",
+      "Description",
+      "Date",
+      "Inlet velocity (cm/s)",
+      "Rt/R0",
+      "Duration (sec)",
+      "Primary aging time (sec)",
+      "Primary mixing time (sec)",
+      "Net aging time (sec)"
+    ],
+    "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-101",
+    "is_synthetic": false,
+    "missing": [
+      "fuel",
+      "hardware",
+      "objective",
+      "sample_geometry",
+      "sensors"
+    ]
+  }
+]
