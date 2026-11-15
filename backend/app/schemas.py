@@ -89,7 +89,8 @@ class SuppressOut(BaseModel):
 
     scenario_id: str
     recommended: str
-    actions: list[ActionResult]  # sorted by score
+    # Best first: actions with NASA data support by score, then those without (water_mist last).
+    actions: list[ActionResult]
 
 
 class ResultsOut(BaseModel):

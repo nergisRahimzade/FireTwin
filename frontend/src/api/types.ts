@@ -70,7 +70,9 @@ export interface ActionResult {
 export interface SuppressOut {
   scenario_id: string;
   recommended: string;
-  actions: ActionResult[]; // sorted by score
+  // Best first, as BE-04 ranks them (docs/contract.md): data-backed actions by score, then no-data
+  // actions, water_mist always last. recommended is the first data-backed action.
+  actions: ActionResult[];
 }
 
 export interface ResultsRow {

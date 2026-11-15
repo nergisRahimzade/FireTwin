@@ -331,3 +331,4 @@ input, select, textarea { font-size: 16px; }
   .num-input input { min-height: 44px; }
   .compare-panes { grid-template-columns: minmax(0, 1fr); }
 }
+.alarm-banner { margin: 0; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #FFE3DF; background: rgba(255,90,74,.16); border: 1px solid #FF5A4A; }

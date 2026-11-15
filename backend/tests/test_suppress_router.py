@@ -32,9 +32,16 @@ def test_suppress_ranks_all_five_actions(client: TestClient) -> None:
     )
     assert result.scenario_id == scenario_id
     assert {action.action for action in result.actions} == ACTIONS
-    scores = [action.score for action in result.actions]
-    assert scores == sorted(scores, reverse=True)
-    assert result.recommended == result.actions[0].action
+    # Order documented in docs/contract.md ("POST /suppress: order of actions"): data-backed
+    # actions by score, then no-data actions by score with water_mist last.
+    backed = [a for a in result.actions if a.data_support != "none"]
+    unbacked = [a for a in result.actions if a.data_support == "none"]
+    assert result.actions == backed + unbacked
+    assert [a.score for a in backed] == sorted((a.score for a in backed), reverse=True)
+    others = [a for a in unbacked if a.action != "water_mist"]
+    assert [a.score for a in others] == sorted((a.score for a in others), reverse=True)
+    assert unbacked[-1].action == "water_mist"
+    assert result.recommended == (backed[0].action if backed else "cut_power")
 
 
 def test_suppress_adds_no_history_row(client: TestClient) -> None:

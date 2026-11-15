@@ -1,5 +1,5 @@
 // FE-02: the store's state machine and its calls to the API (the API client is faked).
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DetectOut, SimulateOut, SuppressOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 
@@ -107,6 +107,22 @@ describe("useScenario store", () => {
     expect(store().inputs.material).toBe("Nomex");
   });
 
+  it("counts ignitions, not backend ids: Ignite again with the same scenario_id is a new ignition", async () => {
+    fake.simulate.mockResolvedValue(sim("burning", "synthetic-scenario-001"));
+    fake.detect.mockResolvedValue(det(true));
+    await store().ignite();
+    expect(store().ignitions).toBe(1);
+    await store().ignite();
+    expect(store().ignitions).toBe(2);
+    expect(store().simulate?.scenario_id).toBe("synthetic-scenario-001");
+    fake.suppress.mockResolvedValue(ranked);
+    fake.apply.mockResolvedValue(sim("extinguished", "synthetic-scenario-001"));
+    await store().runApply("fans_off");
+    expect(store().ignitions).toBe(2); // /apply is not a new ignition
+    store().reset();
+    expect(store().ignitions).toBe(2); // keeps counting, so the next Ignite is new
+  });
+
   it("reset keeps the inputs so the loop can rerun", async () => {
     fake.simulate.mockResolvedValue(sim("burning"));
     fake.detect.mockResolvedValue(det(false));
@@ -117,5 +133,155 @@ describe("useScenario store", () => {
     expect(store().phase).toBe("idle");
     expect(store().simulate).toBeNull();
     expect(store().inputs.o2_pct).toBe(34);
+  });
+});
+
+describe("FE-06 alarm in the store (second review)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  async function igniteDetectedAt(seconds: number) {
+    fake.simulate.mockResolvedValue(sim("burning", "synthetic-scenario-001"));
+    fake.detect.mockResolvedValue({ ...det(true), detector_id: "vent_fwd", time_to_detect_s: seconds });
+    await store().ignite();
+  }
+
+  it("fires once at time_to_detect_s on the 10x clock, and not again after Compare and back", async () => {
+    let trips = 0;
+    const unsubscribe = useScenario.subscribe((s, prev) => { if (s.alarmId && !prev.alarmId) trips++; });
+    await igniteDetectedAt(40); // 40 s simulated = 4 s real
+    const ignitedAt = store().ignitedAt;
+    expect(ignitedAt).not.toBeNull();
+    vi.advanceTimersByTime(3_900);
+    expect(store().alarmId).toBeNull();
+    vi.advanceTimersByTime(200);
+    expect(store().alarmId).toBe("vent_fwd");
+    expect(trips).toBe(1);
+    // Compare and back unmounts and remounts the views. They only read the store and schedule
+    // nothing, so the clock and alarm are untouched and nothing fires again.
+    vi.advanceTimersByTime(20_000);
+    expect(trips).toBe(1);
+    expect(store().alarmId).toBe("vent_fwd");
+    expect(store().ignitedAt).toBe(ignitedAt);
+    unsubscribe();
+  });
+
+  it("Reset clears the alarm and the clock, and cancels a pending alarm", async () => {
+    await igniteDetectedAt(40);
+    store().reset();
+    expect(store().ignitedAt).toBeNull();
+    vi.advanceTimersByTime(10_000);
+    expect(store().alarmId).toBeNull();
+  });
+
+  it("Ignite again before the alarm drops the earlier ignition's alarm", async () => {
+    await igniteDetectedAt(40);
+    vi.advanceTimersByTime(2_000);
+    await igniteDetectedAt(40); // same mock scenario_id, new ignition: the clock restarts
+    vi.advanceTimersByTime(2_500); // 4.5 s after the first ignition, 2.5 s after the second
+    expect(store().alarmId).toBeNull();
+    vi.advanceTimersByTime(1_600);
+    expect(store().alarmId).toBe("vent_fwd");
+  });
+
+  it("never alarms when nothing is detected", async () => {
+    fake.simulate.mockResolvedValue(sim("burning"));
+    fake.detect.mockResolvedValue(det(false));
+    await store().ignite();
+    vi.advanceTimersByTime(60_000);
+    expect(store().alarmId).toBeNull();
+  });
+});
+
+describe("views read the alarm from the store", () => {
+  it("SceneView and CompareView keep no timers or alarm state of their own", () => {
+    const files = import.meta.glob(["../components/SceneView.tsx", "../components/CompareView.tsx"], {
+      query: "?raw", import: "default", eager: true,
+    }) as Record<string, string>;
+    expect(Object.keys(files)).toHaveLength(2);
+    for (const source of Object.values(files)) {
+      expect(source).not.toMatch(/setTimeout|useState|performance\.now/);
+      expect(source).toMatch(/useScenario\(s => s\.alarmId\)/);
+      expect(source).toMatch(/useScenario\(s => s\.ignitedAt\)/);
+    }
+  });
+});
+
+describe("late replies after Reset are ignored (third review)", () => {
+  // A promise the test resolves by hand, to deliver a reply after Reset.
+  function deferred<T>() {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>(r => { resolve = r; });
+    return { promise, resolve };
+  }
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("a /detect reply that arrives after Reset is dropped, and no alarm comes back", async () => {
+    fake.simulate.mockResolvedValue(sim("burning", "synthetic-scenario-001"));
+    const late = deferred<DetectOut>();
+    fake.detect.mockReturnValue(late.promise);
+    const igniting = store().ignite(); // /simulate answers, /detect is still in flight
+    await vi.waitFor(() => expect(fake.detect).toHaveBeenCalled());
+    expect(store().phase).toBe("burning"); // Reset is on screen from here
+    store().reset();
+    late.resolve({ ...det(true), detector_id: "vent_fwd", time_to_detect_s: 12.5 });
+    await igniting;
+    expect(store().detect).toBeNull();
+    expect(store().phase).toBe("idle");
+    vi.advanceTimersByTime(60_000);
+    expect(store().alarmId).toBeNull();
+  });
+
+  it("late /suppress, /apply and /simulate replies after Reset are dropped too", async () => {
+    fake.simulate.mockResolvedValue(sim("burning"));
+    fake.detect.mockResolvedValue(det(true));
+    await store().ignite();
+    const sup = deferred<SuppressOut>(), app = deferred<SimulateOut>();
+    fake.suppress.mockReturnValue(sup.promise);
+    fake.apply.mockReturnValue(app.promise);
+    const s1 = store().runSuppress(), a1 = store().runApply("fans_off");
+    store().reset();
+    sup.resolve(ranked);
+    app.resolve(sim("burning"));
+    expect(await s1).toBeNull();
+    expect(await a1).toBeNull();
+    expect(store().suppress).toBeNull();
+    expect(store().simulate).toBeNull(); // the fire doesn't come back on screen
+
+    const simLate = deferred<SimulateOut>();
+    fake.simulate.mockReturnValue(simLate.promise);
+    const igniting = store().ignite();
+    store().reset();
+    simLate.resolve(sim("burning", "late"));
+    await igniting;
+    expect(store().simulate).toBeNull();
+    expect(store().phase).toBe("idle");
+  });
+
+  it("a /detect reply from an earlier ignition is dropped once the next ignition has started", async () => {
+    fake.simulate.mockResolvedValue(sim("burning", "synthetic-scenario-001"));
+    const first = deferred<DetectOut>();
+    fake.detect.mockReturnValueOnce(first.promise).mockResolvedValueOnce(det(false));
+    const one = store().ignite();
+    await vi.waitFor(() => expect(fake.detect).toHaveBeenCalledTimes(1));
+    await store().ignite(); // Ignite again: its own /detect says "not detected"
+    first.resolve({ ...det(true), detector_id: "vent_fwd", time_to_detect_s: 12.5 });
+    await one;
+    expect(store().detect?.detected).toBe(false);
+    vi.advanceTimersByTime(60_000);
+    expect(store().alarmId).toBeNull();
+  });
+
+  it("a stale request that fails doesn't show its error after Reset", async () => {
+    fake.simulate.mockResolvedValue(sim("burning"));
+    const late = deferred<DetectOut>();
+    fake.detect.mockReturnValue(late.promise.then(() => { throw new Error("detect failed"); }));
+    const igniting = store().ignite();
+    await vi.waitFor(() => expect(fake.detect).toHaveBeenCalled());
+    store().reset();
+    late.resolve(det(true));
+    await igniting;
+    expect(store().error).toBeNull();
   });
 });

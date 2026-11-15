@@ -77,3 +77,51 @@ def test_unreachable_api_exits_1_with_a_hint(capsys: pytest.CaptureFixture[str])
     output = capsys.readouterr().out
     assert "FAIL health" in output
     assert "make dev" in output
+
+
+def _edited(api: TestClient, path: str, edit) -> httpx.Client:
+    """A client that reaches the mock app, but lets `edit` change the JSON returned for `path`."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        real = api.request(
+            request.method,
+            request.url.path,
+            content=request.content,
+            headers={"content-type": "application/json"},
+        )
+        if not request.url.path.startswith(path):
+            return httpx.Response(real.status_code, headers=real.headers, content=real.content)
+        return httpx.Response(real.status_code, json=edit(real.json()))
+
+    return httpx.Client(transport=httpx.MockTransport(handler), base_url="http://e2e")
+
+
+def test_a_scenario_that_does_not_burn_fails(mock_api: TestClient) -> None:
+    # Ranking suppression for a fire that is already out is meaningless.
+    client = _edited(mock_api, "/simulate", lambda body: {**body, "state": "extinguished"})
+    with pytest.raises(E2EError, match="doesn't burn") as error:
+        run_loop(client, allow_mock=True, log=_quiet)
+    assert error.value.step == "simulate"
+
+
+def test_a_no_data_action_above_a_backed_one_fails(mock_api: TestClient) -> None:
+    # Contract order: data-backed actions first. Mark only the LAST action as backed.
+    def edit(body: dict) -> dict:
+        body["actions"][-1]["data_support"] = "direct"
+        return body
+
+    with pytest.raises(E2EError, match="no-data action ranks above") as error:
+        run_loop(_edited(mock_api, "/suppress", edit), allow_mock=True, log=_quiet)
+    assert error.value.step == "suppress"
+
+
+def test_a_real_api_must_offer_the_scenario_material(mock_api: TestClient) -> None:
+    # Only mock mode may fall back to another material; here the "real" API lacks Heptane.
+    client = _edited(
+        mock_api,
+        "/openapi.json",
+        lambda body: {**body, "info": {**body["info"], "description": ""}},
+    )
+    with pytest.raises(E2EError, match="isn't offered") as error:
+        run_loop(client, log=_quiet)
+    assert error.value.step == "meta"
