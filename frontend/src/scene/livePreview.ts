@@ -3,7 +3,7 @@
    model's verdict for them from POST /preview (no scenario is created, nothing is recorded).
    The verdict card, alarm and dashboard keep showing the ignited scenario: pressing Ignite again
    records the new settings. */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { PreviewOut, ScenarioIn, SimulateOut } from "../api/types";
 
@@ -50,6 +50,10 @@ export function useLiveScene(simulate: SimulateOut | null, inputs: ScenarioIn): 
     return () => { current = false; clearTimeout(timer); };
   }, [simulate, inputs]);
 
-  if (!simulate || !previewing) return { scene: simulate, previewing: false };
-  return { scene: liveScenario(simulate, inputs, preview), previewing: true };
+  // Memoized: a new scene object on every render would make the flame and smoke recompute each time.
+  const scene = useMemo(
+    () => (simulate && previewing ? liveScenario(simulate, inputs, preview) : simulate),
+    [simulate, inputs, preview, previewing],
+  );
+  return { scene, previewing };
 }
