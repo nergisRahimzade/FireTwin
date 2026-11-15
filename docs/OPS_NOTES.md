@@ -777,3 +777,15 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   (MOCK_MODE=0)`; `/health` is ok, `/meta` lists 15 materials and 9 investigations, and the e2e loop
   passes against it (PMMA rod: alarm at 40 s, fans off puts it out). The image adds about 120 KB of
   data and artifacts.
+
+
+## BE-05: CORS origin errors name the fix; Render hosting notes (2026-11-15, Ryan)
+
+- The first Render deploy stopped at startup with `CORS_ORIGINS entry 'fire-twin.vercel.app' is not
+  an explicit http(s) origin`: the setting was a bare host. The strict parser is unchanged (a
+  malformed origin would otherwise silently block the frontend); the error now also says how to fix
+  the two common slips: "add the scheme, e.g. 'https://fire-twin.vercel.app'" or "remove the
+  trailing slash". Tests cover both.
+- `docker/README.md` has a "Hosting the backend" section: Render settings, when `CORS_ORIGINS` is
+  needed (direct `VITE_API_URL` calls) or not (Vercel `/api` rewrite), the exact value for the
+  production and team Vercel domains, and the free-tier sleep and in-memory scenario limits.

@@ -4,6 +4,10 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 
 ## 2026-11-15
 
+- **BE-05**: a malformed `CORS_ORIGINS` entry's startup error now names the fix (add
+  `https://`, or remove the trailing slash). `docker/README.md` documents hosting the backend on
+  Render, including the exact `CORS_ORIGINS` format.
+
 - **OPS-02**: the backend image includes the committed processed data, text corpus and model
   artifacts, so it runs in real mode without bind mounts (for hosting). Compose is unchanged.
 
