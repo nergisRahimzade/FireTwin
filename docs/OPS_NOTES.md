@@ -481,3 +481,23 @@ git push origin demo-v1                     # tags are pushed separately from br
   `openai` package brings in).
 - **Fixed:** `conftest.py` cleared the Gemini key but not `OPENAI_API_KEY`, despite its comment.
   `test_no_llm_key_reaches_a_test` fails without the fix (checked by reverting it).
+
+## Real NASA data vs the demo script (2026-11-14, Ryan)
+
+**Finding (for Nergis and the team):** in the real table (412 rows), only the droplet fuels ever
+"burned" (Heptane 19, Methanol 8; all FLEX, all with flow 0). No solid material, PMMA, Nomex or
+cotton-fiberglass included, has a burned row, so the model never predicts a solid burning, at any O2
+from 16 % to 40 %. The plan's "cable insulation" isn't in the table. So the plan's demo script
+("ignite cable insulation -> alarm -> fans off ...") can't happen honestly on this data.
+
+**What the e2e loop now does (OPS-04):**
+- Default scenario: **Heptane, 30 % O2, fans off**, the one burning case with strong trust and no
+  extrapolation (p = 0.51). The real loop then reads: burning -> "fans off: smoke cannot reach vents"
+  (no alarm) -> `co2` recommended -> extinguished -> PDF. `--material/--o2/--flow` override it.
+- It requires `/simulate` to say `burning`; ranking suppression for a fire that's already out is
+  meaningless (that's why `cut_power`, which changes nothing, scored 0.97 for Black rod).
+- It checks the documented `SuppressOut.actions` order (see `docs/contract.md`), not plain score order.
+- In mock mode it falls back to the mock's material; a real API must offer the chosen material.
+
+**Decisions needed:** the team picks the demo scenario (this one, or new data for a burning solid),
+and confirms the ranking rule (Nergis) and the `types.ts` comment (Nathan).

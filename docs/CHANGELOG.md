@@ -142,3 +142,7 @@ One entry per task. API contract changes (rule 3) must always be noted here.
   first data-backed action. Replaces "sorted by score", which real NASA data showed was wrong
   (`cut_power` can outscore data-backed actions). Comment-only change in `schemas.py`; no shape
   change, so no frontend type regeneration. Also removed an empty duplicate BE-07 heading.
+- **OPS-04 follow-up**: `tests/e2e_loop.py` uses a burning real scenario by default (Heptane, 30 % O2,
+  fans off; override with `--material/--o2/--flow`), fails if `/simulate` doesn't burn, and checks
+  the documented suppress order. Three new tests in `tests/test_e2e_loop.py`. Real-mode `make e2e`
+  passes on the real NASA data with 0 synthetic sources.
