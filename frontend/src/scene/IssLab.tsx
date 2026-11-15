@@ -1,7 +1,7 @@
 /* FE-04 / FE-12: the detailed ISS lab module from glTF (Blender -> R3F guide, sections 1 and 6).
    Loads frontend/public/models/iss_lab-transformed.glb, built by `npm run model:iss -- <model>`:
    scripts/blender/optimize_iss.py (scale to 8.5 m x 4.2 m, decimate, join by material, vent empties
-   at the backend detector positions), then gltfjsx --transform --keepgroups --instance.
+   at the backend detector positions), then glTF Transform (Draco, WebP, prune keeping the empties).
    IssScene wraps this in <Suspense fallback={<FallbackModule />}> (the coded module shows while the
    file loads) and an error boundary (the coded module stays if the file is missing or broken).
    Draco data is decoded with the copy in public/draco/, so the demo needs no CDN (OPS-05). */

@@ -9,7 +9,7 @@ Automates the FireTwin Blender -> R3F guide (sections 4 and 5):
   5. join meshes that share a material, so each material is one draw call
   6. add a named empty at every vent detector in the backend's DETECTORS (plus fire_origin at
      (0, 0, 0)), so the 3D vents sit exactly where the alarm comes from
-  7. export a GLB (Y-up, no animations, no Draco: gltfjsx --transform compresses it next)
+  7. export a GLB (Y-up, no animations, no Draco: build_iss_model.sh compresses it next)
 
 Run it with Blender (4.2 or newer), from the frontend folder:
     blender --background --python scripts/blender/optimize_iss.py -- \\
@@ -276,7 +276,7 @@ def run_in_blender(args: argparse.Namespace) -> None:
         bpy.context.scene.collection.objects.link(empty)
         log(f"empty {name} at contract {pos}")
 
-    # 7. Export (gltfjsx --transform adds Draco and the other compression next).
+    # 7. Export (build_iss_model.sh adds Draco and the other compression next).
     out.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.export_scene.gltf(
         filepath=str(out),
@@ -289,7 +289,7 @@ def run_in_blender(args: argparse.Namespace) -> None:
         export_lights=False,
         export_draco_mesh_compression_enable=False,
     )
-    log(f"wrote {out} ({out.stat().st_size / 1e6:.2f} MB). Next: gltfjsx --transform (see README).")
+    log(f"wrote {out} ({out.stat().st_size / 1e6:.2f} MB). Next: compression (build_iss_model.sh).")
     if triangles() > args.max_tris:
         log(f"warning: still {triangles():,} triangles (budget {args.max_tris:,}); try --ratio 0.2")
 

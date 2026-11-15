@@ -62,10 +62,10 @@ npm run model:iss -- ~/Downloads/iss_interior.glb  # needs Blender (brew install
    - **Join:** merges meshes that share a material.
    - **Vent empties:** adds an empty at every detector in the backend's `DETECTORS` (`vent_fwd`, `vent_aft`, `vent_mid`), plus `fire_origin` at (0, 0, 0).
    - **Export:** a Y-up GLB.
-2. **gltfjsx:** `npx gltfjsx@6.5.3 public/models/iss_lab.glb --transform --keepgroups --instance --types --resolution 1024` writes `public/models/iss_lab-transformed.glb`, with Draco and WebP textures at 1024.
-   - `--keepgroups` keeps the vent empties.
-   - `--instance` instances repeated parts.
-   - The JSX component it also writes is sent to a temp folder; `src/scene/IssLab.tsx` loads the GLB instead.
+2. **Compress:** glTF Transform (the library behind `gltfjsx --transform`) runs dedup, prune, a 1024 px WebP resize, then Draco, and writes `public/models/iss_lab-transformed.glb`.
+   - Prune runs with `--keep-leaves true`. gltfjsx 6.5.3's own `--transform` prunes empty leaf nodes even with `--keepgroups`, so it deleted the vent empties when tested on a NASA model.
+3. **gltfjsx:** `gltfjsx@6.5.3 --keepgroups --instance --types` writes a reference component from the compressed GLB.
+   - It goes to a temp folder; `src/scene/IssLab.tsx` loads the GLB instead.
 
 Commit only `public/models/iss_lab-transformed.glb`; the intermediate `iss_lab.glb` is git-ignored. Keep the result under about 5 MB and 100k triangles (guide, section 8). In development, `IssLab.tsx` warns in the console if the model's vent empties are missing or more than 5 cm from the contract positions.
 
