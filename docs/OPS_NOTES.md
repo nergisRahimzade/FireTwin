@@ -488,6 +488,8 @@ git push origin demo-v2                     # tags are pushed separately from br
   to `data/processed` and `data/docs` (follow-up below). Host-path creation is disabled so typos
   cannot create empty directories as root. `.dockerignore` allowlists source/locks/container tooling
   and excludes private docs, `.env` files, caches, host dependencies, data and model contents.
+  (Superseded 2026-11-15: the backend image now includes the runtime data and model files; see
+  "OPS-02: real data and model in the backend image" at the end.)
 - The standalone `docker/backend_entrypoint.py` resolves unset/blank `MOCK_MODE` before backend
   import: missing/empty table, model or feature ranges selects synthetic mocks; otherwise real
   mode. These paths match the predictor readers. Explicit `1` forces mocks, while explicit `0`
@@ -741,3 +743,20 @@ This supersedes the unpublished first-increment behavior above; no public API ch
   at the end of the file was folded into the 2026-11-15 list.
 - `DECISIONS.md` records the verified package 4 findings and the open owner decision about the
   private PDFs inside the public `demo-v1` tag. No decision is claimed.
+
+
+## OPS-02: real data and model in the backend image (2026-11-15, Ryan)
+
+- The backend image now copies `data/processed/` and `data/docs/` (Dockerfile) and no longer
+  excludes `ml/artifacts/` (`.dockerignore`), so it runs in real mode on its own, without bind
+  mounts. That is what a hosting service like Render needs: it builds the image from the repo and
+  runs it as is. Raw uploads, clean CSVs, private PDFs and `.env` files stay out of the image.
+- Docker Compose is unchanged: its read-only mounts of the same folders sit on top of the copied
+  files, so local edits still take effect without rebuilding.
+- Automatic mode (`MOCK_MODE` blank) now selects real mode in a bare image, because the required
+  files are present. For hosting, set `MOCK_MODE=0` so a missing file fails startup loudly.
+- Checked locally: `docker build -f docker/backend.Dockerfile -t firetwin-backend .`, then
+  `docker run -p 8001:8000 -e MOCK_MODE=0 firetwin-backend` logs `FireTwin API: real mode
+  (MOCK_MODE=0)`; `/health` is ok, `/meta` lists 15 materials and 9 investigations, and the e2e loop
+  passes against it (PMMA rod: alarm at 40 s, fans off puts it out). The image adds about 120 KB of
+  data and artifacts.
