@@ -100,7 +100,12 @@
         "max": 28.0
       }
     },
-    "sensors": null,
+    "sensors": [
+      "radiometer",
+      "O2 gas analyzer",
+      "CO2 gas analyzer",
+      "CO gas analyzer"
+    ],
     "n_tests_in_unified_table": 129,
     "n_rows_in_psi_table": 129,
     "psi_table_columns": [
@@ -125,8 +130,7 @@
     "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-25",
     "is_synthetic": false,
     "missing": [
-      "sample_geometry",
-      "sensors"
+      "sample_geometry"
     ]
   },
   {
@@ -139,7 +143,17 @@
     "materials": [
       "SIBAL Fabric"
     ],
-    "sample_geometry": null,
+    "sample_geometry": {
+      "Sample Thickness (cm)": [
+        "0.37"
+      ],
+      "Sample Length (cm)": [
+        "40.6"
+      ],
+      "Sample Width (cm)": [
+        "94"
+      ]
+    },
     "hardware": [
       "Cygnus"
     ],
@@ -154,7 +168,9 @@
         "max": 20.0
       }
     },
-    "sensors": null,
+    "sensors": [
+      "video camera"
+    ],
     "n_tests_in_unified_table": 2,
     "n_rows_in_psi_table": 4,
     "psi_table_columns": [
@@ -175,9 +191,7 @@
     "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-98",
     "is_synthetic": false,
     "missing": [
-      "objective",
-      "sample_geometry",
-      "sensors"
+      "objective"
     ]
   },
   {
@@ -194,7 +208,24 @@
       "Silicone",
       "unspecified"
     ],
-    "sample_geometry": null,
+    "sample_geometry": {
+      "Samle Thickness": [
+        "0.27 mm",
+        "0.61 mm",
+        "0.85 and 0.37 mm",
+        "037 mm",
+        "1 cm",
+        "1.03 mm",
+        "See Fig. 5"
+      ],
+      "Sample Length": [
+        "29 cm",
+        "5 and 24 cm"
+      ],
+      "Sample Width (cm)": [
+        "5 cm"
+      ]
+    },
     "hardware": [
       "Cygnus"
     ],
@@ -209,7 +240,9 @@
         "max": 20.0
       }
     },
-    "sensors": null,
+    "sensors": [
+      "video camera"
+    ],
     "n_tests_in_unified_table": 9,
     "n_rows_in_psi_table": 15,
     "psi_table_columns": [
@@ -233,10 +266,7 @@
     ],
     "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-99",
     "is_synthetic": false,
-    "missing": [
-      "sample_geometry",
-      "sensors"
-    ]
+    "missing": []
   },
   {
     "name": "Saffire-III",
@@ -246,7 +276,17 @@
     "materials": [
       "SIBAL Fabric"
     ],
-    "sample_geometry": null,
+    "sample_geometry": {
+      "Sample Thickness": [
+        ".33 cm"
+      ],
+      "Sample Length": [
+        "94 cm"
+      ],
+      "Sample Width": [
+        "40.6 cm"
+      ]
+    },
     "hardware": null,
     "conditions": {
       "o2_pct": null,
@@ -256,7 +296,9 @@
         "max": 30.0
       }
     },
-    "sensors": null,
+    "sensors": [
+      "video camera"
+    ],
     "n_tests_in_unified_table": 0,
     "n_rows_in_psi_table": 2,
     "psi_table_columns": [
@@ -275,9 +317,7 @@
     "missing": [
       "fuel",
       "hardware",
-      "objective",
-      "sample_geometry",
-      "sensors"
+      "objective"
     ]
   },
   {
@@ -291,7 +331,18 @@
       "Heptane",
       "Methanol"
     ],
-    "sample_geometry": null,
+    "sample_geometry": {
+      "Droplet initial diameter; mm": [
+        "1.1",
+        "1.13",
+        "1.33",
+        "1.34",
+        "1.35",
+        "1.49",
+        "1.61",
+        "1.64"
+      ]
+    },
     "hardware": [
       "CIR-MDCA"
     ],
@@ -332,7 +383,6 @@
     "source_url": "https://psi.nasa.gov/physci/repo/data/investigations/PSI-69",
     "is_synthetic": false,
     "missing": [
-      "sample_geometry",
       "sensors"
     ]
   },
@@ -342,7 +392,11 @@
     "objective": "The primary goal of the FLEX-2 flight experiments is to extend the results of FLEX-1 to fuels and environmental conditions that mimic real combustor conditions, as well as, provide benchmark experimental data on bi-component droplet combustion over a wide range of initial conditions in order to validate numerical simulations and to develop new theoretical models.",
     "fuel": null,
     "materials": null,
-    "sample_geometry": null,
+    "sample_geometry": {
+      "Initial Droplet Diameter (mm)": [
+        "1.5 - 5"
+      ]
+    },
     "hardware": null,
     "conditions": {
       "o2_pct": null,
@@ -366,7 +420,6 @@
     "missing": [
       "fuel",
       "hardware",
-      "sample_geometry",
       "sensors"
     ]
   },
@@ -392,7 +445,9 @@
         "max": 10.0
       }
     },
-    "sensors": null,
+    "sensors": [
+      "mass (weight-loss) measurement"
+    ],
     "n_tests_in_unified_table": 0,
     "n_rows_in_psi_table": 8,
     "psi_table_columns": [
@@ -408,8 +463,7 @@
       "fuel",
       "hardware",
       "objective",
-      "sample_geometry",
-      "sensors"
+      "sample_geometry"
     ]
   },
   {
@@ -434,7 +488,9 @@
         "max": 8.1
       }
     },
-    "sensors": null,
+    "sensors": [
+      "smoke particle-size (Rt/R0) measurement"
+    ],
     "n_tests_in_unified_table": 0,
     "n_rows_in_psi_table": 109,
     "psi_table_columns": [
@@ -455,8 +511,7 @@
       "fuel",
       "hardware",
       "objective",
-      "sample_geometry",
-      "sensors"
+      "sample_geometry"
     ]
   }
 ]

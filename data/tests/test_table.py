@@ -83,3 +83,12 @@ def test_investigation_summaries_cover_every_investigation_in_the_table(table) -
         # A field with no source in the repo must be null AND listed as missing, never guessed.
         for key in s["missing"]:
             assert s[key] is None
+
+
+def test_investigation_sensors_and_geometry_come_from_table_columns() -> None:
+    summaries = {s["name"]: s for s in json.loads(INVESTIGATIONS.read_text(encoding="utf-8"))}
+    assert "O2 gas analyzer" in summaries["BASS-II"]["sensors"]
+    assert summaries["Saffire-II"]["sensors"] == ["video camera"]
+    geometry = summaries["Saffire-II"]["sample_geometry"]
+    assert geometry and not any("Burn" in key or "Spread" in key for key in geometry)
+    assert summaries["BASS"]["sensors"] is None and "sensors" in summaries["BASS"]["missing"]
