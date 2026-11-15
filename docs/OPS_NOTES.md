@@ -147,3 +147,268 @@ Add an entry each time an OPS task makes a decision like this.
 - `backend/tests/test_mocks.py` covers each endpoint, request validation, the fixed mock loop,
   synthetic labels, disabled mode, app isolation, PDF structure, and all OpenAPI models.
   Checks use in-process HTTP and no keys, network services, data files, or ML artifacts.
+
+## OPS-03: CI (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Python runs `make lint` and `make test`, the same commands as rule 7, so CI and laptops can't
+  disagree about what "passing" means. `UV_LOCKED=1` makes any `uv run` fail if `uv.lock` is out
+  of date with `pyproject.toml` (someone forgot `uv lock`), instead of quietly re-locking.
+- Versions match OPS-02: uv 0.13.5 (as in `docker/backend.Dockerfile`), Python 3.11 from
+  `.python-version`, Node 22 (as in `docker/frontend.Dockerfile`).
+- Runs on pull requests into **any** branch, so stacked PRs (e.g. into a teammate's branch) are
+  checked too, plus pushes to `main`. A newer push cancels the older run of the same PR.
+- The workflow token is read-only (`permissions: contents: read`); CI never writes to the repo.
+- Actions are pinned to major tags (`@v4`, `@v6`), not commit SHAs: simpler for a 24-hour build;
+  pin SHAs if the repo outlives the hackathon.
+
+**Added (beyond the plan's "npm run build + tsc")**
+- The frontend job also runs `npm test` (vitest), because FE already has unit tests
+  (e.g. `controlPanel.logic.test.ts`); untested tests rot.
+
+**Follow-up for the repo owner**
+- Once CI has run green once, make it required for `main`: Settings -> Rules -> Rulesets ->
+  `protect-main` -> **Require status checks to pass** -> add **"Python (ruff + pytest)"** and
+  **"Frontend (tsc + vitest + build)"** (GitHub only offers checks it has already seen run).
+
+## BE-07: /meta choices and integration follow-ups (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Built on Nergis's branch stack (`BE-02-simulate-apply`), the only place with BE-05, the seed
+  table, `feature_ranges.json` and her cached loaders (`ml.pipeline.model.load_table/load_ranges`),
+  which `/meta` reuses instead of reading the files a second way.
+- `ranges` = the flat `"overall"` section of `feature_ranges.json`, because the frontend's
+  `MetaOut.ranges` type is one `{min, max}` per feature. The per-fuel-type ranges stay in the file
+  for the predictor; if the UI later wants them, that's a contract change.
+- `is_synthetic` is derived from the table (any synthetic row behind a material or the ranges),
+  since `feature_ranges.json` doesn't record it (rule 5).
+- `investigations` is `[]` until DAT-06 writes `investigations.json`; nothing is made up.
+- Missing or broken data files -> 503 with a "run `make data` / `make train`" message.
+
+**Integration follow-ups (not done here)**
+- Done on `feature/BE-integration`: with `MOCK_MODE=0`, `main.py` mounts the real `/simulate`,
+  `/apply` (BE-02) and `/meta` (BE-07). Their imports sit inside that branch so mock mode still
+  starts without pandas, the model or data files. BE-08 adds `/results` in the same real-mode
+  branch, BE-09 adds `/export`, and BE-10 adds `/chat`. Merging current `main` also brings
+  the `/detect` and `/suppress` routers; all planned endpoints now exist in both modes.
+- BE-05 is not on `main`: PR #3 merged into `feature/OPS-01` instead. It reaches `main` when
+  Nergis's stack merges (her branches contain it).
+
+## Integration follow-ups (2026-11-14, Ryan, `feature/BE-integration`)
+
+- `config.py` now carries the OpenAI settings (`openai_api_key`, `openai_model`). **Nergis:**
+  switch `rag.py`'s `os.getenv("OPENAI_API_KEY")`/`os.getenv("OPENAI_MODEL")` to
+  `get_settings()`; the defaults match, so behaviour doesn't change. `OPENAI_MODEL` is optional and
+  left out of `.env.example`, which lists only the plan's two settings.
+- The key field uses `repr=False`, so logging or printing `Settings` never leaks it.
+- Mock `/results` rows were realigned from my earlier BE-01 shape (numbered steps, full source
+  objects) to Nergis's pushed store (step names, `test_id` strings), which is what BE-08 serves.
+  `test_results_rows_equal_what_the_real_store_records` keeps the two from drifting apart.
+- Open with Nergis and Nathan (rule 5): id-only `sources` can't carry `is_synthetic`; see the
+  "Open" note under `ResultsOut.rows` in `docs/contract.md`.
+- `make dev` now gives the backend `PYTHONPATH=<repo root>` (the frontend is unchanged), like
+  the OPS-02 image's `PYTHONPATH=/app/backend:/app`. Tests hadn't caught the missing path because
+  pytest's own `pythonpath = [".", "backend"]` hides it; `tests/test_dev.py` now checks the env.
+- **Gap closed for `/detect` and `/suppress`** (`feature/BE-03-04-routers`): thin routers over
+  Nergis's services, mounted in real mode. `/detect` appends the "detect" row (with the current
+  verdict's source ids); `/suppress` appends nothing. Combined with BE-08 and BE-09 on
+  `feature/BE-real-mode`, the real-mode e2e loop (`make e2e`, OPS-04) **passes all 8 steps**:
+  cable insulation -> burning (p 0.93) -> alarm at 40 s -> `fans_off_co2` -> extinguished ->
+  3 history rows -> a 2-page PDF with the honesty line and synthetic labels.
+  Seen in that run: with flow `+x` (fore) the backend reports `vent_aft` tripping, because
+  `ml/pipeline/config.py` still uses the old vent names (see "3D coordinate system", BE-03 follow-up).
+
+## BE-08: read-only scenario results (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Rebased onto `origin/feature/BE-integration` (PR #9), which already combines BE-06 and Nergis's
+  stack plus BE-07. OPS-02's pending work and running containers remain separate.
+- `backend/app/routers/results.py` serves the copied rows from `store.history(scenario_id)`
+  in the existing `ResultsOut` model. Unknown IDs map Nergis's `store.ScenarioNotFound` to HTTP 404
+  with its restart hint; a known empty history returns 200 with an empty list.
+- `main.py` imports and mounts the reader only in the existing real-mode `else:` branch
+  (`MOCK_MODE=0`). Mock mode keeps its fixed router, with no duplicate real results route.
+  Results is removed from the mock tests' unbuilt-route list and added to real app wiring checks.
+- Stored step names, source-ID strings, snapshots and nulls pass through unchanged; GET neither
+  recalculates outcomes nor changes history/current inputs. No store, schema or frontend changes.
+- Mock results already match this shape through the integration branch's
+  `test_results_rows_equal_what_the_real_store_records` regression. The earlier BE-08 notes about
+  numbered mock steps/full references were stale and are removed. The existing id-only synthetic
+  badge question remains with the store/frontend owners, without introducing unapproved row keys.
+
+**Checks**
+- `backend/tests/test_results.py` explicitly selects real mode and covers ordered snapshots,
+  JSON arrays, nulls, source IDs/probabilities, empty/unknown scenarios, isolation, read-only
+  behavior, new rows after earlier reads, restart loss and OpenAPI.
+- `test_app_wiring.py` checks a real simulate/apply/results sequence against the stored history,
+  while a mock request for a real scenario still returns the fixed synthetic fixture.
+
+## BE-09: PDF export (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Based on completed BE-08 (itself based on `feature/BE-integration`). `routers/export.py` mounts
+  only in `main.py`'s real-mode branch; BE-06's fixed synthetic PDF stays unchanged.
+- `services/pdf.py` uses ReportLab (already a runtime dependency) and `BytesIO`; no report files,
+  new packages, HTTP/LLM calls, or changes to the store, shared schemas or teammates' files.
+- `store.get()` provides one snapshot of current inputs plus the same saved rows as `/results`.
+  The landscape table includes all eight columns, exact saved values and input snapshots, repeats
+  column headers across pages, and splits long rows. Current inputs are labeled separately.
+- The store saves no ranked recommendation. The report calls Nergis's existing
+  `suppressor.suppress()` for the snapshot's current inputs and labels it "Calculated at export
+  time", alongside the ranking's illustrative crew-risk/detection-delay assumptions. It never
+  calls `predict()` or `rag.explain()` to replace recorded history outcomes.
+- Sources are resolved by the saved IDs in the current test table, not by rerunning nearest-test
+  retrieval. The selected recommendation's references are included too. The PDF explicitly labels
+  metadata as resolved at export time, synthetic sources with `is_synthetic=true`, model outputs
+  and illustrative detection times. It does not solve the results JSON's id-only badge question
+  by changing that contract.
+- If artifacts/data are missing or malformed, saved rows still export; recommendation and source
+  metadata are labeled unavailable/unverified, and unknown IDs get no invented URL or synthetic
+  status. Unknown scenarios map `ScenarioNotFound` to 404; an existing empty history is a valid PDF.
+- PDFs include a UTC timestamp, a stable generic download filename (never raw user text in headers),
+  and the required line "Flame is illustrative; verdicts come from NASA PSI data." All text is
+  escaped before ReportLab markup parsing so source URLs/materials cannot cause image fetching.
+- PDF page compression is disabled so report content can be checked without adding a PDF-parser
+  package. PDFs remain standard, downloadable documents; source URLs are printed as text.
+
+**Checks**
+- `test_export.py` checks required content, exact results-to-renderer parity, precision/nulls/zero,
+  synthetic and unknown sources, read-only behavior, empty/unknown IDs, unavailable data/model,
+  escaped markup without image loading, pagination, scenario isolation, PDF OpenAPI and mock mode.
+- `test_app_wiring.py` runs simulate -> export on the real seed files with the API key removed.
+
+## OPS-04: end-to-end loop (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `tests/e2e_loop.py` is a script run by `make e2e`, not by `make test`: it needs a server that's
+  already running (`make dev` or `docker compose up`, with `MOCK_MODE=0`). Its name doesn't start
+  with `test_`, so pytest never collects it. `tests/test_e2e_loop.py` runs the same loop
+  in-process against the BE-06 mock app (no server, no network), so CI tests the checks themselves.
+- Beyond "PDF is non-empty", each step is checked against `schemas.py`, and the steps against each
+  other: same `scenario_id` throughout; `/suppress` sorted by score with `recommended` on top;
+  `/apply` inputs equal the recommended action's `new_inputs` (plan BE-02); `/results` contains the
+  apply step; `/export` is `application/pdf` starting with `%PDF`.
+- It ignites "cable insulation" (the demo script's material) when `/meta` offers it, else the first
+  material, at 21 % O2 and 10 cm/s.
+- A mock-mode API fails the run (the plan says "hits the real API"); `--allow-mock` checks wiring only.
+- `make help` now lists targets with digits in their names (`e2e`).
+
+**Status on 2026-11-14:**
+- On `main` before #16: mock mode passed all 8 steps; real mode stopped at `meta: HTTP 404`
+  because `main.py` mounted no real routers.
+- With #16 (`feature/BE-real-mode`: real-mode wiring, `/detect`, `/suppress`, `/results`,
+  `/export`), a real-mode server with no API keys **passes all 8 steps** (`make e2e`).
+
+**Gap in the plan:** BE-03 and BE-04 build the detector and suppressor *services*, but no task ID
+creates the `/detect` and `/suppress` *routers*. Under the plan's ownership table they fall under
+"rest of `backend/`" (Ryan); they're built on `feature/BE-03-04-routers`.
+
+## OPS-05: demo build (2026-11-14, Ryan)
+
+**Done**
+- The prebuilt artifacts are committed on `main`: `data/processed/tests.parquet` and
+  `ml/artifacts/{model.joblib,feature_ranges.json,metrics.json,physics_params.json}`.
+  `tests/test_demo_build.py` fails if any is untracked, empty or unloadable, or if a real
+  prediction needs an API key. RAG retrieval is keyword search over `data/docs` (no Chroma), and
+  `rag.py` falls back to a template without `GEMINI_API_KEY`/`OPENAI_API_KEY`, so the only network
+  use is the optional LLM.
+
+**Tag `demo-v1` on a green `main` (#14 OPS-04 and #16 real mode are both merged):**
+```bash
+git switch main && git pull                 # or: git fetch origin main:main
+make lint && make test                      # rule 7
+MOCK_MODE=0 make dev                        # in one terminal (or docker compose up, once OPS-02 lands)
+make e2e                                    # in another: must print "e2e: PASS (real API ...)"
+git tag -a demo-v1 -m "Demo build: real mode passes make e2e"
+git push origin demo-v1                     # tags are pushed separately from branches
+```
+- A tag is a fixed name for one commit: the demo runs from `git checkout demo-v1`, whatever lands
+  on `main` afterwards. If a fix is needed later, tag `demo-v2` instead of moving `demo-v1`.
+- Rehearse on a fresh clone with no `.env`: `make setup` needs the network once (packages), then
+  the demo runs offline apart from the optional LLM.
+
+## BE-10: scenario-aware chat endpoint (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- Built on completed BE-09, which includes BE-08 and the `feature/BE-integration` base. The
+  chat router is imported and mounted only inside `main.py`'s existing real-mode `else:` branch.
+  Mock mode retains its fixed fixture; `/chat` moves out of the mock tests' unbuilt-path list.
+- The router calls Nergis's unchanged `rag.answer(message, scenario)` and returns its `ChatOut`.
+  `ChatIn`/`ChatOut`, RAG/store services, ML prompts, frontend types and dependencies are unchanged.
+- Scenario summary = the ID, current inputs and full ordered history from one `store.get()`
+  snapshot. Inputs are dumped into a new JSON-ready dictionary; history is already copied by the
+  store. This lets the answerer compare initial and applied inputs and see saved outcomes, action
+  names, detection times and source IDs, without exposing mutable store references.
+- Omitted/null IDs mean general chat (`scenario=None`). Any supplied ID is looked up, including
+  the empty string: missing IDs become 404 with the store's restart hint, before RAG is invoked.
+  A known scenario with no steps still supplies its inputs and empty history.
+- No chat history row is added (the store's planned steps are simulate/detect/apply). Chat does
+  not change inputs, run a prediction, or include any other scenario in the context.
+- Message text and RAG citations pass through; request validation remains with existing Pydantic
+  models. No new blank-message rejection, truncation or trimming policy is introduced.
+- RAG owns retrieval and offline fallback. Unexpected answerer failures return a generic 500,
+  following `/simulate` and `/apply`; raw exception details stay out of the HTTP response.
+
+**Checks**
+- `test_chat.py` covers general/null IDs, unchanged message/citations, current and historical
+  inputs, empty/unknown scenarios, context isolation, validation, offline retrieval/no evidence,
+  real RAG serialization into a faked LLM call, LLM-failure fallback, generic service errors,
+  OpenAPI and fixed mock behavior. All documents and LLM responses in these tests are synthetic.
+- App wiring includes a real simulate -> chat sequence with the key removed and no documents
+  required; chat receives the newly created scenario without appending history.
+
+
+## BE-11: prediction and explanation cache (2026-11-14, Ryan)
+
+**Chosen (the plan left it open)**
+- `services/cache.py` memoizes the existing prediction tuple plus `rag.explain()` result using
+  SHA-256 over all normalized `ScenarioIn` fields. This is a plain Python service with no HTTP
+  imports or new dependencies. IDs and state transitions remain outside the cache.
+- Operational bounds: 256 entries per process, least-recently-used eviction, 60-second expiry
+  measured from completion with a monotonic clock. This also bounds how long a successful offline
+  template returned after an LLM failure is reused before retrying the service.
+- Cache keys include online/offline API-key availability and OpenAI/Gemini model environment
+  settings, not raw keys, plus `BURN_THRESHOLD`. Input defaults are normalized so omitted/default
+  flow directions and explicitly supplied floating-point equivalents share an entry.
+- A lock protects cache bookkeeping; a shared future combines concurrent identical misses.
+  Prediction and explanation run outside the lock so different inputs can proceed in parallel.
+  Failures wake waiters and are not cached. Each caller receives a deep copy of the cached data.
+- `clear()` invalidates completed entries and detaches in-flight work using a generation number;
+  older work can finish for existing callers but cannot restore stale entries after clearing.
+- Artifact/data reloading is still owned by the existing ML loaders. Restart the backend after
+  rebuilding those files. No persistent cache, distributed cache, startup hooks or HTTP clearing
+  endpoint is added; mock mode and the chat/results/export/suppression paths are unchanged.
+
+**Ownership exception approved by the user**
+- `routers/simulate.py` belongs to Nergis. The user explicitly approved the prepared integration
+  patch for BE-11 after reviewing the cache and patch: replace direct predict/explain calls in
+  `run_step()` with `cache.predict_and_explain(inputs)` and adjust its import. Scenario creation,
+  the burn threshold, `/apply` input updates and every history write remain in her router.
+  Predictor, RAG, store, suppressor, ML files, schemas and frontend are unchanged.
+
+**Checks**
+- `test_cache.py` covers hits, equivalent defaults, changed fields, result isolation, expiry,
+  eviction, errors, model/mode settings, clearing and concurrent work, using synthetic results.
+- `test_cache_api.py` proves repeated simulations keep distinct IDs, repeated/no-op applications
+  still append history, modified inputs compute separately, applied results can be reused by new
+  scenarios, unknown IDs stay 404 and mock mode never invokes the cache.
+
+
+## BE-10 / BE-11 integration into main (2026-11-14, Ryan)
+
+- PR #19 uses `feature/BE-09`, which now includes merged BE-10 and BE-11 PRs. Main already
+  contains BE-08/BE-09 through the real-mode integration, so this PR adds chat and caching.
+- Resolved the real-router conflict by keeping every router: simulate/apply, meta, detect,
+  suppress, results, export and chat. Kept main's Gemini/OpenAI RAG support and all upstream
+  data, frontend, CI and end-to-end work. Shared schemas are unchanged.
+- All endpoints are now implemented in real mode, so the old mock-only/unbuilt-route list and
+  empty parameterized check are removed. App wiring still checks the complete real route set;
+  per-app mode isolation uses mock acceptance versus real 404 for an unknown scenario ID.
+- Both sides' changelog and operational notes are retained. The backend ownership exception
+  remains limited to BE-11's approved predict/explain call-site change.
+- Validation of the resolved integration: `make test` 504 passed, `make lint` passed (84 files),
+  and `make e2e` passed all 8 steps against a temporary real-mode server with both LLM keys
+  removed. An additional real-mode chat request returned the expected no-evidence response.
+- Main advanced during validation with OPS-05 (#17); its demo-artifact checks and notes were
+  retained and the documentation conflict was resolved before the final 504-test run. Runtime
+  code is the same code exercised by the real end-to-end loop above.

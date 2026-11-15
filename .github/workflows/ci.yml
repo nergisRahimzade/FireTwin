@@ -1,0 +1,79 @@
+# OPS-03: continuous integration. Runs on every pull request and on every push to main.
+# Rule from the plan: CI must stay green on main.
+# - python:   the same `make lint` / `make test` every teammate runs before a commit (rule 7).
+# - frontend: type check, unit tests and a production build of the Vite app.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same pull request cancels the older run, which is out of date anyway.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Read-only token: CI only reads the code; it never writes to the repo.
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python (ruff + pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Every `uv run` (inside make) fails if uv.lock doesn't match pyproject.toml, instead of
+      # quietly re-locking: a forgotten `uv lock` shows up here, not on a teammate's machine.
+      UV_LOCKED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          # Same uv as docker/backend.Dockerfile and our machines.
+          version: "0.13.5"
+          enable-cache: true
+
+      - name: Install Python 3.11 and the locked dependencies
+        # uv reads .python-version (3.11) and installs exactly what uv.lock lists.
+        run: uv sync --locked --dev
+
+      - name: Lint (ruff check + ruff format --check)
+        run: make lint
+
+      - name: Tests (pytest; no network, no API keys)
+        run: make test
+
+  frontend:
+    name: Frontend (tsc + vitest + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          # Same major version as docker/frontend.Dockerfile (node:22).
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install the locked packages
+        # npm ci installs exactly package-lock.json and fails if it's out of date.
+        run: npm ci
+
+      - name: Type check (tsc)
+        run: npm run typecheck
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Production build
+        run: npm run build

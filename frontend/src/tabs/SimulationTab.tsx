@@ -1,13 +1,13 @@
-import { Suspense, lazy, useRef } from "react";
+import { Suspense, lazy } from "react";
 import { ControlPanel } from "../components/ControlPanel";
+import { useScenario } from "../store/useScenario";
 
 // three.js loads only when this tab renders.
-const IssLabScene = lazy(() => import("../lab/IssLabScene.jsx").then(m => ({ default: m.IssLabScene })));
-const IDLE = { g: 0, o2: 21, flow: "fore", burnP: 0 };
-const noop = () => {};
+const IssScene = lazy(() => import("../scene/IssScene").then(m => ({ default: m.IssScene })));
 
 export function SimulationTab() {
-  const api = useRef(null), clock = useRef(null);
+  const detect = useScenario(s => s.detect);
+  const simulate = useScenario(s => s.simulate);
   return (
     <section className="sim-layout">
       <ControlPanel />
@@ -16,14 +16,14 @@ export function SimulationTab() {
           <div className="lab3d-view">
             <div className="lab3d-canvas">
               <Suspense fallback={<div className="lab3d-msg">Loading the ISS module…</div>}>
-                <IssLabScene params={IDLE} api={api} clockEl={clock} onEvent={noop} onReady={noop} />
+                <IssScene detect={detect} simulate={simulate} />
               </Suspense>
             </div>
           </div>
         </div>
         <p className="note">
-          The ISS lab module (8.5 m × 4.2 m) with its three air-return vent detectors. The model decides what the
-          fire does; the 3D view only illustrates it.
+          The ISS lab module (8.5 m × 4.2 m). Detectors appear where the API places them after Ignite. The model
+          decides what the fire does; the 3D view only illustrates it.
         </p>
       </div>
     </section>
