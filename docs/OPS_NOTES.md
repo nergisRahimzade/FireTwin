@@ -789,3 +789,14 @@ This supersedes the unpublished first-increment behavior above; no public API ch
 - `docker/README.md` has a "Hosting the backend" section: Render settings, when `CORS_ORIGINS` is
   needed (direct `VITE_API_URL` calls) or not (Vercel `/api` rewrite), the exact value for the
   production and team Vercel domains, and the free-tier sleep and in-memory scenario limits.
+
+
+## OPS-02: fail closed when bundle ignore checks fail (2026-11-15, Ryan)
+
+- Follow-up to PR #37's RAG-005 protection: an unexpected `git check-ignore` error
+  (for example, Git refusing an unsafe-ownership checkout) previously allowed preparation
+  to continue. In a checkout, only an explicit ignored result permits an in-repository
+  output; errors stop before creating directories or launching ingest/downloads.
+- Folders outside this checkout, source archives without `.git`, and hosts without the
+  Git binary keep the existing setup behavior. Linked worktrees are checked too.
+  The separate index guard still rejects committed model/index files.

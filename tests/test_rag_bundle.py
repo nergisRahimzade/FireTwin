@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 from pathlib import Path
 from runpy import run_path
 
@@ -137,3 +138,43 @@ def test_prepare_refuses_a_tracked_folder_before_creating_anything():
         BUNDLE["prepare"](target)
     assert not target.exists()
     assert not list(target.parent.glob(".demo-bundle-*")) if target.parent.exists() else True
+
+
+@pytest.mark.parametrize("status", [2, 128])
+def test_git_errors_stop_prepare_before_creating_or_downloading(tmp_path, monkeypatch, status):
+    repo = tmp_path / "checkout"
+    repo.mkdir()
+    (repo / ".git").write_text("gitdir: synthetic linked worktree")
+    monkeypatch.setitem(
+        BUNDLE["prepare"].__globals__, "__file__", str(repo / "docker/rag_bundle.py")
+    )
+    calls = []
+
+    def fail_git(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, status)
+
+    monkeypatch.setattr(BUNDLE["subprocess"], "run", fail_git)
+    target = repo / "bundles/rag"
+    with pytest.raises(RuntimeError, match=f"git exit {status}"):
+        BUNDLE["prepare"](target)
+    assert not target.parent.exists()
+    assert len(calls) == 1 and calls[0][0] == "git"
+
+
+def test_source_archive_without_git_metadata_can_prepare_locally(tmp_path, monkeypatch):
+    def forbid(*args, **kwargs):
+        pytest.fail("a source archive should not require a Git checkout")
+
+    monkeypatch.setattr(BUNDLE["subprocess"], "run", forbid)
+    BUNDLE["check_output_location"](tmp_path / "bundle", tmp_path)
+
+
+def test_missing_git_binary_keeps_the_documented_source_only_workflow(tmp_path, monkeypatch):
+    (tmp_path / ".git").mkdir()
+
+    def missing(*args, **kwargs):
+        raise FileNotFoundError("synthetic missing Git binary")
+
+    monkeypatch.setattr(BUNDLE["subprocess"], "run", missing)
+    BUNDLE["check_output_location"](tmp_path / "bundle", tmp_path)
