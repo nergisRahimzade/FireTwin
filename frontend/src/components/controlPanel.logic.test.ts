@@ -54,6 +54,12 @@ describe("number inputs", () => {
     expect(parseTyped("o2_pct", "23,5")).toBe(23.5);
     expect(parseTyped("pressure_kpa", "500")).toBe(110);
   });
+  it("accept any value to two decimals", () => {
+    expect(parseTyped("o2_pct", "10.37")).toBe(10.37);
+    expect(parseTyped("flow_speed_cm_s", "12.5")).toBe(12.5);
+    expect(parseTyped("o2_pct", "10.376")).toBe(10.38);
+    expect(parseTyped("o2_pct", "10.00")).toBe(10);
+  });
   it("wait while the text isn't a number yet", () => {
     expect(parseTyped("o2_pct", "")).toBeNull();
     expect(parseTyped("o2_pct", "-")).toBeNull();

@@ -4,7 +4,7 @@
 import { useEffect, useId, useState } from "react";
 import { useScenario, type Phase } from "../store/useScenario";
 import {
-  FLOW_DIRS, LIMITS, bandPercent, igniteBlocker, isOutside, outsideKeys, parseTyped, sameDir, testedRange,
+  FLOW_DIRS, LIMITS, TYPED_STEP, bandPercent, igniteBlocker, isOutside, outsideKeys, parseTyped, sameDir, testedRange,
   type SliderKey,
 } from "./controlPanel.logic";
 
@@ -33,7 +33,7 @@ function Slider({ field, label }: { field: SliderKey; label: string }) {
         <label className="label" htmlFor={id}>{label}</label>
         <span className={`num-input${outside ? " outside" : ""}`}>
           <input
-            type="number" inputMode="decimal" min={min} max={max} step={step} value={text}
+            type="number" inputMode="decimal" min={min} max={max} step={TYPED_STEP} value={text}
             aria-label={`${label} (${unit})`}
             onChange={e => {
               setText(e.target.value);
