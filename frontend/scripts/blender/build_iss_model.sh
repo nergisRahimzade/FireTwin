@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # FE-12: source model -> public/models/iss_lab-transformed.glb, in one command (run from frontend/).
 #   npm run model:iss -- ~/Downloads/iss_interior.glb [--max-tris 80000] [--uniform]
+#   npm run model:interior   (= model:iss -- --interior: our procedural interior, generate_interior.py)
 # 1. Blender (headless) runs optimize_iss.py: scale to 8.5 m x 4.2 m, decimate, join by material,
 #    vent empties at the backend detector positions -> public/models/iss_lab.glb
 # 2. glTF Transform compresses it (dedupe, prune keeping leaves, WebP at 1024, Draco) ->
@@ -24,6 +25,13 @@ if [[ -z "$BLENDER" ]]; then
 fi
 
 mkdir -p public/models
+if [[ "$SOURCE" == "--interior" ]]; then
+  # 0. Model the lab interior procedurally (no NASA interior model exists), then run it through
+  #    the same pipeline as any other source model.
+  SOURCE=scripts/blender/out/iss_interior.glb
+  "$BLENDER" --background --factory-startup --python scripts/blender/generate_interior.py -- \
+    --output "$SOURCE"
+fi
 "$BLENDER" --background --factory-startup --python scripts/blender/optimize_iss.py -- \
   --input "$SOURCE" --output public/models/iss_lab.glb "$@"
 

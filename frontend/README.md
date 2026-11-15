@@ -43,14 +43,30 @@ three.js, so both stay in sync if you edit those two files.
 
 ## FE-12 (stretch): detailed ISS module from Blender
 
-The scene shows the coded module (`src/scene/FallbackModule.tsx`) until
-`public/models/iss_lab-transformed.glb` exists. That file is built from a source model in one command:
+The scene loads `public/models/iss_lab-transformed.glb`: the interior of one lab module, seen from the
+aisle. The coded module (`src/scene/FallbackModule.tsx`) shows while it loads, or if it is missing.
+Rebuild it in one command (needs Blender: `brew install --cask blender`):
 
 ```bash
 cd frontend
-npm run model:iss:check                          # no Blender needed: shows the vent layout it will use
-npm run model:iss -- ~/Downloads/iss_interior.glb  # needs Blender (brew install --cask blender)
+npm run model:interior                             # procedural lab interior (below), then the pipeline
+npm run model:iss -- ~/Downloads/iss_interior.glb  # or any other interior model, same pipeline
+npm run model:iss:check                            # no Blender needed: shows the vent layout it uses
 ```
+
+**The procedural interior.** `scripts/blender/generate_interior.py` models a Destiny-style lab
+module at the backend's size (8.5 m x 4.2 m):
+- the pressure hull and end bulkheads, with normals facing inward
+- 24 racks on four faces: stowage racks with locker doors, handles and bolts; experiment racks with
+  a screen, knobs and drawers; dark utility racks
+- handrails on every bay, and foot restraints on the deck
+- ceiling light strips, cable conduits, and a vent grille plus a smoke detector at every vent
+- hatches, a fire extinguisher, and a breathing-apparatus box at the ends
+
+It has about 19k triangles and 14 materials. Each material is one mesh (one draw call), and the
+result compresses to about 55 KB. Along the racks, the aisle stays clear to 1.29 m from the axis,
+so the smoke (within 1.33 m) and the camera (within 1.2 m) stay out of the geometry. Its output goes
+to `scripts/blender/out/`, which is git-ignored.
 
 `npm run model:iss` runs `scripts/blender/build_iss_model.sh`:
 
@@ -67,6 +83,6 @@ npm run model:iss -- ~/Downloads/iss_interior.glb  # needs Blender (brew install
 3. **gltfjsx:** `gltfjsx@6.5.3 --keepgroups --instance --types` writes a reference component from the compressed GLB.
    - It goes to a temp folder; `src/scene/IssLab.tsx` loads the GLB instead.
 
-Commit only `public/models/iss_lab-transformed.glb`; the intermediate `iss_lab.glb` is git-ignored. Keep the result under about 5 MB and 100k triangles (guide, section 8). In development, `IssLab.tsx` warns in the console if the model's vent empties are missing or more than 5 cm from the contract positions.
+Commit only `public/models/iss_lab-transformed.glb`; the intermediate `iss_lab.glb` is git-ignored. Keep the result under about 5 MB and 100k triangles (guide, section 8). In development, `IssLab.tsx` warns in the console if the model's vent empties are missing or more than 5 cm from the contract positions, or if the model isn't an interior. To check, it casts rays from the fire in all six directions; each must hit a wall facing back at the fire, and an exterior model fails this.
 
-**Source model.** NASA 3D Resources doesn't publish an ISS interior or Destiny laboratory model. Its ISS entries are exterior models: ISS (A), (B) and (D) as `.glb`, and a high-res Lightwave file (github.com/nasa/NASA-3D-Resources, science.nasa.gov/3d-resources). An interior has to come from somewhere else, such as a third-party model whose license allows this use, or one modelled by the team. Check its license before committing it.
+**Source model.** NASA 3D Resources doesn't publish an ISS interior or Destiny laboratory model. Its ISS entries are exterior models: ISS (A), (B) and (D) as `.glb`, and a high-res Lightwave file (github.com/nasa/NASA-3D-Resources, science.nasa.gov/3d-resources). That's why `generate_interior.py` exists: the exterior ISS (A) model ran through the pipeline fine, but it is the outside of the whole station. A third-party interior can replace it with `npm run model:iss`; check its license before committing it.

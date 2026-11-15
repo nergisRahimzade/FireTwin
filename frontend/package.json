@@ -11,6 +11,7 @@
     "test": "vitest run",
     "gen:api": "openapi-typescript ${VITE_API_URL:-http://localhost:8000}/openapi.json -o src/api/schema.d.ts",
     "model:iss": "bash scripts/blender/build_iss_model.sh",
+    "model:interior": "bash scripts/blender/build_iss_model.sh --interior",
     "model:iss:check": "python3 scripts/blender/optimize_iss.py --self-test"
   },
   "dependencies": {

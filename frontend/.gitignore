@@ -5,3 +5,5 @@ dist/
 !.env.example
 # FE-12: the intermediate Blender export; only the compressed iss_lab-transformed.glb is committed.
 public/models/iss_lab.glb
+# FE-12: generate_interior.py output (regenerate with npm run model:interior).
+scripts/blender/out/
