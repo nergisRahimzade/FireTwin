@@ -16,7 +16,7 @@ and PDFs are not distributed with the public plan; obtain them from the team if 
 | 5 — historical PDF recommendation | Pending shared-store handoff. | Coordinate snapshot semantics with Nergis. |
 | 6 — offline vector retrieval | Merged, PR #34 (`60ea3f8`). | Follow-ups RAG-004/RAG-005 (empty-folder search, untracked bundle outputs) on `feature/ML-08-followups`. |
 | 7 — documentation | Merged, PR #29 (`db5f8dd`). | Later corrections (tag status, ordering) on `feature/OPS-01-docs-followups`. |
-| 8 — demo freeze | `demo-v1` exists (annotated, on `8f281d9`); later fixes need a new tag. | Agree the demo narrative, then tag `demo-v2` on an exact green SHA. |
+| 8 — demo freeze | `demo-v1` exists (annotated, on `8f281d9`). Since `20bf3a9` the full flow runs on real data (PMMA rod 21% O2, 10 cm/s). | Confirm the narrative, run the release checks on an exact green SHA, then tag `demo-v2`. |
 
 ## Baseline and findings
 
@@ -244,9 +244,10 @@ statements remain clearly historical; no private source documents or key values 
 Run last, after required fixes land. Ryan owns integration/release checks; Nergis owns
 labels, training correctness and metrics; Nathan owns working controls/verdict/actions/chat.
 
-- Select the real demo scenario with the team. Current OPS notes use Heptane at 30% O2,
-  zero flow, which yields no detector alarm. Do not claim this demonstrates the planned
-  burning-solid/airflow-detection sequence or fabricate cable-insulation evidence.
+- Select the real demo scenario with the team. Since `20bf3a9`, PMMA rod at 21% O2 and
+  10 cm/s burns, trips `vent_fwd` and is put out by fans off, so the burning-solid/airflow-
+  detection sequence is available on real data (the e2e default). Still don't fabricate
+  cable-insulation evidence; the earlier Heptane default yields no detector alarm.
 - Exercise real API simulate -> detect -> suppress -> apply -> results -> export and chat,
   with no keys and then the separately authorized provider smoke test. Rehearse the intended
   UI loop; a green endpoint suite alone does not establish model correctness or UI readiness.
