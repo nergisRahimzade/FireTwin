@@ -352,12 +352,18 @@ input, select, textarea { font-size: 16px; }
   .left-col { display: contents; } /* mobile: back to one stacked grid */
   .verdict-sticky { position: static; }
   .vars-panel { position: static; max-height: none; overflow: visible; }
-  .collapsible-toggle { display: flex; }
-  .collapsible-body:not(.open) { display: none; }
-  .collapsible-body.open { margin-top: 10px; }
   .scene-large { height: clamp(300px, 70vw, 440px); }
   .num-input input { min-height: 44px; }
   .compare-panes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 767px) {
+  .collapsible-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 90; display: flex;
+    width: auto; min-width: 0; border-radius: 999px; gap: 8px;
+    background: rgba(5,8,15,.94); box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .collapsible-body:not(.open) { display: none; }
+  .collapsible-body.open { display: block; margin-top: 10px; }
 }
 .alarm-banner { margin: 0; padding: 12px 14px; border-radius: 12px; font-weight: 600; color: #FFE3DF; background: rgba(255,90,74,.16); border: 1px solid #FF5A4A; }
 /* FE-09 chart */
