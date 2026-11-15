@@ -123,3 +123,9 @@ One entry per task. API contract changes (rule 3) must always be noted here.
 - **BE-10 / BE-11 integration**: resolved PR #19 against current main, retaining all real routers,
   Gemini/OpenAI support and upstream work. Chat and the input cache join the existing real-mode
   loop; removed obsolete unbuilt-route checks now that all planned endpoints are implemented.
+- **OPS-02**: two-service Docker Compose stack (backend 8000, Vite frontend 5173) with locked
+  image dependencies, health-based startup, non-root services, init/signal handling and read-only
+  data/artifact mounts. Added root-owned Dockerfiles, a secret/cache-safe build context, automatic
+  synthetic mock fallback when required files are missing, startup regression tests and
+  `docker/README.md`. Optional host-port overrides keep browser API URL/CORS aligned. The native
+  API contract and mode parsing remain unchanged; container settings need no `.env` or API key.
