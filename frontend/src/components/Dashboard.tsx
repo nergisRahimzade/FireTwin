@@ -1,39 +1,42 @@
-/* FE-09: the results dashboard under the 3D view. Rows come from GET /results (reloaded after every
-   simulate, detect and apply), with the whiteboard's columns: variable changed, result, date & time,
-   plus detection, sources. The chart shows burn probability across O2 at the current flow (one
-   /preview per point: no scenario or history row is created on the server), with the nearest
-   tested NASA points overlaid. Export PDF downloads /export/{id}.pdf. */
+/* FE-09: the results dashboard under the 3D view.
+   Sessions: every Ignite adds a row under the earlier ones (values, result, start time). Clicking a
+   past session shows it read-only: its saved results, its values in the controls and a 3D replay;
+   Ignite then runs those values again as a new session. "Clear history" drops past sessions.
+   Steps: the shown session's rows from GET /results (live) or its saved copy (past), with the
+   whiteboard's columns. The chart shows burn probability across O2 for the shown session, fetched
+   once per session with /preview (no scenario or history row is created on the server).
+   Export PDF downloads the dashboard. */
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { TestRef } from "../api/types";
-import { useScenario } from "../store/useScenario";
+import { type Session, useScenario } from "../store/useScenario";
 import { downloadDashboardPdf } from "./dashboardPdf";
-import { changeText, o2Sweep, resultText, sourceId, stampRows } from "./dashboard.logic";
+import {
+  changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stampRows,
+} from "./dashboard.logic";
 
-function O2Chart() {
-  const simulate = useScenario(s => s.simulate);
-  const [curve, setCurve] = useState<[number, number][]>([]);
-  const inputs = simulate?.inputs;
-  const key = inputs ? JSON.stringify(inputs) : "";
+function O2Chart({ session }: { session: Session }) {
+  const setSessionCurve = useScenario(s => s.setSessionCurve);
 
   useEffect(() => {
-    if (!inputs) {
-      setCurve([]);
-      return;
-    }
+    if (session.curve) return; // fetched once per session, then kept with it
     let live = true;
-    Promise.all(o2Sweep().map(o2 => api.preview({ ...inputs, o2_pct: o2 }).then(r => [o2, r.burn_probability] as [number, number])))
-      .then(points => live && setCurve(points))
-      .catch(() => live && setCurve([]));
+    Promise.all(
+      o2Sweep().map(o2 => api.preview({ ...session.inputs, o2_pct: o2 }).then(r => [o2, r.burn_probability] as [number, number])),
+    )
+      .then(points => { if (live) setSessionCurve(session.id, points); })
+      .catch(() => { /* no curve this time; the next render of this session tries again */ });
     return () => { live = false; };
-  }, [key]); // inputs change exactly when key does
+  }, [session.id, session.curve, session.inputs, setSessionCurve]);
 
-  if (!simulate || !curve.length) return null;
+  const curve = session.curve ?? [];
+  if (!curve.length) return null;
   const W = 360, H = 140, x = (o2: number) => 30 + ((o2 - 10) / 30) * (W - 40), y = (p: number) => H - 20 - p * (H - 30);
-  const tested: TestRef[] = simulate.nearest_tests.filter(t => t.o2_pct != null);
+  const tested: TestRef[] = session.history[0].nearest_tests.filter(t => t.o2_pct != null);
+  const { inputs } = session;
   return (
     <figure className="m-0">
-      <svg viewBox={`0 0 ${W} ${H}`} className="o2-chart" role="img" aria-label="Burn probability across oxygen">
+      <svg viewBox={`0 0 ${W} ${H}`} className="o2-chart" role="img" aria-label={`Burn probability across oxygen, session ${session.id}`}>
         <line x1={30} y1={H - 20} x2={W - 10} y2={H - 20} className="axis" />
         <line x1={30} y1={10} x2={30} y2={H - 20} className="axis" />
         <polyline points={curve.map(([o, p]) => `${x(o)},${y(p)}`).join(" ")} className="curve" />
@@ -46,7 +49,7 @@ function O2Chart() {
         <text x={34} y={16} className="tick">p = 1</text>
       </svg>
       <figcaption className="note">
-        Burn probability across O₂ at {simulate.inputs.flow_speed_cm_s} cm/s ({simulate.inputs.material}). Dots: nearest tested points (top = burned, bottom = extinguished).
+        Session {session.id}: burn probability across O₂ at {inputs.flow_speed_cm_s} cm/s ({inputs.material}). Dots: nearest tested points (top = burned, bottom = extinguished).
       </figcaption>
     </figure>
   );
@@ -61,23 +64,39 @@ export function Dashboard() {
   const loadingResults = useScenario(s => s.loading.results);
   const loadResults = useScenario(s => s.loadResults);
   const timeline = useScenario(s => s.timeline);
+  const sessions = useScenario(s => s.sessions);
+  const viewing = useScenario(s => s.viewing);
+  const liveSession = useScenario(s => s.liveSession);
+  const viewSession = useScenario(s => s.viewSession);
+  const viewLive = useScenario(s => s.viewLive);
+  const clearHistory = useScenario(s => s.clearHistory);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const stamps = useRef<string[]>([]);
+  // Step time stamps per session, so a past session keeps the times it was recorded at.
+  const stamps = useRef<Record<number, string[]>>({});
+
+  const shownId = viewing ?? liveSession;
+  const shownSession = sessions.find(s => s.id === shownId) ?? null;
 
   useEffect(() => {
-    if (scenarioId) void loadResults();
-    else stamps.current = [];
-  }, [scenarioId, historyLen, detect, loadResults]);
+    if (scenarioId && viewing === null) void loadResults(); // past sessions show their saved rows
+  }, [scenarioId, historyLen, detect, viewing, loadResults]);
 
-  const rows = results?.scenario_id === scenarioId ? results?.rows ?? [] : [];
-  stamps.current = stampRows(stamps.current, rows.length, new Date().toLocaleString());
+  const rows = shownSession && results?.scenario_id === scenarioId ? results?.rows ?? [] : [];
+  if (shownId !== null) {
+    stamps.current[shownId] = stampRows(stamps.current[shownId] ?? [], rows.length, new Date().toLocaleString());
+  }
+  const stepStamps = shownId !== null ? stamps.current[shownId] ?? [] : [];
+  const hasPast = sessions.some(s => s.id !== liveSession);
 
   return (
     <section ref={dashboardRef} className="area-dash glass panel" aria-label="Results dashboard">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="panel-title">Dashboard</h2>
-        <div className="export-menu" role="group" aria-label="Export">
+        <div className="export-menu" role="group" aria-label="Dashboard actions">
+          <button type="button" className="btn-ghost" disabled={!hasPast} onClick={clearHistory}>
+            Clear history
+          </button>
           <button
             type="button" className="btn-ghost" disabled={exporting}
             onClick={async () => {
@@ -94,29 +113,65 @@ export function Dashboard() {
         </div>
       </div>
       {exportError && <p className="error" role="alert">{exportError}</p>}
+      {viewing !== null && (
+        <p className="warn" role="status">
+          Showing saved session {viewing} (read-only), replaying in 3D. The controls now hold its values: Ignite runs them
+          again as a new session.{" "}
+          <button type="button" className="textbtn" onClick={viewLive}>
+            {liveSession !== null ? "Back to live" : "Close"}
+          </button>
+        </p>
+      )}
+
       <div className="table-wrap">
-        <table>
+        <table aria-label="Sessions">
           <thead>
-            <tr><th>Step</th><th>Variable changed</th><th>Result</th><th>Sources</th><th>Date &amp; time</th></tr>
+            <tr><th>Session</th><th>Values</th><th>Result</th><th>Started</th></tr>
           </thead>
           <tbody>
-            {rows.length ? rows.map((r, i) => (
-              <tr key={i}>
-                <td className="mono">{i + 1}. {r.step}</td>
-                <td>{changeText(r)}</td>
-                <td>{resultText(r)}</td>
-                <td className="mono">{r.sources.map(sourceId).join(", ") || "—"}</td>
-                <td className="mono">{stamps.current[i]}</td>
+            {sessions.length ? sessions.map(s => (
+              <tr key={s.id} className={`session-row ${s.id === shownId ? "selected" : ""}`} onClick={() => viewSession(s.id)}>
+                <td className="mono">
+                  <button type="button" className="textbtn" aria-pressed={s.id === shownId} onClick={e => { e.stopPropagation(); viewSession(s.id); }}>
+                    {s.id}{s.id === liveSession ? " · live" : " · saved"}
+                  </button>
+                </td>
+                <td>{sessionInputs(s)}</td>
+                <td>{sessionOutcome(s)}</td>
+                <td className="mono">{new Date(s.startedAt).toLocaleString()}</td>
               </tr>
-            )) : loadingResults ? (
-              <tr><td colSpan={5} className="na">Loading results...</td></tr>
-            ) : (
-              <tr><td colSpan={5} className="na">Every result will be recorded here with its date and time.</td></tr>
+            )) : (
+              <tr><td colSpan={4} className="na">Every Ignite adds a session here; click one to see and replay it.</td></tr>
             )}
           </tbody>
         </table>
       </div>
-      <O2Chart />
+
+      {shownSession && (
+        <div className="table-wrap mt-3">
+          <table aria-label={`Steps of session ${shownSession.id}`}>
+            <thead>
+              <tr><th>Step</th><th>Variable changed</th><th>Result</th><th>Sources</th><th>Date &amp; time</th></tr>
+            </thead>
+            <tbody>
+              {rows.length ? rows.map((r, i) => (
+                <tr key={i}>
+                  <td className="mono">{i + 1}. {r.step}</td>
+                  <td>{changeText(r)}</td>
+                  <td>{resultText(r)}</td>
+                  <td className="mono">{r.sources.map(sourceId).join(", ") || "—"}</td>
+                  <td className="mono">{stepStamps[i]}</td>
+                </tr>
+              )) : loadingResults ? (
+                <tr><td colSpan={5} className="na">Loading results...</td></tr>
+              ) : (
+                <tr><td colSpan={5} className="na">No steps recorded for this session.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {shownSession && <O2Chart session={shownSession} />}
     </section>
   );
 }

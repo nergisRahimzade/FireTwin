@@ -380,3 +380,8 @@ input, select, textarea { font-size: 16px; }
 .o2-chart .pt-out { fill: #63e6be; }
 .o2-chart .tick { fill: var(--muted); font: 10px var(--f-data); }
 .error-toast { position: fixed; z-index: 100; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: min(520px, calc(100vw - 32px)); padding: 12px 14px; border-radius: 12px; color: #FFD9D4; background: #2a1114; border: 1px solid rgba(255,90,74,.7); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+
+/* FE-09 sessions: past sessions are clickable; the shown one is highlighted. */
+.session-row { cursor: pointer; }
+.session-row:hover td { background: rgba(255, 255, 255, 0.03); }
+.session-row.selected td { background: rgba(120, 170, 255, 0.10); }

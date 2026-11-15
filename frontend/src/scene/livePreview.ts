@@ -34,13 +34,14 @@ export interface LiveScene {
 }
 
 /** The scenario for the 3D views: the ignited one, or a live preview of changed controls. */
-export function useLiveScene(simulate: SimulateOut | null, inputs: ScenarioIn): LiveScene {
+export function useLiveScene(simulate: SimulateOut | null, inputs: ScenarioIn, enabled = true): LiveScene {
   const [preview, setPreview] = useState<PreviewOut | null>(null);
-  const previewing = simulate != null && inputsDiffer(simulate.inputs, inputs);
+  // enabled=false during a saved-session replay: its steps differ from the controls on purpose.
+  const previewing = enabled && simulate != null && inputsDiffer(simulate.inputs, inputs);
 
   useEffect(() => {
     setPreview(null);
-    if (!simulate || !inputsDiffer(simulate.inputs, inputs)) return;
+    if (!enabled || !simulate || !inputsDiffer(simulate.inputs, inputs)) return;
     let current = true; // drop replies for settings the user has already moved past
     const timer = setTimeout(() => {
       api.preview(inputs)
@@ -48,7 +49,7 @@ export function useLiveScene(simulate: SimulateOut | null, inputs: ScenarioIn): 
         .catch(() => { /* keep the immediate view; the next change tries again */ });
     }, PREVIEW_DELAY_MS);
     return () => { current = false; clearTimeout(timer); };
-  }, [simulate, inputs]);
+  }, [simulate, inputs, enabled]);
 
   if (!simulate || !previewing) return { scene: simulate, previewing: false };
   return { scene: liveScenario(simulate, inputs, preview), previewing: true };

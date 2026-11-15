@@ -35,6 +35,15 @@ export function nextPhase(phase: Phase, ev: PhaseEvent): Phase {
   }
 }
 
+// Replay: seconds between the alarm (or ignition) and each applied action, and between actions.
+export const REPLAY_STEP_MS = 2500;
+
+/** The phase a session showed at an earlier step of its replay. */
+export function replayPhase(session: Session, step: number): Phase {
+  if (step === 0) return session.detect?.detected ? "detected" : "burning";
+  return session.history[step].state === "extinguished" ? "out" : "still_burning";
+}
+
 export type Step = "meta" | "simulate" | "detect" | "suppress" | "apply" | "results" | "chat";
 export interface ChatTurn { question: string; reply: ChatOut }
 export interface TimelineEvent {
@@ -60,6 +69,23 @@ const recordInputs = (inputs: ScenarioIn, action: TimelineEvent["action"], conte
     value: inputValue(key, inputs[key]), context,
   }));
 
+/* FE-09 sessions: every Ignite starts a session, a snapshot of everything that scenario showed.
+   Later steps (detect, rank, apply, results) update their own session even while another one is on
+   screen. Past sessions are read-only: selecting one shows its saved results, sets the controls to
+   its values and replays it in 3D; Ignite starts a new session from those values. Kept while the
+   tab is open (Render forgets scenarios when it sleeps, so replays never call the API). */
+export interface Session {
+  id: number; // the ignition number, so ids only grow
+  startedAt: number; // Date.now() when its /simulate returned
+  inputs: ScenarioIn; // the values it was ignited with
+  history: SimulateOut[]; // every prediction, in order (simulate, then each apply)
+  detect: DetectOut | null;
+  suppress: SuppressOut | null;
+  results: ResultsOut | null;
+  phase: Phase;
+  curve: [number, number][] | null; // burn probability across O2 at its inputs; null = not fetched
+}
+
 interface ScenarioData {
   inputs: ScenarioIn;
   meta: MetaOut | null;
@@ -78,6 +104,9 @@ interface ScenarioData {
   // neither restarts the demo clock nor fires the alarm again.
   ignitedAt: number | null; // Date.now() when this ignition's /simulate returned
   alarmId: string | null; // the detector that tripped, once the demo clock reached time_to_detect_s
+  sessions: Session[];
+  liveSession: number | null; // the session the backend is still running; null before Ignite / after Reset
+  viewing: number | null; // a past session shown read-only; null = the live one
   loading: Record<Step, boolean>;
   error: string | null;
 }
@@ -93,7 +122,11 @@ interface ScenarioActions {
   loadResults: () => Promise<ResultsOut | null>; // GET /results/{id}
   ask: (message: string) => Promise<ChatOut | null>; // POST /chat
   ignite: () => Promise<void>; // FE-03: /simulate, then /detect if the fire keeps burning
-  reset: () => void;
+  reset: () => void; // ends the live fire; saved sessions stay
+  viewSession: (id: number) => void; // show a session read-only and replay it
+  viewLive: () => void; // back to the live session
+  clearHistory: () => void; // drop every past session (the live one stays)
+  setSessionCurve: (id: number, curve: [number, number][]) => void;
 }
 
 export type ScenarioStore = ScenarioData & ScenarioActions;
@@ -116,6 +149,9 @@ export const initialScenario: ScenarioData = {
   ignitions: 0,
   ignitedAt: null,
   alarmId: null,
+  sessions: [],
+  liveSession: null,
+  viewing: null,
   loading: IDLE_LOADING,
   error: null,
 };
@@ -147,7 +183,38 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     const res = await run(step, call, () => epoch === sent);
     return epoch === sent ? res : null;
   }
-  const scenarioId = () => get().simulate?.scenario_id ?? null;
+  // Scenario calls act on the live session only; a past session on screen is read-only.
+  const scenarioId = () => (get().viewing === null ? get().simulate?.scenario_id ?? null : null);
+  const viewingLive = () => get().viewing === null;
+  const updateSession = (id: number | null, patch: (session: Session) => Partial<Session>) => {
+    if (id === null) return;
+    set(s => ({ sessions: s.sessions.map(x => (x.id === id ? { ...x, ...patch(x) } : x)) }));
+  };
+  // What the screen shows for a session at one of its steps (0 = ignition).
+  const shown = (session: Session, step: number) => ({
+    simulate: session.history[step],
+    history: session.history.slice(0, step + 1),
+    detect: session.detect,
+    suppress: session.suppress,
+    results: session.results,
+    phase: step === session.history.length - 1 ? session.phase : replayPhase(session, step),
+  });
+  // Replay: after the ignition (and the alarm, if it tripped), each applied action follows.
+  let replayTimers: ReturnType<typeof setTimeout>[] = [];
+  const clearReplay = () => {
+    replayTimers.forEach(clearTimeout);
+    replayTimers = [];
+  };
+  const scheduleReplay = (session: Session) => {
+    clearReplay();
+    let at = (alarmAfterS(session.detect) ?? 0) * 1000 + REPLAY_STEP_MS;
+    for (let step = 1; step < session.history.length; step++, at += REPLAY_STEP_MS) {
+      const k = step;
+      replayTimers.push(setTimeout(() => {
+        if (get().viewing === session.id) set(shown(session, k));
+      }, at));
+    }
+  };
 
   // FE-06 alarm: one timer per /detect result, owned by the store (not a component), so it survives
   // views mounting and unmounting. It fires at time_to_detect_s on the 10x demo clock, counted from
@@ -220,17 +287,27 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
         ],
         ignitedAt: Date.now(), alarmId: null,
         phase: nextPhase(s.phase, { type: "simulated", state: res.state }),
+        viewing: null, liveSession: s.ignitions + 1,
+        sessions: [...s.sessions, {
+          id: s.ignitions + 1, startedAt: Date.now(), inputs, history: [res], detect: null, suppress: null,
+          results: null, phase: nextPhase("idle", { type: "simulated", state: res.state }), curve: null,
+        }],
       }));
+      clearReplay();
       return res;
     },
 
     runDetect: async () => {
       const id = scenarioId();
       if (!id) return needScenario();
+      const sid = get().liveSession;
       const res = await runCurrent("detect", () => api.detect(id));
       if (res) {
-        set(s => ({ detect: res, alarmId: null, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
-        scheduleAlarm(res);
+        updateSession(sid, x => ({ detect: res, phase: nextPhase(x.phase, { type: "detected", detected: res.detected }) }));
+        if (viewingLive()) {
+          set(s => ({ detect: res, alarmId: null, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
+          scheduleAlarm(res);
+        }
       }
       return res;
     },
@@ -239,12 +316,16 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const id = scenarioId();
       if (!id) return needScenario();
       const sent = epoch;
+      const sid = get().liveSession;
       // Save the ranking inside the call, before run() clears loading.suppress. Saving it after
       // left a moment of "alarm, no ranking, not loading", and SuppressionPanel's auto-rank effect
       // then sent a second /suppress for the same alarm.
       return runCurrent("suppress", async () => {
         const res = await api.suppress(id);
-        if (epoch === sent) set(s => ({ suppress: res, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
+        if (epoch === sent) {
+          updateSession(sid, x => ({ suppress: res, phase: nextPhase(x.phase, { type: "suppress_ranked" }) }));
+          if (viewingLive()) set(s => ({ suppress: res, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
+        }
         return res;
       });
     },
@@ -253,8 +334,14 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       const id = scenarioId();
       if (!id) return needScenario();
       const previousInputs = get().simulate?.inputs ?? null;
+      const sid = get().liveSession;
       const res = await runCurrent("apply", () => api.apply(id, action));
       if (res) {
+        updateSession(sid, x => ({
+          history: [...x.history, res], phase: nextPhase(x.phase, { type: "applied", state: res.state }),
+        }));
+      }
+      if (res && viewingLive()) {
         set(s => ({
           simulate: res, history: [...s.history, res],
           timeline: [
@@ -274,8 +361,12 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     loadResults: async () => {
       const id = scenarioId();
       if (!id) return needScenario();
+      const sid = get().liveSession;
       const res = await runCurrent("results", () => api.results(id));
-      if (res) set({ results: res });
+      if (res) {
+        updateSession(sid, () => ({ results: res }));
+        if (viewingLive()) set({ results: res });
+      }
       return res;
     },
 
@@ -297,10 +388,53 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
       epoch++; // in-flight scenario replies are now stale
       resets++;
       clearAlarm();
+      clearReplay();
       set(s => ({
         ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions,
+        sessions: s.sessions, liveSession: null, viewing: null,
         timeline: [...s.timeline, ...(activeInputs ? recordInputs(activeInputs, "removed", "Scenario reset; removed from active run", Date.now()) : [])],
       }));
     },
+
+    viewSession: id => {
+      const session = get().sessions.find(x => x.id === id);
+      if (!session) return;
+      if (id === get().liveSession) return get().viewLive();
+      clearReplay();
+      clearAlarm();
+      // A fresh visual ignition replays it from the start; the controls take its values.
+      set(s => ({
+        viewing: id, inputs: session.inputs, ...shown(session, 0),
+        ignitions: s.ignitions + 1, ignitedAt: Date.now(), alarmId: null,
+      }));
+      if (session.detect) scheduleAlarm(session.detect);
+      scheduleReplay(session);
+    },
+
+    viewLive: () => {
+      if (get().viewing === null) return;
+      clearReplay();
+      clearAlarm();
+      const live = get().sessions.find(x => x.id === get().liveSession);
+      if (!live) {
+        set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, timeline: s.timeline,
+          ignitions: s.ignitions, sessions: s.sessions, liveSession: null, viewing: null }));
+        return;
+      }
+      const last = live.history.length - 1;
+      // Back to the live fire as it is now: its own ignition time, so the alarm and smoke catch up.
+      set(s => ({
+        viewing: null, inputs: live.history[last].inputs, ...shown(live, last),
+        ignitions: s.ignitions + 1, ignitedAt: live.startedAt, alarmId: null,
+      }));
+      if (live.detect) scheduleAlarm(live.detect);
+    },
+
+    clearHistory: () => {
+      if (get().viewing !== null) get().viewLive();
+      set(s => ({ sessions: s.sessions.filter(x => x.id === s.liveSession) }));
+    },
+
+    setSessionCurve: (id, curve) => updateSession(id, () => ({ curve })),
   };
 });

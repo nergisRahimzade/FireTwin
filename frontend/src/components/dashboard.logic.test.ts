@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ResultsRow } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
-import { changeText, o2Sweep, resultText, sourceId, stampRows } from "./dashboard.logic";
+import { changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stampRows } from "./dashboard.logic";
 
 const row = (patch: Partial<ResultsRow>): ResultsRow => ({
   step: "simulate", inputs: { ...DEFAULT_SCENARIO, material: "PMMA", o2_pct: 21, flow_speed_cm_s: 10 },
@@ -29,5 +29,26 @@ describe("dashboard rows", () => {
   it("keeps old time stamps and stamps new rows", () => {
     expect(stampRows(["a"], 3, "b")).toEqual(["a", "b", "b"]);
     expect(stampRows(["a", "b"], 0, "c")).toEqual([]);
+  });
+});
+
+describe("session rows", () => {
+  const base = {
+    id: 1, startedAt: 0, detect: null, suppress: null, results: null, phase: "out" as const, curve: null,
+    inputs: { ...DEFAULT_SCENARIO, material: "Methanol", o2_pct: 30, flow_speed_cm_s: 26 },
+  };
+  const pred = (state: "burning" | "extinguished", p: number) => ({
+    scenario_id: "s1", state, burn_probability: p, spread_rate_mm_s: null, trust: "weak" as const,
+    extrapolated: false, nearest_tests: [], explanation: "", inputs: base.inputs,
+  });
+
+  it("shows the values a session was ignited with", () => {
+    expect(sessionInputs({ ...base, history: [pred("burning", 0.9)] })).toBe("Methanol, 30% O₂, 26 cm/s");
+  });
+
+  it("shows where it ended and how many actions it took", () => {
+    expect(sessionOutcome({ ...base, history: [pred("extinguished", 0.35)] })).toBe("extinguished · 35% burn");
+    expect(sessionOutcome({ ...base, history: [pred("burning", 0.9), pred("extinguished", 0.1)] }))
+      .toBe("extinguished · 10% burn · after 1 action");
   });
 });

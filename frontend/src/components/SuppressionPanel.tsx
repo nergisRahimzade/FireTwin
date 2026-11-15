@@ -25,7 +25,9 @@ export function SuppressionPanel() {
     if (shouldAutoRank(alarmId, suppress != null, loading.suppress)) void runSuppress();
   }, [alarmId, suppress, loading.suppress, runSuppress]);
 
-  const actable = canAct(phase);
+  const viewingPast = useScenario(s => s.viewing !== null);
+  // A saved session is read-only: its ranking is shown, but Rank and Apply act on the live fire only.
+  const actable = canAct(phase) && !viewingPast;
   return (
     <section className="area-recs glass panel" aria-label="Suppression recommendations">
       <div className="flex flex-wrap items-center justify-between gap-3">
