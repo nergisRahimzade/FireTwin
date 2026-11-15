@@ -116,7 +116,7 @@ export function IssScene({ detect, simulate, alarmId = null, ignition = 0, ignit
       </ModelBoundary>
       <DetectorMarkers detect={detect} alarmId={alarmId} />
       {clockEl && <ClockReadout el={clockEl} ignitedAt={ignitedAt} />}
-      <Smoke simulate={simulate} ignition={ignition} ignitedAt={ignitedAt} />
+      <Smoke simulate={simulate} ignition={ignition} />
       <Flame simulate={simulate} />
       <OrbitControls makeDefault enableDamping enablePan={false} minDistance={0.6} maxDistance={4.2} />
       <KeepCameraInside />

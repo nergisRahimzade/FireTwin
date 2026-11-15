@@ -97,17 +97,31 @@ export const initialScenario: ScenarioData = {
 };
 
 export const useScenario = create<ScenarioStore>()((set, get) => {
+  // Late replies (review fix): every scenario call notes the epoch before it is sent and drops the
+  // reply if the epoch has moved. Reset and each new ignition move it, so a /detect, /suppress,
+  // /apply or /results reply that arrives after Reset (or after the next Ignite) never lands. resets
+  // moves only on Reset: a /simulate reply is dropped if Reset came while it was in flight.
+  let epoch = 0;
+  let resets = 0;
+
   // Shared wrapper: sets the step's loading flag, records the error message, never throws.
-  async function run<T>(step: Step, call: () => Promise<T>): Promise<T | null> {
+  // A request that is no longer current (isCurrent() false) doesn't report its error either.
+  async function run<T>(step: Step, call: () => Promise<T>, isCurrent: () => boolean = () => true): Promise<T | null> {
     set(s => ({ loading: { ...s.loading, [step]: true }, error: null }));
     try {
       return await call();
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : String(err) });
+      if (isCurrent()) set({ error: err instanceof Error ? err.message : String(err) });
       return null;
     } finally {
       set(s => ({ loading: { ...s.loading, [step]: false } }));
     }
+  }
+  // Runs a call for the current ignition; returns null (ignored) if the epoch moved meanwhile.
+  async function runCurrent<T>(step: Step, call: () => Promise<T>): Promise<T | null> {
+    const sent = epoch;
+    const res = await run(step, call, () => epoch === sent);
+    return epoch === sent ? res : null;
   }
   const scenarioId = () => get().simulate?.scenario_id ?? null;
 
@@ -124,11 +138,12 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     const at = alarmAfterS(detect);
     const id = detect.detector_id;
     if (at == null || !id) return;
-    const { ignitions, ignitedAt } = get();
+    const { ignitedAt } = get();
+    const scheduledIn = epoch;
     const elapsed = ignitedAt == null ? 0 : (Date.now() - ignitedAt) / 1000;
     alarmTimer = setTimeout(() => {
       alarmTimer = null;
-      if (get().ignitions === ignitions) set({ alarmId: id });
+      if (epoch === scheduledIn) set({ alarmId: id });
     }, Math.max(0, at - elapsed) * 1000);
   };
   const needScenario = () => {
@@ -153,9 +168,11 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     },
 
     runSimulate: async () => {
-      const res = await run("simulate", () => api.simulate(get().inputs));
-      if (!res) return null;
+      const resetsAtSend = resets;
+      const res = await run("simulate", () => api.simulate(get().inputs), () => resets === resetsAtSend);
+      if (!res || resets !== resetsAtSend) return null; // Reset while in flight: drop the late reply
       // A new scenario: earlier detection, actions and results no longer apply.
+      epoch++;
       clearAlarm();
       set(s => ({
         simulate: res, detect: null, suppress: null, results: null, history: [res], ignitions: s.ignitions + 1,
@@ -168,7 +185,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     runDetect: async () => {
       const id = scenarioId();
       if (!id) return needScenario();
-      const res = await run("detect", () => api.detect(id));
+      const res = await runCurrent("detect", () => api.detect(id));
       if (res) {
         set(s => ({ detect: res, alarmId: null, phase: nextPhase(s.phase, { type: "detected", detected: res.detected }) }));
         scheduleAlarm(res);
@@ -179,7 +196,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     runSuppress: async () => {
       const id = scenarioId();
       if (!id) return needScenario();
-      const res = await run("suppress", () => api.suppress(id));
+      const res = await runCurrent("suppress", () => api.suppress(id));
       if (res) set(s => ({ suppress: res, phase: nextPhase(s.phase, { type: "suppress_ranked" }) }));
       return res;
     },
@@ -187,7 +204,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     runApply: async action => {
       const id = scenarioId();
       if (!id) return needScenario();
-      const res = await run("apply", () => api.apply(id, action));
+      const res = await runCurrent("apply", () => api.apply(id, action));
       if (res) {
         set(s => ({
           simulate: res, history: [...s.history, res],
@@ -200,7 +217,7 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     loadResults: async () => {
       const id = scenarioId();
       if (!id) return needScenario();
-      const res = await run("results", () => api.results(id));
+      const res = await runCurrent("results", () => api.results(id));
       if (res) set({ results: res });
       return res;
     },
@@ -219,6 +236,8 @@ export const useScenario = create<ScenarioStore>()((set, get) => {
     // Keeps the chosen inputs and the loaded /meta, so the user can rerun the loop at once.
     // ignitions keeps counting, so the next Ignite after a Reset is always a new ignition.
     reset: () => {
+      epoch++; // in-flight scenario replies are now stale
+      resets++;
       clearAlarm();
       set(s => ({ ...initialScenario, inputs: s.inputs, meta: s.meta, chat: s.chat, ignitions: s.ignitions }));
     },

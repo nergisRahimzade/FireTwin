@@ -44,8 +44,6 @@ export const MAX_SUBSTEP_SIM_S = 0.5;
 // A frame gap longer than this (a hidden tab, a debugger pause) is capped, so returning to the page
 // doesn't run hundreds of catch-up steps at once. Below it, every real second is simulated in full.
 export const MAX_FRAME_GAP_S = 1;
-// Catching up a view that mounts mid-ignition replays at most one particle lifetime (+20 %).
-export const CATCH_UP_MAX_S = (SMOKE_LIFE_S * 1.2) / SCENE_TIME_SCALE;
 
 /* Owns the particle system for Smoke.tsx (and runs headless in tests):
    - sync(ignition): a new ignition (the store's counter changed) clears the old cloud, even when the
@@ -55,6 +53,7 @@ export const CATCH_UP_MAX_S = (SMOKE_LIFE_S * 1.2) / SCENE_TIME_SCALE;
 export class SmokeDriver {
   readonly smoke: CoreSmoke;
   simElapsed = 0; // simulated seconds since this ignition
+  private lastAdvanceAt: number | null = null; // Date.now() at the last advance()
   private ignition: number | null = null;
   private readonly params = {
     rate: 0, g: 0, flow: { dir: [1, 0, 0] as Vec3, fans: false }, speed: 0,
@@ -78,23 +77,23 @@ export class SmokeDriver {
   clear(): void {
     this.smoke.reset();
     this.simElapsed = 0;
+    this.lastAdvanceAt = null;
   }
 
-  /** Fast-forwards a fresh cloud to `realSeconds` after ignition, e.g. when a 3D view mounts while a
-      fire is already burning (back from Compare, or the Compare pane). Only the last particle
-      lifetime matters, so at most that much is replayed. */
-  catchUp(realSeconds: number, s: SmokeSettings): void {
-    const total = Math.max(0, realSeconds);
-    let replay = Math.min(total, CATCH_UP_MAX_S);
-    while (replay > 1e-9) {
-      const chunk = Math.min(replay, MAX_FRAME_GAP_S);
-      this.advance(chunk, s);
-      replay -= chunk;
-    }
-    this.simElapsed = total * SCENE_TIME_SCALE;
+  /** Advances the time since this driver last moved (e.g. the instant between closing one view and
+      opening the other). Gaps over MAX_FRAME_GAP_S are capped, as in advance(). */
+  resume(s: SmokeSettings, now = Date.now()): void {
+    if (this.lastAdvanceAt !== null) this.advance((now - this.lastAdvanceAt) / 1000, s, now);
   }
 
-  advance(realSeconds: number, s: SmokeSettings): void {
+  /** Frees the GPU buffers; called when a new ignition replaces this driver. */
+  dispose(): void {
+    this.smoke.geometry.dispose();
+    this.smoke.material.dispose();
+  }
+
+  advance(realSeconds: number, s: SmokeSettings, now = Date.now()): void {
+    this.lastAdvanceAt = now;
     const p = this.params;
     p.rate = s.rate; // 0 once extinguished: the last smoke drifts on and fades
     p.flow.dir = s.dir;
@@ -117,23 +116,23 @@ export class SmokeDriver {
   }
 }
 
-/* What Smoke.tsx does whenever the scenario or the ignition counter changes:
-   - no scenario (before ignition, or after Reset): clear the cloud, so nothing is left frozen;
-   - a new ignition, or this view mounting mid-ignition: start the cloud at the current point of the
-     ignition (catch up from ignitedAt), so it never restarts after Compare and back;
-   - /apply (same ignition, new prediction): keep the cloud. */
-export function syncSmoke(
-  driver: SmokeDriver,
-  sim: SimulateOut | null,
-  ignition: number,
-  ignitedAt: number | null,
-  now = Date.now(),
-): void {
-  if (!sim) {
-    driver.clear();
-    return;
+/* One SmokeDriver per ignition, shared by every 3D view (main page and Compare), so switching views
+   keeps the cloud exactly as it is: still fading after an extinguish, still bent by a fans-off
+   /apply. A new ignition replaces (and disposes) the previous driver. */
+let shared: { ignition: number; driver: SmokeDriver } | null = null;
+
+export function smokeDriverFor(ignition: number): SmokeDriver {
+  if (shared?.ignition !== ignition) {
+    shared?.driver.dispose();
+    const driver = new SmokeDriver(1600);
+    driver.sync(ignition);
+    shared = { ignition, driver };
   }
-  if (driver.sync(ignition) && ignitedAt != null) {
-    driver.catchUp(Math.max(0, now - ignitedAt) / 1000, smokeSettings(sim));
-  }
+  return shared.driver;
+}
+
+/* What Smoke.tsx does when the scenario changes: with no scenario (before ignition, or after Reset)
+   the cloud is cleared, so nothing is left frozen; /apply (a new prediction) keeps it. */
+export function syncSmoke(driver: SmokeDriver, sim: SimulateOut | null): void {
+  if (!sim) driver.clear();
 }

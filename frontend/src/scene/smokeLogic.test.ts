@@ -1,12 +1,12 @@
 // FE-06: SimulateOut -> smoke, a headless run of the real particle model, and the
 // "no React state per frame" guard for Smoke.tsx.
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SimulateOut } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
 import { Smoke as CoreSmoke } from "../lab/core.js";
 import {
-  MAX_FRAME_GAP_S, NO_SMOKE, SCENE_TIME_SCALE, SMOKE_LIFE_S, SmokeDriver, smokeSettings, syncSmoke,
+  MAX_FRAME_GAP_S, NO_SMOKE, SCENE_TIME_SCALE, SMOKE_LIFE_S, SmokeDriver, smokeDriverFor, smokeSettings, syncSmoke,
 } from "./smokeLogic";
 
 const sim = (over: Partial<SimulateOut> = {}, inputs: Partial<SimulateOut["inputs"]> = {}): SimulateOut => ({
@@ -135,37 +135,58 @@ describe("SmokeDriver: the 10x clock holds at any frame rate (review fix)", () =
   });
 });
 
-describe("syncSmoke: Reset, remounts and /apply (second review)", () => {
+describe("Reset and the shared driver per ignition (review fixes)", () => {
   const burningSim = sim({ scenario_id: "synthetic-scenario-001" });
-  const burnFor = (d: SmokeDriver, seconds: number) => {
-    for (let t = 0; t < seconds; t += 1 / 60) d.advance(1 / 60, smokeSettings(burningSim));
+  const outSim = sim({ scenario_id: "synthetic-scenario-001", state: "extinguished" });
+  const burnFor = (d: SmokeDriver, seconds: number, s = burningSim) => {
+    for (let t = 0; t < seconds; t += 1 / 60) d.advance(1 / 60, smokeSettings(s));
   };
 
   it("Reset (simulate becomes null) clears the cloud instead of leaving it frozen", () => {
-    const d = new SmokeDriver(), ignitedAt = 1_000;
-    syncSmoke(d, burningSim, 1, ignitedAt, ignitedAt);
+    const d = smokeDriverFor(101);
     burnFor(d, 2);
     expect(d.liveCount()).toBeGreaterThan(100);
-    syncSmoke(d, null, 1, null); // reset(): no scenario, same ignition counter
+    syncSmoke(d, null); // reset(): no scenario
     expect(d.liveCount()).toBe(0);
     expect(Array.from(d.smoke.alpha).every(a => a === 0)).toBe(true); // nothing left drawn
   });
 
-  it("a view mounting mid-ignition (Compare and back) starts at the current moment, not from zero", () => {
-    const d = new SmokeDriver(), ignitedAt = 1_000, now = ignitedAt + 3_000; // 3 s = 30 s simulated
-    syncSmoke(d, burningSim, 1, ignitedAt, now);
-    expect(d.simElapsed).toBeCloseTo(30, 6);
-    expect(d.liveCount()).toBeGreaterThan(100);
+  it("Compare draws the same driver, so smoke still fading after an extinguish carries over", () => {
+    const main = smokeDriverFor(102);
+    burnFor(main, 2);
+    burnFor(main, 0.5, outSim); // put out: no new smoke, the cloud fades
+    const fading = main.liveCount();
+    expect(fading).toBeGreaterThan(50);
+    const compare = smokeDriverFor(102); // Compare opens for the same ignition
+    expect(compare).toBe(main);
+    expect(compare.liveCount()).toBe(fading);
+    expect(Array.from(compare.smoke.alpha).some(a => a > 0)).toBe(true);
   });
 
-  it("a brand-new ignition starts empty, and /apply keeps the cloud", () => {
-    const d = new SmokeDriver(), ignitedAt = 5_000;
-    syncSmoke(d, burningSim, 2, ignitedAt, ignitedAt);
-    expect(d.liveCount()).toBe(0);
+  it("a new ignition gets a fresh, empty driver and frees the old one", () => {
+    const old = smokeDriverFor(103);
+    burnFor(old, 1);
+    const disposed = vi.spyOn(old, "dispose");
+    const next = smokeDriverFor(104);
+    expect(next).not.toBe(old);
+    expect(next.liveCount()).toBe(0);
+    expect(disposed).toHaveBeenCalledOnce();
+  });
+
+  it("/apply (a new prediction, same ignition) keeps the cloud", () => {
+    const d = smokeDriverFor(105);
     burnFor(d, 2);
     const before = d.liveCount();
-    syncSmoke(d, sim({ scenario_id: "synthetic-scenario-001", state: "extinguished" }), 2, ignitedAt);
+    syncSmoke(d, outSim);
     expect(d.liveCount()).toBe(before);
+  });
+
+  it("resume() simulates the moment between closing one view and opening the other", () => {
+    const d = smokeDriverFor(106);
+    d.advance(1 / 60, smokeSettings(burningSim), 10_000);
+    const before = d.simElapsed;
+    d.resume(smokeSettings(burningSim), 10_400); // 0.4 s later
+    expect(d.simElapsed - before).toBeCloseTo(0.4 * SCENE_TIME_SCALE, 6);
   });
 });
 
