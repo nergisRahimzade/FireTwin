@@ -19,6 +19,7 @@ SETTINGS = (
     "FRONTEND_PORT",
     "VITE_API_URL",
     "CORS_ORIGINS",
+    "RAG_BUNDLE_DIR",
 )
 
 
@@ -31,20 +32,22 @@ def render_compose(tmp_path: Path):
     if version.returncode:
         pytest.skip("Docker Compose CLI is unavailable; engine is not required")
 
-    def render(settings=None, env_text=""):
+    def render(settings=None, env_text="", rag=False):
         # Explicit env file prevents loading the real checkout's .env. Never forward real keys.
         env_file = tmp_path / "compose.env"
         env_file.write_text(env_text)
         env = {k: v for k, v in os.environ.items() if k not in SETTINGS}
         env.update(settings or {})
+        files = ["-f", str(ROOT / "docker-compose.yml")]
+        if rag:
+            files += ["-f", str(ROOT / "docker-compose.rag.yml")]
         result = subprocess.run(
             [
                 docker,
                 "compose",
                 "--env-file",
                 str(env_file),
-                "-f",
-                str(ROOT / "docker-compose.yml"),
+                *files,
                 "--project-name",
                 "firetwin-config-check",
                 "config",
@@ -104,3 +107,21 @@ def test_port_overrides_keep_browser_url_cors_and_keys_separate(render_compose) 
     )
     assert backend["environment"]["OPENAI_API_KEY"] == "synthetic-openai-fixture"
     assert backend["environment"]["GEMINI_API_KEY"] == "synthetic-gemini-fixture"
+
+
+def test_optional_rag_bundle_keeps_runtime_mounts_and_keys_isolated(render_compose, tmp_path):
+    services = render_compose({"RAG_BUNDLE_DIR": str(tmp_path / "bundle")}, rag=True)
+    backend = services["backend"]
+    mounts = {m["target"]: m for m in backend["volumes"]}
+    assert set(mounts) == {
+        "/app/data/docs",
+        "/app/data/processed",
+        "/app/ml/artifacts",
+        "/app/rag_bundle",
+    }
+    assert mounts["/app/rag_bundle"]["source"] == str(tmp_path / "bundle")
+    assert all(m["read_only"] for m in mounts.values())
+    assert backend["entrypoint"] == ["python", "/app/docker/rag_entrypoint.py"]
+    assert backend["command"][0] == "uvicorn"
+    assert backend["environment"]["FIRETWIN_RAG_BUNDLE"] == "/app/rag_bundle"
+    assert "FIRETWIN_RAG_BUNDLE" not in services["frontend"]["environment"]

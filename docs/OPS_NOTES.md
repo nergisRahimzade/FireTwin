@@ -645,3 +645,84 @@ mock selection, explicit real startup and explicit real failure on missing files
   the original three-tab architecture from the implemented one-page UI.
 - This is documentation reconciliation only: no schema/type regeneration, service changes,
   new approval records or claims that pending Windows/retrieval/export work has shipped.
+
+
+## ML-08: offline query safeguards, package 6 first increment (2026-11-15, Ryan)
+
+- New Chroma collections record an internal format version, exact embedding model/provider
+  and SHA-256 of canonical corpus text/source metadata. Query rejects stale, legacy or
+  incompatible metadata instead of silently using another embedding model. Rebuild legacy
+  stores with `python ml/ingest_rag.py`; the existing RAG service catches errors and falls
+  back to cited keyword search. This changes no public API field or RAG service file.
+- Local query embeddings override Chroma's model-download hook: every inference requires
+  the six nonempty extracted cache files, and never downloads/extracts missing model data.
+  Explicit ingest remains a provisioning step that may download. OpenAI index queries still
+  require network/key; adding a key does not change the provider recorded in a local index.
+- `tests/test_rag_store.py` exercises real Chroma with synthetic embeddings, corpus changes,
+  unknown/legacy/model-mismatch metadata, cache-miss no-download behavior and cited keyword
+  fallback. No model weights or real API keys are needed by those tests.
+- Package 6 is still in progress: reproducible index/cache provisioning, writable runtime
+  store/cached-model Compose integration and a real prepared-model no-network rehearsal
+  remain. These safeguards alone do not establish that an offline vector bundle is shipped.
+
+
+## ML-08: reviewed generation store and cache-only queries (2026-11-15, Ryan)
+
+This supersedes the unpublished first-increment behavior above; no public API changes.
+
+- Rebuilds populate a unique generation and verify row count/completion before atomically
+  replacing `CURRENT.json`. They never delete the prior working collection. Existing readers
+  retain their generation; simultaneous successful publishers are last-publish-wins. Failed
+  candidates and old generations remain for offline cleanup with readers/writers stopped.
+  The pointer operation is atomic; this is not a power-loss/distributed durability guarantee.
+- Search checks metadata, completion and count. Default corpora are compared to current text
+  and metadata; explicit corpora are verified against saved content, or caller-supplied
+  expected `chunks=`. Stale/incomplete/legacy resources return None with a once-per-path/reason
+  warning, allowing the existing cited keyword fallback without per-query tracebacks.
+- Local ingest/query use the same ONNX embedding-function identity; query overrides the
+  download hook. This fixes the Default-vs-ONNX name conflict hidden by synthetic EF tests.
+  A production-EF regression uses precomputed vectors, with no weights download required.
+- `--embedding minilm|openai` is explicit and defaults to local MiniLM. This changes the
+  plan's OpenAI-first ingest choice to make demo provisioning independent of ambient keys.
+  OpenAI remains available explicitly and requires key/network for query embeddings.
+  `--cache-dir` / `FIRETWIN_EMBEDDING_CACHE` select the matching extracted local model cache.
+- Reviewed fixes cover destructive/partial ingest, custom-corpus mismatch, embedding identity,
+  provider selection and expected-error logs. Fingerprint performance caching is deferred:
+  the corpus is small and correct invalidation matters more than speculative optimization.
+
+
+## OPS-01: generated RAG bundles stay local (2026-11-15, Ryan)
+
+- `.local/rag-bundle*/` and temporary `.local/.rag-bundle-*/` outputs are ignored so model
+  weights, generated databases and source copies are not added to the public repository.
+  This does not ignore the planned `ml/artifacts` or processed data. The ignore regression
+  checks generated bundle paths alongside required public artifact exceptions.
+
+
+## OPS-02: optional prepared offline vector bundle (2026-11-15, Ryan)
+
+- `docker/rag_bundle.py prepare` runs explicit local ingest in a child process, closes
+  database handles, removes the duplicate download archive and seals an index/model
+  inventory with SHA-256 hashes. It refuses existing outputs; new corpus versions use
+  new bundle directories. `--cache-source` reuses an extracted MiniLM cache and rejects
+  an incomplete supplied cache before ingest. Preparation may download public weights;
+  runtime queries do not. Generated bundles are ignored, not committed demo artifacts.
+- `docker-compose.rag.yml` is optional: it adds only a read-only bundle mount. Default
+  Compose still uses keyword fallback. The optional entrypoint verifies inventory/hashes,
+  copies the store into `/app/chroma_db` owned by the non-root API user, selects the
+  matching read-only model cache, then delegates to the existing Linux exec entrypoint.
+- Chroma queries can write bookkeeping files. Never query the sealed source directly;
+  use a writable copy. A matching copy can survive restart; switching bundle identity
+  with an existing copy requires container recreation. Corrupt bundles fail startup;
+  an empty mounted bundle uses keywords. Missing host mount directories remain errors.
+- Existing schemas, RAG service, shared config and frontend are unchanged. A successful
+  vector search with no qualifying evidence remains an empty result, not keyword fallback.
+  Missing/stale/incomplete resources use the existing cited fallback; their warnings do
+  not include full queries/keys. Model/provider metadata and file hashes are integrity
+  checks for a trusted prepared bundle, not a signed source-authenticity guarantee.
+- Verification used a real prepared MiniLM bundle and Docker `--network none`, with direct
+  vector queries and keyword fallback disabled: 10/10 expected investigations and cited
+  chat passed. The non-root container read its model/bundle read-only and queried its
+  writable copy; source hashes remained valid. Missing bundle/cache fallback passed with
+  networking disabled. A separate Compose project passed health checks and the real API
+  loop through PDF export on the updated model, with no LLM keys.

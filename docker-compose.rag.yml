@@ -1,0 +1,14 @@
+# Optional local vector bundle: prepare it before selecting this override.
+services:
+  backend:
+    entrypoint: ["python", "/app/docker/rag_entrypoint.py"]
+    command: ["uvicorn", "app.main:app", "--app-dir", "backend", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      FIRETWIN_RAG_BUNDLE: /app/rag_bundle
+    volumes:
+      - type: bind
+        source: ${RAG_BUNDLE_DIR:-./.local/rag-bundle}
+        target: /app/rag_bundle
+        read_only: true
+        bind:
+          create_host_path: false
