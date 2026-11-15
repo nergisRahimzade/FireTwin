@@ -12,7 +12,8 @@ import type { TestRef } from "../api/types";
 import { type Session, useScenario } from "../store/useScenario";
 import { downloadDashboardPdf } from "./dashboardPdf";
 import {
-  changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stampRows,
+  BURN_THRESHOLD, changeText, curveAt, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, spreadDots,
+  stampRows, testDotLabel, thresholdCrossing,
 } from "./dashboard.logic";
 
 function O2Chart({ session }: { session: Session }) {
@@ -31,25 +32,66 @@ function O2Chart({ session }: { session: Session }) {
 
   const curve = session.curve ?? [];
   if (!curve.length) return null;
-  const W = 360, H = 140, x = (o2: number) => 30 + ((o2 - 10) / 30) * (W - 40), y = (p: number) => H - 20 - p * (H - 30);
-  const tested: TestRef[] = session.history[0].nearest_tests.filter(t => t.o2_pct != null);
   const { inputs } = session;
+  // Plot area: 10-40 % O2 across, probability 0-1 up. Room on the right for the zone labels.
+  const W = 420, H = 190, L = 34, R = W - 96, T = 14, B = H - 34;
+  const x = (o2: number) => L + ((o2 - 10) / 30) * (R - L);
+  const y = (p: number) => B - p * (B - T);
+  const boundary = thresholdCrossing(curve);
+  const here = curveAt(curve, inputs.o2_pct);
+  // NASA tests nearest to this session's settings, drawn at their own O2 in two labelled rows.
+  const tested: TestRef[] = session.history[0].nearest_tests.filter(t => t.o2_pct != null && t.outcome !== "unknown");
+  const rows = { burned: y(0.93), extinguished: y(0.07) };
+  // Spread dots apart only within a row: a burned and an extinguished test at the same O2 don't overlap.
+  const dotX = new Map<string, number>();
+  for (const outcome of ["burned", "extinguished"] as const) {
+    const row = tested.filter(t => t.outcome === outcome);
+    spreadDots(row.map(t => t.o2_pct!)).forEach((o2, i) => dotX.set(row[i].test_id, o2));
+  }
   return (
     <figure className="m-0">
       <svg viewBox={`0 0 ${W} ${H}`} className="o2-chart" role="img" aria-label={`Burn probability across oxygen, session ${session.id}`}>
-        <line x1={30} y1={H - 20} x2={W - 10} y2={H - 20} className="axis" />
-        <line x1={30} y1={10} x2={30} y2={H - 20} className="axis" />
+        {/* Zones split by the model's threshold: above keeps burning, below goes out. */}
+        <rect x={L} y={T} width={R - L} height={y(BURN_THRESHOLD) - T} className="zone-burn" />
+        <rect x={L} y={y(BURN_THRESHOLD)} width={R - L} height={B - y(BURN_THRESHOLD)} className="zone-out" />
+        <line x1={L} y1={y(BURN_THRESHOLD)} x2={R} y2={y(BURN_THRESHOLD)} className="threshold" />
+        <text x={R + 6} y={y(0.75)} className="tick">keeps burning</text>
+        <text x={R + 6} y={y(0.25)} className="tick">goes out</text>
+        <text x={R + 6} y={y(BURN_THRESHOLD) + 4} className="tick">50%</text>
+        <line x1={L} y1={B} x2={R} y2={B} className="axis" />
+        <line x1={L} y1={T} x2={L} y2={B} className="axis" />
         <polyline points={curve.map(([o, p]) => `${x(o)},${y(p)}`).join(" ")} className="curve" />
-        {tested.map((t, i) => (
-          <circle key={i} cx={x(t.o2_pct!)} cy={y(t.outcome === "burned" ? 1 : 0)} r={4}
-            className={t.outcome === "burned" ? "pt-burned" : "pt-out"}><title>{`${t.test_id}: ${t.outcome}`}</title></circle>
+        {boundary != null && (
+          <g>
+            <line x1={x(boundary)} y1={T} x2={x(boundary)} y2={B} className="boundary" />
+            <title>{`About ${boundary.toFixed(1)}% O₂: below this the model says the fire goes out at ${inputs.flow_speed_cm_s} cm/s`}</title>
+          </g>
+        )}
+        {tested.map(t => (
+          <circle key={t.test_id} cx={x(dotX.get(t.test_id)!)} cy={t.outcome === "burned" ? rows.burned : rows.extinguished} r={4}
+            className={t.outcome === "burned" ? "pt-burned" : "pt-out"}>
+            <title>{testDotLabel(t, inputs.flow_speed_cm_s)}</title>
+          </circle>
         ))}
-        <text x={30} y={H - 4} className="tick">10% O₂</text>
-        <text x={W - 50} y={H - 4} className="tick">40% O₂</text>
-        <text x={34} y={16} className="tick">p = 1</text>
+        {here != null && (
+          <circle cx={x(inputs.o2_pct)} cy={y(here)} r={5} className="pt-session">
+            <title>{`This session: ${inputs.o2_pct}% O₂ → ${Math.round(here * 100)}% burn probability`}</title>
+          </circle>
+        )}
+        <text x={L} y={H - 18} className="tick">10% O₂</text>
+        <text x={R - 34} y={H - 18} className="tick">40% O₂</text>
+        <text x={2} y={T + 4} className="tick">100%</text>
+        <text x={8} y={B} className="tick">0%</text>
       </svg>
       <figcaption className="note">
-        Session {session.id}: burn probability across O₂ at {inputs.flow_speed_cm_s} cm/s ({inputs.material}). Dots: nearest tested points (top = burned, bottom = extinguished).
+        Session {session.id}: the model's burn probability across O₂ at {inputs.flow_speed_cm_s} cm/s ({inputs.material}).
+        Above the dashed 50% line the model says the fire keeps burning; below it, the fire goes out.
+        {boundary != null
+          ? ` At this airflow the line is crossed near ${boundary.toFixed(1)}% O₂ (dotted marker).`
+          : ` At this airflow the curve stays on one side of the line between 10% and 40% O₂.`}
+        {" "}The white dot is this session ({inputs.o2_pct}% O₂). Coloured dots are the NASA tests closest to these settings,
+        drawn at their own O₂: <span className="pt-burned-text">top row = the test fire kept burning</span>,{" "}
+        <span className="pt-out-text">bottom row = it went out</span>. They can come from other airflows or fuels; hover a dot for its details.
       </figcaption>
     </figure>
   );

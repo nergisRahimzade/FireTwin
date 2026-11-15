@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ResultsRow } from "../api/types";
 import { DEFAULT_SCENARIO } from "../api/types";
-import { changeText, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, stampRows } from "./dashboard.logic";
+import {
+  changeText, curveAt, o2Sweep, resultText, sessionInputs, sessionOutcome, sourceId, spreadDots, stampRows, testDotLabel,
+  thresholdCrossing,
+} from "./dashboard.logic";
 
 const row = (patch: Partial<ResultsRow>): ResultsRow => ({
   step: "simulate", inputs: { ...DEFAULT_SCENARIO, material: "PMMA", o2_pct: 21, flow_speed_cm_s: 10 },
@@ -50,5 +53,32 @@ describe("session rows", () => {
     expect(sessionOutcome({ ...base, history: [pred("extinguished", 0.35)] })).toBe("extinguished · 35% burn");
     expect(sessionOutcome({ ...base, history: [pred("burning", 0.9), pred("extinguished", 0.1)] }))
       .toBe("extinguished · 10% burn · after 1 action");
+  });
+});
+
+describe("chart helpers", () => {
+  const curve: [number, number][] = [[10, 0.02], [15, 0.05], [20, 0.1], [25, 0.2], [30, 0.4], [35, 0.6], [40, 0.8]];
+
+  it("finds the O2 where the curve crosses the 50% burn threshold", () => {
+    expect(thresholdCrossing(curve)).toBeCloseTo(32.5);
+    expect(thresholdCrossing([[10, 0.9], [40, 0.95]])).toBeNull(); // burns everywhere: no boundary
+  });
+
+  it("reads the curve at an O2 value between points", () => {
+    expect(curveAt(curve, 32.5)).toBeCloseTo(0.5);
+    expect(curveAt(curve, 5)).toBe(0.02);
+    expect(curveAt([], 20)).toBeNull();
+  });
+
+  it("explains a test dot, including a different airflow", () => {
+    const t = { test_id: "FLEX-29", investigation: "FLEX", fuel_type: "droplet", o2_pct: 30, pressure_kpa: null,
+      flow_cm_s: 0, outcome: "burned" as const, source_url: "", is_synthetic: false };
+    expect(testDotLabel(t, 26)).toBe("FLEX-29 (FLEX, droplet): kept burning at 30% O₂, 0 cm/s (this session: 26 cm/s)");
+    expect(testDotLabel({ ...t, flow_cm_s: 26, outcome: "extinguished" }, 26)).toBe("FLEX-29 (FLEX, droplet): went out at 30% O₂, 26 cm/s");
+  });
+
+  it("spreads dots that share an O2 value", () => {
+    const spread = spreadDots([30, 30, 30, 21]);
+    [30, 28.8, 31.2, 21].forEach((want, i) => expect(spread[i]).toBeCloseTo(want));
   });
 });
